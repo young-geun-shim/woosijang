@@ -2602,25 +2602,58 @@ async function fetchHistoricalWeather(){
   const wxSnap=await db.ref('weather').get();
   const cached=wxSnap.exists()?wxSnap.val():{};
 
-  // REAL_SALES 날씨 업데이트
-  for(const dk of Object.keys(REAL_SALES)){
-    const wx = cached[dk]!==undefined ? cached[dk] : await fetchWeatherByDate(dk);
-    if(cached[dk]===undefined) db.ref('weather/'+dk).set(wx);
-    REAL_SALES[dk].wx=wx;
+  // REAL_SALES + Firebase sales 전체 날짜 대상
+  const allDates=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
+
+  for(const dk of allDates){
+    const cv=cached[dk];
+    // 이미 상세 데이터 있으면 스킵, wx 숫자만 있으면 재수집
+    const needFetch = cv===undefined || typeof cv==='number';
+    if(!needFetch) continue;
+
+    const detail=await fetchWeatherDetail(dk);
+    // Firebase에 상세 저장
+    db.ref('weather/'+dk).set(detail);
+    cached[dk]=detail;
+
+    // REAL_SALES 업데이트
+    if(REAL_SALES[dk]){
+      REAL_SALES[dk].wx=detail.wx;
+      REAL_SALES[dk].lunchTemp=detail.lunchTemp;
+      REAL_SALES[dk].dinnerTemp=detail.dinnerTemp;
+      REAL_SALES[dk].lunchRain=detail.lunchRain;
+      REAL_SALES[dk].dinnerRain=detail.dinnerRain;
+    }
+    // DASH_DATA 업데이트
     const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-    if(item) item.wx=wx;
-    await new Promise(r=>setTimeout(r,200)); // API 과부하 방지
+    if(item){
+      item.wx=detail.wx;
+      item.lunchTemp=detail.lunchTemp;
+      item.dinnerTemp=detail.dinnerTemp;
+      item.lunchRain=detail.lunchRain;
+      item.dinnerRain=detail.dinnerRain;
+    }
+    await new Promise(r=>setTimeout(r,300)); // API 과부하 방지
   }
 
-  // Firebase sales 데이터 날씨 업데이트
+  // Firebase sales 데이터에 날씨 반영
   Object.entries(firebaseSalesData).forEach(([dk,r])=>{
-    if(cached[dk]!==undefined){
-      const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-      if(item) item.wx=cached[dk];
+    const cv=cached[dk];
+    if(!cv) return;
+    const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+    if(!item) return;
+    if(typeof cv==='object'){
+      item.wx=cv.wx;
+      item.lunchTemp=cv.lunchTemp;
+      item.dinnerTemp=cv.dinnerTemp;
+      item.lunchRain=cv.lunchRain;
+      item.dinnerRain=cv.dinnerRain;
+    } else {
+      item.wx=cv;
     }
   });
 
-  if(document.getElementById('sc-dash').style.display==='block') renderDash();
+  if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
   showToast('날씨 데이터 업데이트 완료!');
 }
 
