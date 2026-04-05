@@ -3162,24 +3162,22 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   if(!isOtherMonth){
     const ico=['☀️','☁️','🌧️','❄️'];
     const todayDk=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
-    const isFuture=dk>=todayDk; // 문자열 비교 (YYYY-MM-DD 형식이라 정렬 안전)
+    const isFuture=dk>todayDk; // 내일부터만 예보 사용 (오늘은 실제 데이터 우선)
     let lWx=null, dWx=null;
-    // 1순위: forecastWx (미래 예보)
-    const fw=forecastWx[dk];
-    if(isFuture && fw){
-      lWx=fw.lunchWx; dWx=fw.dinnerWx;
-    }
-    // 2순위: DASH_DATA (과거 실제)
-    if(lWx==null && dWx==null){
-      const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-      if(di){
-        lWx=di.lunchWx!=null?di.lunchWx:null;
-        dWx=di.dinnerWx!=null?di.dinnerWx:null;
-        if(lWx==null&&dWx==null&&di.wx!=null){
-          const src=REAL_SALES[dk]||firebaseSalesData[dk];
-          if(src&&src.wx!=null){ lWx=di.wx; dWx=di.wx; }
-        }
+    // 1순위: DASH_DATA (실제 데이터)
+    const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+    if(di){
+      lWx=di.lunchWx!=null?di.lunchWx:null;
+      dWx=di.dinnerWx!=null?di.dinnerWx:null;
+      if(lWx==null&&dWx==null&&di.wx!=null){
+        const src=REAL_SALES[dk]||firebaseSalesData[dk];
+        if(src&&src.wx!=null){ lWx=di.wx; dWx=di.wx; }
       }
+    }
+    // 2순위: forecastWx (예보 - 오늘 포함 미래, 실제 데이터 없을 때)
+    if(lWx==null && dWx==null){
+      const fw=forecastWx[dk];
+      if(fw && dk>=todayDk){ lWx=fw.lunchWx; dWx=fw.dinnerWx; }
     }
     if(lWx!=null||dWx!=null){
       const l=lWx!=null?ico[lWx]||'':'', r=dWx!=null?ico[dWx]||'':'';
@@ -3190,16 +3188,16 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   let tempHtml='';
   if(!isOtherMonth){
     let avgTemp=null;
-    // 1순위: forecastWx (미래 예보 온도)
-    const fwT=forecastWx[dk];
-    if(fwT && fwT.lunchTemp!=null){
-      avgTemp=fwT.dinnerTemp!=null?Math.round((fwT.lunchTemp+fwT.dinnerTemp)/2):Math.round(fwT.lunchTemp);
+    // 1순위: DASH_DATA (실제 온도)
+    const diT=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+    if(diT && diT.lunchTemp!=null){
+      avgTemp=diT.dinnerTemp!=null?Math.round((diT.lunchTemp+diT.dinnerTemp)/2):Math.round(diT.lunchTemp);
     }
-    // 2순위: DASH_DATA (과거 실제 온도)
+    // 2순위: forecastWx (예보 온도 - 실제 없을 때)
     if(avgTemp==null){
-      const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-      if(di && di.lunchTemp!=null){
-        avgTemp=di.dinnerTemp!=null?Math.round((di.lunchTemp+di.dinnerTemp)/2):Math.round(di.lunchTemp);
+      const fwT=forecastWx[dk];
+      if(fwT && fwT.lunchTemp!=null){
+        avgTemp=fwT.dinnerTemp!=null?Math.round((fwT.lunchTemp+fwT.dinnerTemp)/2):Math.round(fwT.lunchTemp);
       }
     }
     if(avgTemp!=null){
