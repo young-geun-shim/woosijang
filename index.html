@@ -2739,6 +2739,8 @@ async function fetchWeatherDetail(dateStr){
     const wxArr=h.weathercode.map(c=>wmoToWx(c));
     return {
       wx: pickRepresentativeWx(wxArr),
+      lunchWx:  pickRepresentativeWx(wxArr.slice(WX_LUNCH_S, WX_LUNCH_E)),
+      dinnerWx: pickRepresentativeWx(wxArr.slice(WX_DINNER_S, WX_DINNER_E)),
       lunchTemp:  sliceAvg(h.temperature_2m, WX_LUNCH_S, WX_LUNCH_E),
       dinnerTemp: sliceAvg(h.temperature_2m, WX_DINNER_S, WX_DINNER_E),
       lunchRain:  sliceSum(h.precipitation, WX_LUNCH_S, WX_LUNCH_E),
@@ -2808,6 +2810,7 @@ async function fetchHistoricalWeather(){
     // Firebase sales에도 날씨 병합 저장 (rebuildDashData에서 읽을 수 있도록)
     if(firebaseSalesData[dk]){
       const merged={...firebaseSalesData[dk], wx:detail.wx,
+        lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx,
         lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp,
         lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
       fbSet('sales/'+dk, merged);
@@ -3462,6 +3465,8 @@ function rebuildDashData(){
       dinnerTemp:r.dinnerTemp??null,
       lunchRain:r.lunchRain??null,
       dinnerRain:r.dinnerRain??null,
+      lunchWx:r.lunchWx??null,
+      dinnerWx:r.dinnerWx??null,
       isHoliday:r.isHoliday||holidaySet.has(dk)||false,
       dayPm25:r.dayPm25??null,
       dayPm10:r.dayPm10??null,
