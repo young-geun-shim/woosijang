@@ -2786,6 +2786,14 @@ function saveSales(){
   const isTodayOrYest=dk===todayK||dk===yestK;
   const isAdmin=CU.name===ADMIN;
 
+  // ① 버튼 클릭 직후(유저 제스처 컨텍스트 살아있을 때) 복사 먼저
+  calcSales();
+  const previewTxt=document.getElementById('previewBody').textContent.trim();
+  if(previewTxt){
+    copyText(previewTxt,'저장 및 복사가 완료되었습니다 ✅');
+  }
+
+  // ② Firebase 저장은 비동기로 진행 (복사와 무관하게)
   const saveRecord=(wxDetail)=>{
     const wx = typeof wxDetail==='object' ? wxDetail.wx : wxDetail;
     const hallTotal=nvFmt('f-cash')+nvFmt('f-card')+nvFmt('f-zero')+nvFmt('f-seoul')+nvFmt('f-trans')+nvFmt('f-ticket');
@@ -2816,13 +2824,6 @@ function saveSales(){
     fbSet('sales/'+dk,record);
     db.ref('weather/'+dk).set(wx);
     fetchAirQuality(dk).then(aq=>{ if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); } });
-    // 미리보기 최신화 후 자동복사
-    calcSales();
-    setTimeout(()=>{
-      const txt=document.getElementById('previewBody').textContent;
-      if(txt.trim()) copyText(txt,'저장 및 복사가 완료되었습니다 ✅');
-      else showToast('저장 완료 '+WX_ICONS[wx]+' '+WX_NAMES[wx]);
-    }, 100);
   };
 
   if(isToday){
