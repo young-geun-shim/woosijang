@@ -1958,7 +1958,9 @@ function showSec(id,btn){
 }
 
 // ════ 출퇴근 ════
-const STORE_LAT=37.5394, STORE_LNG=126.9509, STORE_R=50;
+const STORE_LAT=37.5391085, STORE_LNG=126.947936, STORE_R=50;
+// 날씨·미세먼지 API 고정 좌표 (서울 마포구 도화동 203-2)
+const DATA_LAT=37.5391085, DATA_LNG=126.947936;
 let gpsOk=false, attendAllData={};
 function deg2rad(d){return d*Math.PI/180;}
 function calcDist(a,b,c,d){const R=6371000,dL=deg2rad(c-a),dN=deg2rad(d-b),x=Math.sin(dL/2)**2+Math.cos(deg2rad(a))*Math.cos(deg2rad(c))*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
@@ -2623,7 +2625,7 @@ function fallbackCopy(txt, msg){
 
 function fbCopy(txt){copyText(txt);}// 하위 호환
 // ════ 날씨 API (Open-Meteo - 무료, CORS허용) ════
-const WX_LAT = 37.5394, WX_LNG = 126.9509;
+const WX_LAT = DATA_LAT, WX_LNG = DATA_LNG;
 const WX_OPEN_H = 10, WX_CLOSE_H = 22;
 const WX_RAIN_MIN_HOURS = 4; // 영업시간(12h) 중 30% 이상 강수 = 4시간
 // 점심 9~16시 / 저녁 16~23시
@@ -2729,9 +2731,18 @@ async function fetchHistoricalWeather(){
     if(!needFetch) continue;
 
     const detail=await fetchWeatherDetail(dk);
-    // Firebase에 상세 저장
+    // Firebase weather에 상세 저장
     db.ref('weather/'+dk).set(detail);
     cached[dk]=detail;
+
+    // Firebase sales에도 날씨 병합 저장 (rebuildDashData에서 읽을 수 있도록)
+    if(firebaseSalesData[dk]){
+      const merged={...firebaseSalesData[dk], wx:detail.wx,
+        lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp,
+        lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
+      fbSet('sales/'+dk, merged);
+      firebaseSalesData[dk]=merged;
+    }
 
     // REAL_SALES 업데이트
     if(REAL_SALES[dk]){
@@ -2815,6 +2826,8 @@ function saveSales(){
       dinnerTemp: typeof wxDetail==='object'?wxDetail.dinnerTemp:null,
       lunchRain:  typeof wxDetail==='object'?wxDetail.lunchRain:null,
       dinnerRain: typeof wxDetail==='object'?wxDetail.dinnerRain:null,
+      lunchWx:    typeof wxDetail==='object'?wxDetail.lunchWx:null,
+      dinnerWx:   typeof wxDetail==='object'?wxDetail.dinnerWx:null,
       by:CU.name, savedAt:new Date().toISOString()
     };
     if(canDon){
@@ -2823,7 +2836,15 @@ function saveSales(){
     }
     fbSet('sales/'+dk,record);
     db.ref('weather/'+dk).set(wx);
-    fetchAirQuality(dk).then(aq=>{ if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); } });
+    // 미세먼지 수집 → airquality + sales 둘 다 저장
+    fetchAirQuality(dk).then(aq=>{
+      if(aq){
+        db.ref('airquality/'+dk).set(aq);
+        applyAqToData(dk,aq);
+        // sales 레코드에도 미세먼지 병합
+        fbSet('sales/'+dk, {...record, ...aq});
+      }
+    });
   };
 
   if(isToday){
@@ -3208,7 +3229,7 @@ async function fetchAirQuality(dateStr){
     ?'https://air-quality-api.open-meteo.com/v1/air-quality'
     :'https://air-quality-api.open-meteo.com/v1/air-quality';
   try{
-    const url=`${baseUrl}?latitude=${STORE_LAT}&longitude=${STORE_LNG}&hourly=${AQ_VARS}&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FSeoul`;
+    const url=`${baseUrl}?latitude=${DATA_LAT}&longitude=${DATA_LNG}&hourly=${AQ_VARS}&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FSeoul`;
     const res=await fetch(url);
     if(!res.ok) return null;
     const data=await res.json();
@@ -3248,14 +3269,17 @@ function pm25Color(v){
 async function fetchHistoricalAirQuality(){
   const allDates=[...new Set([...Object.keys(REAL_SALES),...Object.keys(firebaseSalesData)])];
   for(const dk of allDates){
-    // Firebase 캐시 확인
     const snap=await db.ref('airquality/'+dk).get().catch(()=>null);
-    if(snap&&snap.exists()){ applyAqToData(dk,snap.val()); continue; }
-    // API 호출
-    const aq=await fetchAirQuality(dk);
+    const aq=snap&&snap.exists()?snap.val():await fetchAirQuality(dk);
     if(aq){
-      db.ref('airquality/'+dk).set(aq);
+      if(!snap||!snap.exists()) db.ref('airquality/'+dk).set(aq);
       applyAqToData(dk,aq);
+      // sales에도 병합 저장
+      if(firebaseSalesData[dk]){
+        const merged={...firebaseSalesData[dk],...aq};
+        fbSet('sales/'+dk, merged);
+        firebaseSalesData[dk]=merged;
+      }
     }
     await new Promise(r=>setTimeout(r,200));
   }
@@ -3264,9 +3288,7 @@ async function fetchHistoricalAirQuality(){
 }
 
 function applyAqToData(dk,aq){
-  // REAL_SALES
   if(REAL_SALES[dk]) Object.assign(REAL_SALES[dk],aq);
-  // DASH_DATA
   const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
   if(item) Object.assign(item,aq);
 }
