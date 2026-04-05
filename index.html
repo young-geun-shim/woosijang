@@ -32,11 +32,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 /* ── 이름 오버레이 ── */
 .name-ov{position:fixed;inset:0;z-index:999;background:rgba(15,8,2,.78);display:flex;align-items:center;justify-content:center;padding:24px}
 .name-ov.hidden{display:none}
-.name-modal{background:#fff;border-radius:16px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.name-modal{background:#fff;border-radius:16px;width:100%;max-width:340px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.25);min-height:320px;display:flex;flex-direction:column}
 .nm-hdr{background:var(--brown);padding:20px 20px 16px;text-align:center}
 .nm-logo{font-family:'Noto Serif KR',serif;font-size:26px;font-weight:700;color:var(--gold)}
 .nm-sub{font-size:13px;color:rgba(255,255,255,.72);margin-top:4px}
-.nm-body{padding:20px}
+.nm-body{padding:20px;flex:1;display:flex;flex-direction:column}
 .nm-lbl{font-size:10px;font-weight:700;color:var(--tm);letter-spacing:.8px;margin-bottom:10px}
 .nm-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
 .nm-chip{padding:13px 8px;border:1.5px solid var(--bs);border-radius:10px;background:var(--surface);font-size:14px;font-weight:600;color:var(--txt);font-family:'Noto Sans KR',sans-serif;cursor:pointer;text-align:center;transition:all .15s}
@@ -461,15 +461,14 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     </div>
     <div class="nm-body">
       <!-- PIN 확인 화면 -->
-      <div id="nmPinWrap" style="display:none">
-        <div class="nm-lbl">🔒 변경하려면 PIN 4자리를 입력하세요</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <input id="nmPinInp" type="password" inputmode="numeric" maxlength="4" placeholder="••••"
-            style="flex:1;padding:12px;border:1.5px solid var(--bs);border-radius:10px;font-size:22px;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;letter-spacing:6px"
-            oninput="checkPin()">
-        </div>
-        <div id="nmPinErr" style="font-size:12px;color:var(--red);text-align:center;margin-bottom:12px;display:none">PIN이 틀렸어요. 다시 시도해주세요.</div>
-        <button class="nm-ok" style="background:var(--tm)" onclick="cancelPin()">← 뒤로</button>
+      <div id="nmPinWrap" style="display:none;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:12px">
+        <div style="font-size:28px;margin-bottom:4px">🔐</div>
+        <div class="nm-lbl" style="text-align:center;margin-bottom:4px" id="nmPinLabel">PIN 4자리 입력</div>
+        <input id="nmPinInp" type="password" inputmode="numeric" maxlength="4" placeholder="••••"
+          style="width:100%;padding:14px;border:1.5px solid var(--bs);border-radius:10px;font-size:26px;text-align:center;font-family:'Noto Sans KR',sans-serif;outline:none;letter-spacing:8px;box-sizing:border-box"
+          oninput="checkPin()">
+        <div id="nmPinErr" style="font-size:12px;color:var(--red);text-align:center;display:none">PIN이 틀렸어요. 다시 시도해주세요.</div>
+        <button class="nm-ok" style="background:var(--tm);margin-top:4px" onclick="cancelPin()">← 뒤로</button>
       </div>
       <!-- 이름 선택 화면 -->
       <div id="nmSelectWrap">
@@ -942,7 +941,18 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <button class="ptab" onclick="setPeriod('week',this)">7일</button>
         <button class="ptab" onclick="setPeriod('month',this)">30일</button>
         <button class="ptab" onclick="setPeriod('3month',this)">3개월</button>
+        <button class="ptab" onclick="setPeriod('6month',this)">6개월</button>
         <button class="ptab" onclick="setPeriod('year',this)">연간</button>
+        <button class="ptab" onclick="setPeriod('custom',this)">기간</button>
+      </div>
+      <!-- 기간 직접 설정 -->
+      <div id="customRangeWrap" style="display:none;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <input type="date" id="customFrom" style="flex:1;min-width:120px;padding:8px;border:1.5px solid var(--bs);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none">
+          <span style="font-size:13px;color:var(--tm)">~</span>
+          <input type="date" id="customTo" style="flex:1;min-width:120px;padding:8px;border:1.5px solid var(--bs);border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none">
+          <button onclick="applyCustomRange()" style="padding:8px 14px;background:var(--brown);border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">조회</button>
+        </div>
       </div>
 
       <!-- 1일 전용 뷰 -->
@@ -995,6 +1005,42 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="chart-card">
           <div class="chart-hdr"><div class="chart-ttl">시간대별 매출</div><div class="chart-meta" id="ldMeta">-</div></div>
           <div class="chart-body"><canvas id="ldChart"></canvas></div>
+        </div>
+
+        <!-- 날씨-매출 상관관계 -->
+        <div class="d-sec">온도 · 강수량 vs 매출 상관관계</div>
+        <div class="chart-card">
+          <div class="chart-hdr">
+            <div class="chart-ttl">점심 (9~16시) — 온도 vs 매출</div>
+            <div class="chart-meta" id="corrLunchTempMeta">-</div>
+          </div>
+          <div class="chart-body"><canvas id="corrLunchTempChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-hdr">
+            <div class="chart-ttl">점심 (9~16시) — 강수량 vs 매출</div>
+            <div class="chart-meta" id="corrLunchRainMeta">-</div>
+          </div>
+          <div class="chart-body"><canvas id="corrLunchRainChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-hdr">
+            <div class="chart-ttl">저녁 (16~23시) — 온도 vs 매출</div>
+            <div class="chart-meta" id="corrDinnerTempMeta">-</div>
+          </div>
+          <div class="chart-body"><canvas id="corrDinnerTempChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-hdr">
+            <div class="chart-ttl">저녁 (16~23시) — 강수량 vs 매출</div>
+            <div class="chart-meta" id="corrDinnerRainMeta">-</div>
+          </div>
+          <div class="chart-body"><canvas id="corrDinnerRainChart"></canvas></div>
+        </div>
+        <!-- 날씨 구간별 평균 매출 요약 -->
+        <div class="chart-card">
+          <div class="chart-hdr"><div class="chart-ttl">온도 구간별 점심 · 저녁 평균매출</div><div class="chart-meta" id="tempBandMeta">-</div></div>
+          <div class="chart-body"><canvas id="tempBandChart"></canvas></div>
         </div>
         <div class="d-sec">배달 앱별 성장 추이</div>
         <div class="chart-card">
@@ -1097,15 +1143,15 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div id="customerList"></div>
     <button class="save-btn" style="margin:8px 0 0;padding:13px" onclick="showAddCustomer()">+ 고객 추가</button>
     <!-- 고객 추가/상세 모달 -->
-    <div id="customerModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center">
-      <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;max-height:80vh;overflow-y:auto">
+    <div id="customerModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center">
+      <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;max-height:80vh;overflow-y:auto;box-sizing:border-box">
         <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:14px" id="custModalTitle">고객 추가</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-          <input class="order-inp" id="cust-name" placeholder="이름 *" style="width:100%">
-          <input class="order-inp" id="cust-phone" placeholder="전화번호 *" type="tel" style="width:100%">
-          <input class="order-inp" id="cust-birth" placeholder="생일 (예: 0415)" style="width:100%">
-          <input class="order-inp" id="cust-pref" placeholder="선호 메뉴 (예: 순대국밥)" style="width:100%">
-          <textarea class="memo-ta" id="cust-memo" placeholder="메모 (알레르기, 특이사항 등)" style="min-height:60px"></textarea>
+          <input class="order-inp" id="cust-name" placeholder="이름 *" style="width:100%;box-sizing:border-box">
+          <input class="order-inp" id="cust-phone" placeholder="전화번호 *" type="tel" style="width:100%;box-sizing:border-box">
+          <input class="order-inp" id="cust-birth" placeholder="생일 (예: 0415)" style="width:100%;box-sizing:border-box">
+          <input class="order-inp" id="cust-pref" placeholder="선호 메뉴 (예: 순대국밥)" style="width:100%;box-sizing:border-box">
+          <textarea class="memo-ta" id="cust-memo" placeholder="메모 (알레르기, 특이사항 등)" style="min-height:60px;box-sizing:border-box"></textarea>
         </div>
         <div style="display:flex;gap:8px">
           <button class="save-btn" style="margin:0;padding:12px;flex:1" onclick="saveCustomer()">저장</button>
@@ -1152,7 +1198,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div id="staffSettingList"></div>
     <button class="save-btn" style="margin:8px 0 0;padding:13px" onclick="showAddStaff()">+ 직원 추가</button>
     <div id="staffModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center">
-      <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;max-height:85vh;overflow-y:auto">
+      <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;max-height:85vh;overflow-y:auto;box-sizing:border-box">
         <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:14px" id="staffModalTitle">직원 추가</div>
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
           <select class="log-sel" id="staff-name" style="width:100%">
@@ -1313,7 +1359,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 알바 이름 설정 모달 ═══ -->
 <div id="albaNameModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:16px;width:100%;max-width:340px;padding:20px">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:340px;padding:20px;max-height:85vh;overflow-y:auto;box-sizing:border-box">
     <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:16px">알바 이름 설정</div>
     <div id="albaNameList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
     <div style="display:flex;gap:8px">
@@ -1377,12 +1423,12 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- 원가 항목 추가 모달 -->
 <div id="costItemModal" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center">
-  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;box-sizing:border-box">
     <div style="font-size:15px;font-weight:700;color:var(--brown);margin-bottom:14px" id="costModalTitle">항목 추가</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-      <input class="order-inp" id="cost-name" placeholder="항목명 (예: 식재료비, 임대료)" style="width:100%">
+      <input class="order-inp" id="cost-name" placeholder="항목명 (예: 식재료비, 임대료)" style="width:100%;box-sizing:border-box">
       <div style="display:flex;gap:8px;align-items:center">
-        <input class="order-inp" id="cost-value" placeholder="금액" type="number" style="flex:1">
+        <input class="order-inp" id="cost-value" placeholder="금액" type="number" style="flex:1;min-width:0;box-sizing:border-box">
         <div id="cost-unit-wrap" style="font-size:13px;color:var(--tm);flex-shrink:0">원/월</div>
       </div>
       <div id="cost-pct-wrap" style="display:none">
@@ -1432,6 +1478,15 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px">
       <div style="padding:12px 14px;border-bottom:1px solid var(--border);font-size:13px;font-weight:700;color:var(--txt)">🌤 날씨별 매출</div>
       <div id="reportWeather" style="padding:12px"></div>
+    </div>
+
+    <!-- 온도·강수량 상관관계 -->
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:12px">
+      <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:700;color:var(--txt)">🌡 온도 · 강수량 vs 매출 상관관계</div>
+        <div style="font-size:11px;color:var(--tm);margin-top:2px">r: 1에 가까울수록 강한 양의 상관 / -1에 가까울수록 강한 음의 상관</div>
+      </div>
+      <div id="reportWeatherCorr" style="padding:12px"></div>
     </div>
 
     <!-- 배달 분석 -->
@@ -1516,6 +1571,9 @@ function applyUser(){
   // 심영근만 보이는 버튼들
   const albaBtn=document.getElementById('albaNameBtn');
   if(albaBtn) albaBtn.style.display=CU.name===ADMIN?'flex':'none';
+  // 목표 설정 입력창 - 심영근만
+  const tgtRow=document.getElementById('tgtInputRow');
+  if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
   checkSalesAccess();
   renderAlbaChips();
 }
@@ -1524,11 +1582,13 @@ function selName(name,role,btn){
   document.querySelectorAll('.nm-chip').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
   // 선택한 사람의 PIN 입력 화면으로
-  document.getElementById('nmPinWrap').style.display='block';
+  document.getElementById('nmPinWrap').style.display='flex';
   document.getElementById('nmSelectWrap').style.display='none';
   document.getElementById('nmPinInp').value='';
   document.getElementById('nmPinErr').style.display='none';
-  document.getElementById('nmSubTxt').textContent=name+' — PIN 4자리 입력';
+  document.getElementById('nmSubTxt').textContent=name+' — PIN 입력';
+  const lbl=document.getElementById('nmPinLabel');
+  if(lbl) lbl.textContent=name+' PIN 4자리';
   document.getElementById('nmOk').disabled=true;
   setTimeout(()=>document.getElementById('nmPinInp').focus(),100);
 }
@@ -1821,7 +1881,7 @@ function showSec(id,btn){
 }
 
 // ════ 출퇴근 ════
-const STORE_LAT=37.5394, STORE_LNG=126.9509, STORE_R=150;
+const STORE_LAT=37.5394, STORE_LNG=126.9509, STORE_R=50;
 let gpsOk=false, attendAllData={};
 function deg2rad(d){return d*Math.PI/180;}
 function calcDist(a,b,c,d){const R=6371000,dL=deg2rad(c-a),dN=deg2rad(d-b),x=Math.sin(dL/2)**2+Math.cos(deg2rad(a))*Math.cos(deg2rad(c))*Math.sin(dN/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
@@ -1837,7 +1897,7 @@ function setGpsUI(state,dist){
     if(gpsIcon){gpsIcon.style.background='rgba(181,131,42,.4)';gpsIcon.style.border='2px solid rgba(181,131,42,.6)';gpsIcon.title='GPS 확인 중...';}
   }
   else if(state==='ok'){box.classList.add('ok');ico.textContent='✅';txt.textContent='매장 근처에 있어요';sub.textContent='매장까지 약 '+Math.round(dist)+'m';inB.disabled=false;outB.disabled=false;inB.textContent='✅ 출근 찍기';outB.textContent='🚪 퇴근';gpsOk=true;gpsPermGranted=true;updatePermIcons();}
-  else if(state==='far'){box.classList.add('err');ico.textContent='❌';txt.textContent='매장에서 너무 멀어요';sub.textContent='매장까지 약 '+Math.round(dist)+'m (150m 이내만 가능)';inB.disabled=true;outB.disabled=true;inB.textContent='❌ 매장 근처에서만 가능';outB.textContent='❌ 매장 근처에서만 가능';gpsOk=false;gpsPermGranted=true;updatePermIcons();}
+  else if(state==='far'){box.classList.add('err');ico.textContent='❌';txt.textContent='매장에서 너무 멀어요';sub.textContent='매장까지 약 '+Math.round(dist)+'m (50m 이내만 가능)';inB.disabled=true;outB.disabled=true;inB.textContent='❌ 매장 근처에서만 가능';outB.textContent='❌ 매장 근처에서만 가능';gpsOk=false;gpsPermGranted=true;updatePermIcons();}
   else if(state==='err'){box.classList.add('err');ico.textContent='⚠️';txt.textContent='위치 권한이 필요해요';sub.textContent='브라우저 위치 권한을 허용해주세요';inB.disabled=true;outB.disabled=true;inB.textContent='⚠️ 위치 권한 필요';outB.textContent='⚠️ 위치 권한 필요';gpsOk=false;gpsPermGranted=false;updatePermIcons();}
 }
 function checkGPS(){
@@ -1850,7 +1910,7 @@ function checkGPS(){
 }
 function doStamp(type){
   if(!CU.name){showNameOv(true);return;}
-  if(!gpsOk){alert('매장 근처에서만 '+(type==='in'?'출근':'퇴근')+'할 수 있어요\n(150m 이내)');return;}
+  if(!gpsOk){alert('매장 근처에서만 '+(type==='in'?'출근':'퇴근')+'할 수 있어요\n(50m 이내)');return;}
   const n=new Date(), dk=dkStr(n.getFullYear(),n.getMonth(),n.getDate());
   const t=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   const key=db.ref('attend').push().key;
@@ -2453,38 +2513,27 @@ function fallbackCopy(txt, msg){
 
 function fbCopy(txt){copyText(txt);}// 하위 호환
 // ════ 날씨 API (Open-Meteo - 무료, CORS허용) ════
-// 마포구 삼개로 좌표
 const WX_LAT = 37.5394, WX_LNG = 126.9509;
-// 영업시간 기준 (10:00 ~ 22:00 → 인덱스 10~21, 총 12시간)
 const WX_OPEN_H = 10, WX_CLOSE_H = 22;
-// 비/눈으로 저장하려면 최소 몇 시간 이상이어야 하는지
 const WX_RAIN_MIN_HOURS = 3;
+// 점심 9~16시 / 저녁 16~23시
+const WX_LUNCH_S=9, WX_LUNCH_E=16, WX_DINNER_S=16, WX_DINNER_E=23;
 
-// WMO 날씨코드 → wx 변환 (0=맑음 1=흐림 2=비 3=눈)
 function wmoToWx(code){
   if(code===0||code===1) return 0;
   if(code===2||code===3) return 1;
-  if([51,53,55,61,63,65,80,81,82,95,96,99].includes(code)) return 2; // 비
-  if([71,73,75,77,85,86].includes(code)) return 3; // 눈
+  if([51,53,55,61,63,65,80,81,82,95,96,99].includes(code)) return 2;
+  if([71,73,75,77,85,86].includes(code)) return 3;
   return 1;
 }
 
-// 시간별 wx 배열 → 영업시간 대표 날씨 결정
-// 비/눈이 3시간 이상이면 비/눈, 아니면 가장 많이 나온 날씨
 function pickRepresentativeWx(hourlyWxArr){
-  // 영업시간대만 추출
   const business = hourlyWxArr.slice(WX_OPEN_H, WX_CLOSE_H);
   if(!business.length) return 1;
-
   const rainCount = business.filter(w=>w===2).length;
   const snowCount = business.filter(w=>w===3).length;
-
-  // 비 3시간 이상
   if(rainCount >= WX_RAIN_MIN_HOURS) return 2;
-  // 눈 3시간 이상
   if(snowCount >= WX_RAIN_MIN_HOURS) return 3;
-
-  // 그 외: 가장 많이 나온 날씨 (맑음/흐림 우선)
   const counts = [0,0,0,0];
   business.forEach(w=>counts[w]++);
   return counts.indexOf(Math.max(...counts));
@@ -2493,37 +2542,36 @@ function pickRepresentativeWx(hourlyWxArr){
 const WX_ICONS=['☀️','☁️','🌧️','❄️'];
 const WX_NAMES=['맑음','흐림','비','눈'];
 
-// 특정 날짜 날씨 조회 - 시간별로 가져와서 영업시간 기준 대표 날씨 결정
-async function fetchWeatherByDate(dateStr){ // dateStr: 'YYYY-MM-DD'
-  try{
-    // 예보 API (당일~미래)
-    const url=`https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode&timezone=Asia%2FSeoul&start_date=${dateStr}&end_date=${dateStr}`;
-    const res=await fetch(url);
-    const json=await res.json();
-    const codes=json?.hourly?.weathercode;
-    if(codes&&codes.length>=WX_CLOSE_H){
-      const wxArr=codes.map(c=>wmoToWx(c));
-      return pickRepresentativeWx(wxArr);
-    }
-    throw new Error('no hourly data');
-  }catch(e){
-    // 과거 데이터 API로 재시도
-    try{
-      const url2=`https://archive-api.open-meteo.com/v1/archive?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode&timezone=Asia%2FSeoul&start_date=${dateStr}&end_date=${dateStr}`;
-      const res2=await fetch(url2);
-      const json2=await res2.json();
-      const codes2=json2?.hourly?.weathercode;
-      if(codes2&&codes2.length>=WX_CLOSE_H){
-        const wxArr2=codes2.map(c=>wmoToWx(c));
-        return pickRepresentativeWx(wxArr2);
-      }
-      // hourly 없으면 daily fallback
-      const daily=json2?.daily?.weathercode?.[0]??2;
-      return wmoToWx(daily);
-    }catch(e2){
-      return 1; // fallback 흐림
-    }
-  }
+// 시간대별 평균 계산 헬퍼
+function sliceAvg(arr, start, end){ const s=arr.slice(start,end).filter(v=>v!=null&&!isNaN(v)); return s.length?Math.round(s.reduce((a,b)=>a+b,0)/s.length*10)/10:null; }
+function sliceSum(arr, start, end){ const s=arr.slice(start,end).filter(v=>v!=null&&!isNaN(v)); return s.length?Math.round(s.reduce((a,b)=>a+b,0)*10)/10:null; }
+
+// 날씨 상세 조회 (wx + 기온 + 강수량)
+async function fetchWeatherDetail(dateStr){
+  const vars='weathercode,temperature_2m,precipitation';
+  const tryFetch=async(base)=>{
+    const url=`${base}?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=${vars}&timezone=Asia%2FSeoul&start_date=${dateStr}&end_date=${dateStr}`;
+    const res=await fetch(url); const json=await res.json();
+    const h=json?.hourly;
+    if(!h||!h.weathercode||h.weathercode.length<WX_CLOSE_H) return null;
+    const wxArr=h.weathercode.map(c=>wmoToWx(c));
+    return {
+      wx: pickRepresentativeWx(wxArr),
+      lunchTemp:  sliceAvg(h.temperature_2m, WX_LUNCH_S, WX_LUNCH_E),
+      dinnerTemp: sliceAvg(h.temperature_2m, WX_DINNER_S, WX_DINNER_E),
+      lunchRain:  sliceSum(h.precipitation, WX_LUNCH_S, WX_LUNCH_E),
+      dinnerRain: sliceSum(h.precipitation, WX_DINNER_S, WX_DINNER_E),
+    };
+  };
+  try{ const r=await tryFetch('https://api.open-meteo.com/v1/forecast'); if(r) return r; }catch(e){}
+  try{ const r=await tryFetch('https://archive-api.open-meteo.com/v1/archive'); if(r) return r; }catch(e){}
+  return {wx:1,lunchTemp:null,dinnerTemp:null,lunchRain:null,dinnerRain:null};
+}
+
+// 기존 단순 날씨 조회 (하위 호환)
+async function fetchWeatherByDate(dateStr){
+  const d=await fetchWeatherDetail(dateStr);
+  return d.wx;
 }
 
 // 오늘 날씨 로딩
@@ -2582,8 +2630,22 @@ function saveSales(){
   const dk=dkStr(salesDate.getFullYear(),salesDate.getMonth(),salesDate.getDate());
   const isToday=dk===dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
 
-  const saveRecord=(wx)=>{
-    const record={total,cash:nvFmt('f-cash'),card:nvFmt('f-card'),zero:nvFmt('f-zero'),seoul:nvFmt('f-seoul'),trans:nvFmt('f-trans'),ticket:nvFmt('f-ticket'),baemin:nvFmt('f-baemin'),coupang:nvFmt('f-coupang'),discount:nvFmt('f-discount'),hall:nvFmt('f-cash')+nvFmt('f-card')+nvFmt('f-zero')+nvFmt('f-seoul')+nvFmt('f-trans')+nvFmt('f-ticket'),deliv:nvFmt('f-baemin')+nvFmt('f-coupang'),lunch:nvFmt('f-lunch'),dinner:nvFmt('f-dinner'),wx,by:CU.name,savedAt:new Date().toISOString()};
+  const saveRecord=(wxDetail)=>{
+    const wx = typeof wxDetail==='object' ? wxDetail.wx : wxDetail;
+    const record={
+      total, cash:nvFmt('f-cash'), card:nvFmt('f-card'), zero:nvFmt('f-zero'),
+      seoul:nvFmt('f-seoul'), trans:nvFmt('f-trans'), ticket:nvFmt('f-ticket'),
+      baemin:nvFmt('f-baemin'), coupang:nvFmt('f-coupang'), discount:nvFmt('f-discount'),
+      hall:nvFmt('f-cash')+nvFmt('f-card')+nvFmt('f-zero')+nvFmt('f-seoul')+nvFmt('f-trans')+nvFmt('f-ticket'),
+      deliv:nvFmt('f-baemin')+nvFmt('f-coupang'),
+      lunch:nvFmt('f-lunch'), dinner:nvFmt('f-dinner'),
+      wx,
+      lunchTemp:  typeof wxDetail==='object'?wxDetail.lunchTemp:null,
+      dinnerTemp: typeof wxDetail==='object'?wxDetail.dinnerTemp:null,
+      lunchRain:  typeof wxDetail==='object'?wxDetail.lunchRain:null,
+      dinnerRain: typeof wxDetail==='object'?wxDetail.dinnerRain:null,
+      by:CU.name, savedAt:new Date().toISOString()
+    };
     fbSet('sales/'+dk,record);
     db.ref('weather/'+dk).set(wx);
     copyPreview();
@@ -2591,9 +2653,9 @@ function saveSales(){
   };
 
   if(isToday){
-    saveRecord(todayWx);
+    fetchWeatherDetail(dk).then(d=>saveRecord(d)).catch(()=>saveRecord(todayWx));
   } else {
-    fetchWeatherByDate(dk).then(wx=>saveRecord(wx));
+    fetchWeatherDetail(dk).then(d=>saveRecord(d)).catch(()=>saveRecord(1));
   }
 }
 calcSales();
@@ -2864,11 +2926,17 @@ function setPeriod(p,btn){
   curP=p;
   document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
+  // 기간설정 입력창 표시/숨김
+  const cw=document.getElementById('customRangeWrap');
+  if(cw) cw.style.display=p==='custom'?'block':'none';
   const isDayView = p==='day';
   document.getElementById('dayView').style.display = isDayView?'block':'none';
   document.getElementById('periodView').style.display = isDayView?'none':'block';
   if(isDayView){
     renderDayView();
+  } else if(p==='custom'){
+    // 기간설정은 조회 버튼 눌렀을 때만 렌더
+    if(customFrom&&customTo) renderDash();
   } else {
     renderDash();
   }
@@ -2905,7 +2973,6 @@ db.ref('sales').on('value',snap=>{
 });
 
 function rebuildDashData(){
-  // 과거 수동 데이터 + Firebase 저장 데이터 병합 (Firebase가 우선)
   const merged={...REAL_SALES};
   Object.entries(firebaseSalesData).forEach(([dk,r])=>{
     const d=new Date(dk);
@@ -2915,25 +2982,45 @@ function rebuildDashData(){
       ds:(d.getMonth()+1)+'/'+(d.getDate()),
       dow:d.getDay(),
       wx:r.wx||1,
-      hall:r.hall||(r.total-r.deliv),
-      deliv:r.deliv||(r.baemin+r.coupang),
+      hall:r.hall||(r.total-(r.baemin||0)-(r.coupang||0)),
+      deliv:r.deliv||((r.baemin||0)+(r.coupang||0)),
       lunch:r.lunch||Math.floor((r.hall||(r.total-(r.baemin||0)-(r.coupang||0)))*0.42),
       dinner:r.dinner||Math.floor((r.hall||(r.total-(r.baemin||0)-(r.coupang||0)))*0.58),
+      lunchTemp:r.lunchTemp??null,
+      dinnerTemp:r.dinnerTemp??null,
+      lunchRain:r.lunchRain??null,
+      dinnerRain:r.dinnerRain??null,
     };
   });
   DASH_DATA=Object.values(merged).sort((a,b)=>a.date-b.date);
-  // 대시보드가 열려있으면 갱신
   if(document.getElementById('sc-dash').style.display==='block') renderDash();
 }
 
 let curP='week',curMT='bar',curDT='total',curWT='total',goalAmt=80000000;
+let customFrom=null, customTo=null;
 let CH={};
+
 function gd(p){
   const n=new Date();
-  if(p==='week') return DASH_DATA.slice(-7);
-  if(p==='month') return DASH_DATA.slice(-30);
+  if(p==='week')   return DASH_DATA.slice(-7);
+  if(p==='month')  return DASH_DATA.slice(-30);
   if(p==='3month') return DASH_DATA.slice(-90);
-  return DASH_DATA;
+  if(p==='6month') return DASH_DATA.slice(-180);
+  if(p==='year')   return DASH_DATA;
+  if(p==='custom' && customFrom && customTo){
+    return DASH_DATA.filter(x=>x.date>=customFrom && x.date<=customTo);
+  }
+  return DASH_DATA.slice(-7);
+}
+
+function applyCustomRange(){
+  const fv=document.getElementById('customFrom').value;
+  const tv=document.getElementById('customTo').value;
+  if(!fv||!tv){ showToast('시작일과 종료일을 모두 입력해주세요'); return; }
+  customFrom=new Date(fv); customFrom.setHours(0,0,0,0);
+  customTo=new Date(tv); customTo.setHours(23,59,59,999);
+  renderDash();
+  showToast(`${fv} ~ ${tv} 조회`);
 }
 function fm(n){return n>=10000000?((n/10000000).toFixed(1)+'천만'):n>=10000?(Math.round(n/10000)+'만'):(n.toLocaleString());}
 function fmF(n){return n.toLocaleString()+'원';}
@@ -2943,7 +3030,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderWeatherRatio(d);renderPay(d);renderTopBot(d);renderTable(d);}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderWeatherCorr(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderWeatherRatio(d);renderPay(d);renderTopBot(d);renderTable(d);}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -3090,6 +3177,131 @@ function renderWeekly(d){
   if(weeks.length>1){const l=weeks[weeks.length-1],p=weeks[weeks.length-2],diff=Math.round((l.total-p.total)/p.total*100);document.getElementById('wkMeta').textContent=(diff>=0?'↑ +':'↓ ')+diff+'% (전주 대비)';}
   const ctx=document.getElementById('wkChart').getContext('2d');
   CH['wk']=new Chart(ctx,{type:'bar',data:{labels:weeks.map(w=>w.label),datasets:[{label:'홀',data:weeks.map(w=>w.hall),backgroundColor:'rgba(92,61,30,0.8)',borderRadius:4},{label:'배달',data:weeks.map(w=>w.deliv),backgroundColor:'rgba(181,129,42,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:true,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}}}}});
+}
+// ════ 날씨-매출 상관관계 분석 ════
+function calcCorrelation(xs, ys){
+  const n=xs.length; if(n<2) return null;
+  const mx=xs.reduce((a,b)=>a+b,0)/n, my=ys.reduce((a,b)=>a+b,0)/n;
+  const num=xs.reduce((s,x,i)=>s+(x-mx)*(ys[i]-my),0);
+  const den=Math.sqrt(xs.reduce((s,x)=>s+(x-mx)**2,0)*ys.reduce((s,y)=>s+(y-my)**2,0));
+  return den===0?0:Math.round(num/den*100)/100;
+}
+
+function corrLabel(r){
+  if(r===null) return '데이터 부족';
+  const a=Math.abs(r);
+  const dir=r>=0?'양의':'음의';
+  if(a>=0.7) return `강한 ${dir} 상관 (r=${r})`;
+  if(a>=0.4) return `중간 ${dir} 상관 (r=${r})`;
+  if(a>=0.2) return `약한 ${dir} 상관 (r=${r})`;
+  return `상관 없음 (r=${r})`;
+}
+
+function renderWeatherCorr(d){
+  // 데이터 있는 것만 필터
+  const lunchT = d.filter(x=>x.lunch>0 && x.lunchTemp!=null);
+  const lunchR = d.filter(x=>x.lunch>0 && x.lunchRain!=null);
+  const dinnerT = d.filter(x=>x.dinner>0 && x.dinnerTemp!=null);
+  const dinnerR = d.filter(x=>x.dinner>0 && x.dinnerRain!=null);
+
+  const makeScatter = (canvasId, metaId, data, xKey, yKey, xlabel, color, corrR) => {
+    dc(canvasId);
+    const el=document.getElementById(canvasId); if(!el) return;
+    const metaEl=document.getElementById(metaId);
+    if(metaEl) metaEl.textContent = data.length>0 ? corrLabel(corrR) : '날씨 데이터 없음';
+    if(data.length<2){
+      // 데이터 부족 시 안내
+      const ctx=el.getContext('2d');
+      ctx.clearRect(0,0,el.width,el.height);
+      ctx.fillStyle='#aaa'; ctx.font='13px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('날씨 데이터가 쌓이면 표시돼요', el.width/2, 60);
+      return;
+    }
+    if(CH[canvasId]){CH[canvasId].destroy();delete CH[canvasId];}
+    CH[canvasId]=new Chart(el.getContext('2d'),{
+      type:'scatter',
+      data:{datasets:[{
+        label: xlabel+' vs 매출',
+        data: data.map(x=>({x:x[xKey], y:x[yKey], label:x.ds})),
+        backgroundColor: color,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+      }]},
+      options:{
+        responsive:true, maintainAspectRatio:true,
+        plugins:{
+          legend:{display:false},
+          tooltip:{callbacks:{
+            label: c=>`${c.raw.label}: ${xlabel} ${c.raw.x}${xKey.includes('Temp')?'°C':'mm'} / 매출 ${fmF(c.raw.y)}`
+          }}
+        },
+        scales:{
+          x:{title:{display:true, text:xlabel, font:{size:10}}, ticks:{font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'}},
+          y:{title:{display:true, text:'매출(원)', font:{size:10}}, ticks:{callback:v=>fm(v), font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'}}
+        }
+      }
+    });
+  };
+
+  const rLT = calcCorrelation(lunchT.map(x=>x.lunchTemp), lunchT.map(x=>x.lunch));
+  const rLR = calcCorrelation(lunchR.map(x=>x.lunchRain), lunchR.map(x=>x.lunch));
+  const rDT = calcCorrelation(dinnerT.map(x=>x.dinnerTemp), dinnerT.map(x=>x.dinner));
+  const rDR = calcCorrelation(dinnerR.map(x=>x.dinnerRain), dinnerR.map(x=>x.dinner));
+
+  makeScatter('corrLunchTempChart','corrLunchTempMeta', lunchT, 'lunchTemp','lunch','점심 평균온도(°C)','rgba(181,129,42,0.65)',rLT);
+  makeScatter('corrLunchRainChart','corrLunchRainMeta', lunchR, 'lunchRain','lunch','점심 강수량(mm)','rgba(30,74,122,0.65)',rLR);
+  makeScatter('corrDinnerTempChart','corrDinnerTempMeta', dinnerT, 'dinnerTemp','dinner','저녁 평균온도(°C)','rgba(92,61,30,0.65)',rDT);
+  makeScatter('corrDinnerRainChart','corrDinnerRainMeta', dinnerR, 'dinnerRain','dinner','저녁 강수량(mm)','rgba(42,96,160,0.65)',rDR);
+
+  // 온도 구간별 평균 매출
+  renderTempBand(d);
+}
+
+function renderTempBand(d){
+  dc('tempBandChart');
+  const el=document.getElementById('tempBandChart'); if(!el) return;
+  const valid=d.filter(x=>(x.lunchTemp!=null||x.dinnerTemp!=null));
+  if(valid.length<2){
+    const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);
+    ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';
+    ctx.fillText('날씨 데이터가 쌓이면 표시돼요',el.width/2,60); return;
+  }
+  // 온도 구간: ~5, 5~10, 10~15, 15~20, 20~25, 25~30, 30~
+  const bands=[
+    {label:'~5°C', min:-99, max:5},
+    {label:'5~10°C', min:5, max:10},
+    {label:'10~15°C', min:10, max:15},
+    {label:'15~20°C', min:15, max:20},
+    {label:'20~25°C', min:20, max:25},
+    {label:'25~30°C', min:25, max:30},
+    {label:'30°C~', min:30, max:99},
+  ];
+  const lunchBands=bands.map(b=>{
+    const rows=d.filter(x=>x.lunchTemp!=null&&x.lunchTemp>=b.min&&x.lunchTemp<b.max&&x.lunch>0);
+    return rows.length?Math.round(rows.reduce((s,x)=>s+x.lunch,0)/rows.length):0;
+  });
+  const dinnerBands=bands.map(b=>{
+    const rows=d.filter(x=>x.dinnerTemp!=null&&x.dinnerTemp>=b.min&&x.dinnerTemp<b.max&&x.dinner>0);
+    return rows.length?Math.round(rows.reduce((s,x)=>s+x.dinner,0)/rows.length):0;
+  });
+  const activeBands=bands.filter((_,i)=>lunchBands[i]>0||dinnerBands[i]>0);
+  const aLunch=lunchBands.filter((_,i)=>lunchBands[i]>0||dinnerBands[i]>0);
+  const aDinner=dinnerBands.filter((_,i)=>lunchBands[i]>0||dinnerBands[i]>0);
+  const metaEl=document.getElementById('tempBandMeta');
+  if(metaEl) metaEl.textContent=`${valid.length}일 데이터 기준`;
+  if(CH['tempBandChart']){CH['tempBandChart'].destroy();delete CH['tempBandChart'];}
+  CH['tempBandChart']=new Chart(el.getContext('2d'),{
+    type:'bar',
+    data:{labels:activeBands.map(b=>b.label),datasets:[
+      {label:'점심',data:aLunch,backgroundColor:'rgba(181,129,42,0.75)',borderRadius:4},
+      {label:'저녁',data:aDinner,backgroundColor:'rgba(30,74,122,0.65)',borderRadius:4},
+    ]},
+    options:{responsive:true,maintainAspectRatio:true,
+      plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},
+      scales:{y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}},
+        x:{ticks:{font:{size:10}},grid:{display:false}}}}
+  });
 }
 function renderWeather(d){
   const WNAMES=['맑음','흐림','비','눈'],WICONS=['☀️','☁️','🌧️','❄️'],WCLRS=['#b5812a','#8a7060','#1e4a7a','#5a8aaa'];
@@ -3591,6 +3803,30 @@ function renderReportUI(data, prevData){
       </div>
       <div style="font-size:13px;font-weight:700;color:var(--brown)">${fm(Math.floor(g.total/g.cnt))}<span style="font-size:10px;color:var(--tm)">/일</span></div>
     </div>`).join('');
+
+  // ── 온도·강수량 상관관계 요약 ──
+  const lunchTData = data.filter(x=>x.lunch>0&&x.lunchTemp!=null);
+  const dinnerTData = data.filter(x=>x.dinner>0&&x.dinnerTemp!=null);
+  const lunchRData = data.filter(x=>x.lunch>0&&x.lunchRain!=null);
+  const dinnerRData = data.filter(x=>x.dinner>0&&x.dinnerRain!=null);
+  const rLT = calcCorrelation(lunchTData.map(x=>x.lunchTemp), lunchTData.map(x=>x.lunch));
+  const rDT = calcCorrelation(dinnerTData.map(x=>x.dinnerTemp), dinnerTData.map(x=>x.dinner));
+  const rLR = calcCorrelation(lunchRData.map(x=>x.lunchRain), lunchRData.map(x=>x.lunch));
+  const rDR = calcCorrelation(dinnerRData.map(x=>x.dinnerRain), dinnerRData.map(x=>x.dinner));
+  const avgLunchTemp = lunchTData.length ? (lunchTData.reduce((s,x)=>s+x.lunchTemp,0)/lunchTData.length).toFixed(1) : null;
+  const avgDinnerTemp = dinnerTData.length ? (dinnerTData.reduce((s,x)=>s+x.dinnerTemp,0)/dinnerTData.length).toFixed(1) : null;
+  const avgLunchRain = lunchRData.length ? (lunchRData.reduce((s,x)=>s+x.lunchRain,0)/lunchRData.length).toFixed(1) : null;
+  const avgDinnerRain = dinnerRData.length ? (dinnerRData.reduce((s,x)=>s+x.dinnerRain,0)/dinnerRData.length).toFixed(1) : null;
+
+  const corrEl = document.getElementById('reportWeatherCorr');
+  if(corrEl){
+    const rows = [];
+    if(avgLunchTemp) rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--tm)">점심 평균온도</span><span style="font-size:12px;font-weight:700;color:var(--txt)">${avgLunchTemp}°C&nbsp;&nbsp;상관 ${rLT!==null?rLT:'—'}</span></div>`);
+    if(avgLunchRain) rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--tm)">점심 평균강수량</span><span style="font-size:12px;font-weight:700;color:var(--txt)">${avgLunchRain}mm&nbsp;&nbsp;상관 ${rLR!==null?rLR:'—'}</span></div>`);
+    if(avgDinnerTemp) rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span style="font-size:12px;color:var(--tm)">저녁 평균온도</span><span style="font-size:12px;font-weight:700;color:var(--txt)">${avgDinnerTemp}°C&nbsp;&nbsp;상관 ${rDT!==null?rDT:'—'}</span></div>`);
+    if(avgDinnerRain) rows.push(`<div style="display:flex;justify-content:space-between;padding:5px 0"><span style="font-size:12px;color:var(--tm)">저녁 평균강수량</span><span style="font-size:12px;font-weight:700;color:var(--txt)">${avgDinnerRain}mm&nbsp;&nbsp;상관 ${rDR!==null?rDR:'—'}</span></div>`);
+    corrEl.innerHTML = rows.length ? rows.join('') : '<div style="font-size:12px;color:var(--tm);text-align:center;padding:8px 0">날씨 데이터가 쌓이면 표시돼요</div>';
+  }
 
   // ── 배달 분석 ──
   const baeminRate = Math.round(baeminTotal/(baeminTotal+coupangTotal)*100);
@@ -4489,7 +4725,7 @@ function renderPermStep(){
     const ico = document.getElementById('permIco');
     ico.textContent='GPS'; ico.style.cssText='width:60px;height:60px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;margin:0 auto 12px';
     document.getElementById('permTitle').textContent='GPS를 허용해주세요';
-    document.getElementById('permDesc').innerHTML='매장 근처에서만 출퇴근을<br>찍을 수 있어요 (150m 이내)';
+    document.getElementById('permDesc').innerHTML='매장 근처에서만 출퇴근을<br>찍을 수 있어요 (50m 이내)';
     document.getElementById('permAllowBtn').textContent='위치 허용하기';
   }
 }
