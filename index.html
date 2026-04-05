@@ -2822,6 +2822,11 @@ async function getOrFetchWx(dk){
 }
 
 // 과거 날씨 일괄 조회
+// ════ 예보 캐시 (미래 달력 이모지/온도/예측용) ════
+let forecastWx = {}; // {'2026-04-07': {lunchWx:0, dinnerWx:1, wx:0, lunchTemp:15, dinnerTemp:12}, ...}
+let forecastAq = {}; // {'2026-04-07': {dayPm25:22}, ...}
+function localDateStr(d){ return dkStr(d.getFullYear(), d.getMonth(), d.getDate()); }
+
 async function fetchHistoricalWeather(){
   const wxSnap=await db.ref('weather').get();
   const cached=wxSnap.exists()?wxSnap.val():{};
@@ -3104,38 +3109,16 @@ function renderDashCal(){
   if(totalEl) totalEl.textContent=monthTotal>0?fmF(monthTotal):'데이터 없음';
   if(avgEl) avgEl.textContent=monthDays>0?fmF(Math.round(monthTotal/monthDays))+' ('+monthDays+'일)':'데이터 없음';
 
-  // 이달 예상매출 계산 (현재 보고 있는 달 기준)
+  // 이달 예상매출 계산 (공유 함수 사용)
   if(predEl){
     try{
       const now=new Date(), nowY=now.getFullYear(), nowM=now.getMonth();
       const isCurrentMonth=(dashCalY===nowY && dashCalM===nowM);
       const isFutureMonth=(dashCalY>nowY||(dashCalY===nowY&&dashCalM>nowM));
       if((isCurrentMonth||isFutureMonth) && DASH_DATA.length>=3){
-        const PM_G=[{lbl:'좋음',min:0,max:15},{lbl:'보통',min:16,max:35},{lbl:'나쁨',min:36,max:75},{lbl:'매우나쁨',min:76,max:999}];
-        const w=calcAutoWeights();
-        const bAvg=DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
-        const dAvg={};
-        DASH_DATA.forEach(x=>{if(!dAvg[x.dow])dAvg[x.dow]={sum:0,cnt:0};dAvg[x.dow].sum+=x.total;dAvg[x.dow].cnt++;});
-        const pmV=DASH_DATA.filter(x=>x.dayPm25!=null&&x.total>0);
-        const pmGA={};
-        PM_G.forEach(g=>{const r=pmV.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);if(r.length)pmGA[g.lbl]=r.reduce((s,x)=>s+x.total,0)/r.length;});
-        const wS={};
-        DASH_DATA.forEach(x=>{if(x.wx==null)return;if(!wS[x.wx])wS[x.wx]={sum:0,cnt:0};wS[x.wx].sum+=x.total;wS[x.wx].cnt++;});
-        const hS={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
-        DASH_DATA.forEach(x=>{const dk2=localDateStr(x.date);const t=getHolType(dk2);if(t&&hS[t]){hS[t].sum+=x.total;hS[t].cnt++;}});
-        const hAvg=t=>hS[t].cnt?hS[t].sum/hS[t].cnt:bAvg;
-
-        let predTotal=monthTotal; // 실제 매출 + 예측
-        for(let d=1;d<=last;d++){
-          const dk=dkStr(dashCalY,dashCalM,d);
-          const dt=new Date(dashCalY,dashCalM,d);
-          const actual=firebaseSalesData[dk]||REAL_SALES[dk];
-          if(actual&&actual.total) continue; // 이미 실제 데이터 있으면 스킵
-          if(dt<=now && isCurrentMonth) continue; // 과거인데 데이터 없으면 스킵
-          const p=predictSingleDay(dt, dAvg, bAvg, hAvg, wS, pmGA, w, PM_G);
-          predTotal+=p.pred;
-        }
-        predEl.textContent='~'+fmF(predTotal);
+        const mp=calcMonthPred(dashCalY, dashCalM);
+        if(mp) predEl.textContent='~'+fmF(mp.total);
+        else predEl.textContent='계산 불가';
       } else if(!isCurrentMonth && !isFutureMonth){
         predEl.textContent='-';
       } else {
@@ -6128,19 +6111,25 @@ async function autoFillRecentWeather(){
 }
 
 // ════ 예보 날씨 캐시 (미래 달력 이모지용) ════
-let forecastWx = {}; // {'2026-04-07': {lunchWx:0, dinnerWx:1, wx:0}, ...}
-let forecastAq = {}; // {'2026-04-07': {dayPm25:22}, ...}
-
-// 로컬 날짜 문자열 헬퍼 (타임존 안전)
-function localDateStr(d){ return dkStr(d.getFullYear(), d.getMonth(), d.getDate()); }
+// forecastWx, forecastAq, localDateStr → 상단(2900줄 부근)에서 선언됨
 
 async function fetchWeatherForecast(){
   const today = new Date();
   const todayDk = localDateStr(today);
-  const cacheKey = 'ws_forecast_' + todayDk;
+  const cacheVer = 'v3';
+  const cacheKey = 'ws_forecast_' + cacheVer + '_' + todayDk;
+  // 이전 버전 캐시 정리
+  try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.startsWith('ws_forecast_')&&k!==cacheKey) localStorage.removeItem(k); } }catch(e){}
   const cached = localStorage.getItem(cacheKey);
   if(cached){
-    try{ const p=JSON.parse(cached); forecastWx=p.wx||{}; forecastAq=p.aq||{}; renderDashCal(); return; }catch(e){}
+    try{
+      const p=JSON.parse(cached);
+      const firstKey=Object.keys(p.wx||{})[0];
+      if(firstKey && p.wx[firstKey].lunchTemp!==undefined){
+        forecastWx=p.wx||{}; forecastAq=p.aq||{};
+        renderDashCal(); return;
+      }
+    }catch(e){}
   }
   try{
     const startDate = todayDk;
@@ -6259,6 +6248,49 @@ function calcAutoWeights(){
   };
 }
 
+// ── 공유 예측 컨텍스트 생성 (팝업·달력 동일 결과 보장) ──
+const PRED_PM_GRADES=[
+  {lbl:'좋음',min:0,max:15,color:'#639922',bg:'#EAF3DE'},
+  {lbl:'보통',min:16,max:35,color:'#378ADD',bg:'#E6F1FB'},
+  {lbl:'나쁨',min:36,max:75,color:'#BA7517',bg:'#FAEEDA'},
+  {lbl:'매우나쁨',min:76,max:999,color:'#E24B4A',bg:'#FCEBEB'},
+];
+
+function buildPredContext(){
+  if(!DASH_DATA.length) return null;
+  const weights = calcAutoWeights();
+  const dowAvg={};
+  DASH_DATA.forEach(x=>{if(!dowAvg[x.dow])dowAvg[x.dow]={sum:0,cnt:0};dowAvg[x.dow].sum+=x.total;dowAvg[x.dow].cnt++;});
+  const baseAvg=DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
+  const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null&&x.total>0);
+  const pmGradeAvg={};
+  PRED_PM_GRADES.forEach(g=>{const rows=pmValid.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);if(rows.length)pmGradeAvg[g.lbl]=rows.reduce((s,x)=>s+x.total,0)/rows.length;});
+  const wxStats={};
+  DASH_DATA.forEach(x=>{if(x.wx==null)return;if(!wxStats[x.wx])wxStats[x.wx]={sum:0,cnt:0};wxStats[x.wx].sum+=x.total;wxStats[x.wx].cnt++;});
+  const holStats={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
+  DASH_DATA.forEach(x=>{const dk2=localDateStr(x.date);const t=getHolType(dk2);if(t&&holStats[t]){holStats[t].sum+=x.total;holStats[t].cnt++;}});
+  const holAvgFn=t=>holStats[t].cnt?holStats[t].sum/holStats[t].cnt:baseAvg;
+  const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,weights,PRED_PM_GRADES);
+  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, predict, isAuto:DASH_DATA.length>=90};
+}
+
+// ── 월간 예측 합산 (팝업·달력 공유) ──
+function calcMonthPred(year, month){
+  const ctx=buildPredContext();
+  if(!ctx) return null;
+  const today=new Date();
+  const lastDay=new Date(year,month+1,0).getDate();
+  let actual=0, pred=0, actDays=0;
+  for(let d=1;d<=lastDay;d++){
+    const dt=new Date(year,month,d);
+    const dk=dkStr(year,month,d);
+    const raw=firebaseSalesData[dk]||REAL_SALES[dk];
+    if(raw&&raw.total&&dt<=today){ actual+=raw.total; actDays++; }
+    else if(dt>today){ pred+=ctx.predict(dt).pred; }
+  }
+  return {actual, pred, total:actual+pred, actDays, remainDays:lastDay-today.getDate(), ctx};
+}
+
 // ── 단일 날짜 예측 (미래 날씨/미세먼지 예보 사용) ──
 function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, weights, PM_GRADES){
   const dk=localDateStr(dt);
@@ -6300,47 +6332,10 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, we
 }
 
 function buildPredContent(){
-  if(!DASH_DATA.length) return null;
+  const ctx=buildPredContext();
+  if(!ctx) return null;
   const DAYS=['일','월','화','수','목','금','토'];
-  const PM_GRADES=[
-    {lbl:'좋음',min:0,max:15,color:'#639922',bg:'#EAF3DE'},
-    {lbl:'보통',min:16,max:35,color:'#378ADD',bg:'#E6F1FB'},
-    {lbl:'나쁨',min:36,max:75,color:'#BA7517',bg:'#FAEEDA'},
-    {lbl:'매우나쁨',min:76,max:999,color:'#E24B4A',bg:'#FCEBEB'},
-  ];
-  const weights = calcAutoWeights();
-  const isAuto = DASH_DATA.length >= 90;
-
-  // 요일별 평균
-  const dowAvg={};
-  DASH_DATA.forEach(x=>{
-    if(!dowAvg[x.dow]) dowAvg[x.dow]={sum:0,cnt:0};
-    dowAvg[x.dow].sum+=x.total; dowAvg[x.dow].cnt++;
-  });
-  const baseAvg=DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
-
-  // 미세먼지 등급별 평균
-  const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null&&x.total>0);
-  const pmGradeAvg={};
-  PM_GRADES.forEach(g=>{
-    const rows=pmValid.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);
-    if(rows.length) pmGradeAvg[g.lbl]=rows.reduce((s,x)=>s+x.total,0)/rows.length;
-  });
-
-  // 날씨별 매출 통계
-  const wxStats={};
-  DASH_DATA.forEach(x=>{ if(x.wx==null) return; if(!wxStats[x.wx]){wxStats[x.wx]={sum:0,cnt:0};} wxStats[x.wx].sum+=x.total; wxStats[x.wx].cnt++; });
-
-  // 공휴일 통계
-  const holStats={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
-  DASH_DATA.forEach(x=>{
-    const dk=localDateStr(x.date);
-    const t=getHolType(dk); if(!t||!holStats[t]) return;
-    holStats[t].sum+=x.total; holStats[t].cnt++;
-  });
-  const holAvgFn=t=>holStats[t].cnt?holStats[t].sum/holStats[t].cnt:baseAvg;
-
-  const predict=(dt)=>predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, weights, PM_GRADES);
+  const {weights, predict, isAuto} = ctx;
 
   // ── 오늘/내일 예측 ──
   const today=new Date(), tomorrow=new Date(today); tomorrow.setDate(today.getDate()+1);
@@ -6363,22 +6358,9 @@ function buildPredContent(){
   }
   const weekTotal=weekActual+weekPred;
 
-  // ── 이번 달 예측 ──
-  const monthY=today.getFullYear(), monthM=today.getMonth();
-  const lastDay=new Date(monthY,monthM+1,0).getDate();
-  let monthActual=0, monthPred=0, monthActDays=0;
-  for(let d=1;d<=lastDay;d++){
-    const dt=new Date(monthY,monthM,d);
-    const dk=localDateStr(dt);
-    const actual=firebaseSalesData[dk]||REAL_SALES[dk];
-    if(actual && actual.total && dt<=today){
-      monthActual+=actual.total; monthActDays++;
-    } else if(dt>today){
-      monthPred+=predict(dt).pred;
-    }
-  }
-  const monthTotal=monthActual+monthPred;
-  const remainDays=lastDay-today.getDate();
+  // ── 이번 달 예측 (공유 함수 사용) ──
+  const mp=calcMonthPred(today.getFullYear(), today.getMonth());
+  const monthActual=mp?mp.actual:0, monthPred=mp?mp.pred:0, monthTotal=mp?mp.total:0, remainDays=mp?mp.remainDays:0;
 
   // ── 카드 렌더링 ──
   function dayCard(p,label,isToday){
