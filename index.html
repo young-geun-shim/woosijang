@@ -3174,14 +3174,17 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
         if(src&&src.wx!=null){ lWx=di.wx; dWx=di.wx; }
       }
     }
-    // 2순위: forecastWx (예보 - 오늘 포함 미래, 실제 데이터 없을 때)
+    // 2순위: forecastWx (예보 - 오늘 포함 미래, 실제 데이터 없을 때 → 이모지 1개)
+    let singleWx=null;
     if(lWx==null && dWx==null){
       const fw=forecastWx[dk];
-      if(fw && dk>=todayDk){ lWx=fw.lunchWx; dWx=fw.dinnerWx; }
+      if(fw && dk>=todayDk){ singleWx=fw.wx; }
     }
     if(lWx!=null||dWx!=null){
       const l=lWx!=null?ico[lWx]||'':'', r=dWx!=null?ico[dWx]||'':'';
       if(l||r) wxEmoji=`<div style="display:flex;gap:1px;justify-content:center;font-size:7px;line-height:1;margin-top:1px">${l}${r}</div>`;
+    } else if(singleWx!=null){
+      wxEmoji=`<div style="font-size:8px;line-height:1;margin-top:1px;text-align:center">${ico[singleWx]||''}</div>`;
     }
   }
   // 영업시간 평균온도
@@ -6148,28 +6151,46 @@ async function fetchWeatherForecast(){
     const startDate = todayDk;
     const endD = new Date(today); endD.setDate(today.getDate()+15);
     const endDate = localDateStr(endD);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&timezone=Asia%2FSeoul&forecast_days=16`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&hourly=weathercode&timezone=Asia%2FSeoul&forecast_days=16`;
     const res = await fetch(url);
     if(!res.ok) throw new Error('API '+res.status);
     const json = await res.json();
     const d = json?.daily;
     if(!d||!d.weather_code||!d.time) throw new Error('daily 데이터 없음');
 
+    // hourly 데이터로 영업시간(10~22시) 최빈 날씨 계산
+    const h = json?.hourly;
+    const hourlyByDay = {};
+    if(h && h.weathercode && h.time){
+      h.time.forEach((t,idx)=>{
+        const parts=t.slice(0,10).split('-');
+        const dk2=dkStr(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+        const hour=parseInt(t.slice(11,13));
+        if(hour>=WX_OPEN_H && hour<WX_CLOSE_H){
+          if(!hourlyByDay[dk2]) hourlyByDay[dk2]=[];
+          hourlyByDay[dk2].push(wmoToWx(h.weathercode[idx]));
+        }
+      });
+    }
+
     forecastWx = {};
     for(let i=0; i<d.time.length; i++){
       const parts = d.time[i].split('-');
       const dk = dkStr(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-      const wx = wmoToWx(d.weather_code[i]);
+      // 영업시간 hourly가 있으면 최빈값, 없으면 daily 사용
+      const bizHours = hourlyByDay[dk];
+      const wx = bizHours && bizHours.length ? pickWxFromSlice(bizHours) : wmoToWx(d.weather_code[i]);
       const tMax = d.temperature_2m_max?d.temperature_2m_max[i]:null;
       const tMin = d.temperature_2m_min?d.temperature_2m_min[i]:null;
       const avgT = (tMax!=null&&tMin!=null)?Math.round((tMax+tMin)/2):null;
       forecastWx[dk] = {
-        lunchWx:wx, dinnerWx:wx, wx:wx,
+        wx: wx,
         lunchTemp:avgT, dinnerTemp:avgT,
         tempMax:tMax!=null?Math.round(tMax):null,
         tempMin:tMin!=null?Math.round(tMin):null,
         rain:d.precipitation_sum?d.precipitation_sum[i]:null,
-        isForecast:true
+        isForecast:true,
+        bizHours: !!bizHours  // 영업시간 기준 여부
       };
     }
     showToast('예보 '+Object.keys(forecastWx).length+'일 로드 완료');
