@@ -3151,21 +3151,20 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   let wxEmoji='';
   if(!isOtherMonth){
     const ico=['☀️','☁️','🌧️','❄️'];
-    const todayDate=new Date(); todayDate.setHours(0,0,0,0);
-    const cellDate=new Date(dk); cellDate.setHours(0,0,0,0);
-    const isFuture=cellDate>=todayDate;
+    const todayDk=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+    const isFuture=dk>=todayDk; // 문자열 비교 (YYYY-MM-DD 형식이라 정렬 안전)
     let lWx=null, dWx=null;
-    if(isFuture){
-      // 미래: forecastWx 캐시
-      const fw=forecastWx[dk];
-      if(fw){ lWx=fw.lunchWx; dWx=fw.dinnerWx; }
-    } else {
-      // 과거: DASH_DATA에서 lunchWx/dinnerWx 명시 값만 사용
+    // 1순위: forecastWx (미래 예보)
+    const fw=forecastWx[dk];
+    if(isFuture && fw){
+      lWx=fw.lunchWx; dWx=fw.dinnerWx;
+    }
+    // 2순위: DASH_DATA (과거 실제)
+    if(lWx==null && dWx==null){
       const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
       if(di){
         lWx=di.lunchWx!=null?di.lunchWx:null;
         dWx=di.dinnerWx!=null?di.dinnerWx:null;
-        // lunchWx 없지만 wx가 API로 받아온 값이면 wx로 표시
         if(lWx==null&&dWx==null&&di.wx!=null){
           const src=REAL_SALES[dk]||firebaseSalesData[dk];
           if(src&&src.wx!=null){ lWx=di.wx; dWx=di.wx; }
@@ -3181,15 +3180,17 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   let tempHtml='';
   if(!isOtherMonth){
     let avgTemp=null;
-    const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-    if(di && di.lunchTemp!=null && di.dinnerTemp!=null){
-      avgTemp=Math.round((di.lunchTemp+di.dinnerTemp)/2);
-    } else if(di && di.lunchTemp!=null){
-      avgTemp=Math.round(di.lunchTemp);
-    } else {
-      const fw=forecastWx[dk];
-      if(fw && fw.lunchTemp!=null && fw.dinnerTemp!=null) avgTemp=Math.round((fw.lunchTemp+fw.dinnerTemp)/2);
-      else if(fw && fw.lunchTemp!=null) avgTemp=Math.round(fw.lunchTemp);
+    // 1순위: forecastWx (미래 예보 온도)
+    const fwT=forecastWx[dk];
+    if(fwT && fwT.lunchTemp!=null){
+      avgTemp=fwT.dinnerTemp!=null?Math.round((fwT.lunchTemp+fwT.dinnerTemp)/2):Math.round(fwT.lunchTemp);
+    }
+    // 2순위: DASH_DATA (과거 실제 온도)
+    if(avgTemp==null){
+      const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+      if(di && di.lunchTemp!=null){
+        avgTemp=di.dinnerTemp!=null?Math.round((di.lunchTemp+di.dinnerTemp)/2):Math.round(di.lunchTemp);
+      }
     }
     if(avgTemp!=null){
       const tc=avgTemp<=0?'rgba(120,180,255,0.8)':avgTemp<=10?'rgba(140,200,255,0.7)':avgTemp<=20?'rgba(255,255,255,0.5)':avgTemp<=28?'rgba(255,200,100,0.7)':'rgba(255,130,100,0.8)';
@@ -5112,7 +5113,7 @@ function goTab(tab){
   curTab=tab;
   if(tab==='attend') initAttend();
   if(tab==='board'){ renderOrderDateLbl(); renderOrderCal(); }
-  if(tab==='dash') renderDash();
+  if(tab==='dash'){ renderDash(); renderDashCal(); }
   if(tab==='sales'){
     checkSalesAccess();
     const si=document.getElementById('sc-input'), sd=document.getElementById('sc-dash');
@@ -6124,11 +6125,21 @@ async function fetchWeatherForecast(){
   if(cached){
     try{
       const p=JSON.parse(cached);
-      const firstKey=Object.keys(p.wx||{})[0];
-      if(firstKey && p.wx[firstKey].lunchTemp!==undefined){
-        forecastWx=p.wx||{}; forecastAq=p.aq||{};
+      // 새 형식: {wx:{dk:{lunchWx,...,lunchTemp,...}}, aq:{dk:{dayPm25}}}
+      // 구 형식: {dk:{lunchWx, dinnerWx}} (forecastWx 직접)
+      let fwData={}, faqData={};
+      if(p && p.wx && typeof p.wx === 'object'){
+        fwData=p.wx; faqData=p.aq||{};
+      } else if(p && typeof p === 'object' && !p.wx){
+        fwData=p; faqData={};
+      }
+      // 온도 데이터 있는지 검증 — 없으면 재수집
+      const firstKey=Object.keys(fwData)[0];
+      if(firstKey && fwData[firstKey] && fwData[firstKey].lunchTemp!=null){
+        forecastWx=fwData; forecastAq=faqData;
         renderDashCal(); return;
       }
+      // 온도 없으면 캐시 무시하고 API 재호출
     }catch(e){}
   }
   try{
@@ -6279,14 +6290,15 @@ function calcMonthPred(year, month){
   const ctx=buildPredContext();
   if(!ctx) return null;
   const today=new Date();
+  const todayDk=localDateStr(today);
   const lastDay=new Date(year,month+1,0).getDate();
   let actual=0, pred=0, actDays=0;
   for(let d=1;d<=lastDay;d++){
     const dt=new Date(year,month,d);
     const dk=dkStr(year,month,d);
     const raw=firebaseSalesData[dk]||REAL_SALES[dk];
-    if(raw&&raw.total&&dt<=today){ actual+=raw.total; actDays++; }
-    else if(dt>today){ pred+=ctx.predict(dt).pred; }
+    if(raw&&raw.total&&dk<=todayDk){ actual+=raw.total; actDays++; }
+    else if(dk>=todayDk){ pred+=ctx.predict(dt).pred; }
   }
   return {actual, pred, total:actual+pred, actDays, remainDays:lastDay-today.getDate(), ctx};
 }
@@ -6344,15 +6356,16 @@ function buildPredContent(){
 
   // ── 이번 주 예측 (월~일) ──
   const todayDow=today.getDay();
-  const monOffset=todayDow===0?-6:1-todayDow; // 이번 주 월요일
+  const monOffset=todayDow===0?-6:1-todayDow;
+  const todayDk2=localDateStr(today);
   let weekActual=0, weekPred=0, weekDays=0;
   for(let i=0;i<7;i++){
     const d=new Date(today); d.setDate(today.getDate()+monOffset+i);
     const dk=localDateStr(d);
     const actual=firebaseSalesData[dk]||REAL_SALES[dk];
-    if(actual && actual.total && d<=today){
+    if(actual && actual.total && dk<=todayDk2){
       weekActual+=actual.total; weekDays++;
-    } else {
+    } else if(dk>=todayDk2){
       weekPred+=predict(d).pred;
     }
   }
