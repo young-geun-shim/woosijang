@@ -1041,6 +1041,15 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
             <div class="chart-hdr"><div class="chart-ttl">X=온도 · Y=매출 · 버블크기=강수량</div><div class="chart-meta" id="bubbleMeta">-</div></div>
             <div class="chart-body"><canvas id="bubbleChart"></canvas></div>
           </div>
+          <!-- 방법3: 날씨 아이콘 카드 -->
+          <div class="d-sec">방법 3 — 날씨별 매출 카드</div>
+          <div id="wxCards3" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px"></div>
+          <!-- 방법4: 온도구간 막대차트 -->
+          <div class="d-sec">방법 4 — 온도 구간별 홀 · 배달 분석</div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">점심홀 · 점심배달 · 저녁홀 · 저녁배달</div><div class="chart-meta" id="tempBand4Meta2">-</div></div>
+            <div class="chart-body"><canvas id="tempBand4Chart2"></canvas></div>
+          </div>
         </div>
         <!-- 공휴일 분석기 -->
         <div class="d-sec">공휴일 분석기</div>
@@ -2523,12 +2532,18 @@ function loadSalesForDate(dk){
     });
     const memo=document.getElementById('f-memo');
     if(memo)memo.value=raw.memo||'';
-    // 돈통 로드
-    const donFields={d50:raw.don50,d10:raw.don10,d5:raw.don5,d1:raw.don1,dbag:raw.donBag};
+    // 돈통 로드 - 없으면 반드시 빈값으로 초기화
+    const donFields={d50:raw.don50,d10:raw.don10,d5:raw.don5,d1:raw.don1};
     Object.entries(donFields).forEach(([id,v])=>{
       const el=document.getElementById(id);
-      if(el) el.value=v||'';
+      if(el) el.value=(v!=null&&v!=='')?v:'';
     });
+    const bagEl=document.getElementById('dbag');
+    if(bagEl){
+      const bagVal=raw.donBag;
+      bagEl.value=(bagVal!=null&&bagVal!==0&&bagVal!=='')?bagVal.toLocaleString():'';
+      bagEl.dataset.raw=(bagVal!=null&&bagVal!=='')?bagVal:0;
+    }
   } else {
     clearSalesForm();
   }
@@ -2561,7 +2576,7 @@ function calcSales(){
   const cash=nvFmt('f-cash'),card=nvFmt('f-card'),zero=nvFmt('f-zero'),seoul=nvFmt('f-seoul'),trans=nvFmt('f-trans'),ticket=nvFmt('f-ticket'),baemin=nvFmt('f-baemin'),coupang=nvFmt('f-coupang'),discount=nvFmt('f-discount');
   const total=cash+card+zero+seoul+trans+ticket+baemin+coupang;
   document.getElementById('f-total').value=total?comma(total):'';
-  const bag=nvFmt('dbag');
+  const d50=nv('d50'),d10=nv('d10'),d5=nv('d5'),d1=nv('d1'),bag=nvFmt('dbag');
   const donStr='50,000 - '+d50+'장 / 10,000 - '+d10+'장\n5,000 - '+d5+'장 / 1,000 - '+d1+'장';
   const memo=document.getElementById('f-memo').value.trim();
   const lh=nvFmt('f-lunchHall'),ld=nvFmt('f-lunchDeliv');
@@ -3489,7 +3504,16 @@ function toggleWxDetail(btn){
   const arrow=document.getElementById('wxDetailArrow');
   sec.style.display=wxDetailOpen?'block':'none';
   arrow.textContent=wxDetailOpen?'▲':'▼';
-  if(wxDetailOpen){ const d=gd(curP); renderWeatherCorr(d); renderHeatmapWx(d); renderBubble(d); }
+  if(wxDetailOpen){
+    const d=gd(curP);
+    renderWeatherCorr(d);
+    renderHeatmapWx(d);
+    renderBubble(d);
+    renderWxCardsInto(d, document.getElementById('wxCards3'));
+    renderTempBand4Into(d,'tempBand4Chart2');
+    const m2=document.getElementById('tempBand4Meta2');
+    if(m2){ const m=document.getElementById('tempBand4Meta'); if(m) m2.textContent=m.textContent; }
+  }
 }
 
 function toggleReportWxDetail(btn){
@@ -3684,38 +3708,30 @@ function renderTempBand4(d){
 // ════ 공휴일 분석기 ════
 
 // 날짜 → 공휴일 유형 분류
+// 단순 4분류: 공휴일 / 연휴전날 / 평일 / 연휴다음날
 function getHolType(dk){
-  const d=new Date(dk), dow=d.getDay();
-  const isHol=holidaySet.has(dk), isWeekend=dow===0||dow===6;
+  const d=new Date(dk), dow=d.getDay(), isWeekend=dow===0||dow===6;
+  const isHol=holidaySet.has(dk);
   const prev=new Date(d); prev.setDate(d.getDate()-1);
   const next=new Date(d); next.setDate(d.getDate()+1);
   const prevDk=dkStr(prev.getFullYear(),prev.getMonth(),prev.getDate());
   const nextDk=dkStr(next.getFullYear(),next.getMonth(),next.getDate());
-  const isPrevHol=holidaySet.has(prevDk)||isWeekend&&holidaySet.has(prevDk);
+  const isPrevHol=holidaySet.has(prevDk);
   const isNextHol=holidaySet.has(nextDk);
-  if(!isHol){
-    // 주말 제외 평일에 다음날 공휴일이면 전날 효과
-    if(!isWeekend&&isNextHol) return 'before';
-    if(!isWeekend&&isPrevHol) return 'after';
-    if(!isWeekend) return 'normal';
-    return null; // 일반 주말은 제외
-  }
-  if(isWeekend) return 'weekend';
-  if(!isPrevHol&&!isNextHol) return 'singleWeekday';
-  if(!isPrevHol&&isNextHol) return 'consFirst';
-  return 'consMid';
+  if(isHol) return 'holiday';
+  if(!isWeekend&&isNextHol) return 'before';
+  if(!isWeekend&&isPrevHol) return 'after';
+  if(!isWeekend) return 'normal';
+  return null;
 }
 
-const HOL_LABELS={
-  singleWeekday:{label:'평일 단독 공휴일',color:'#639922',bg:'#EAF3DE',tc:'#27500A'},
-  before:       {label:'연휴 전날',        color:'#97C459',bg:'#C0DD97',tc:'#27500A'},
-  consFirst:    {label:'연속 공휴일 첫날',  color:'#378ADD',bg:'#E6F1FB',tc:'#0C447C'},
-  normal:       {label:'일반 평일',         color:'#888780',bg:'#F1EFE8',tc:'#2C2C2A'},
-  weekend:      {label:'토·일 공휴일',      color:'#B4B2A9',bg:'#F1EFE8',tc:'#444441'},
-  consMid:      {label:'연속 공휴일 2일+',  color:'#EF9F27',bg:'#FAEEDA',tc:'#633806'},
-  after:        {label:'연휴 다음날',       color:'#E24B4A',bg:'#FCEBEB',tc:'#791F1F'},
+const HOL_TYPES={
+  holiday:{label:'공휴일',     color:'#BA7517',bg:'#FAEEDA',tc:'#633806'},
+  before: {label:'연휴 전날',  color:'#639922',bg:'#EAF3DE',tc:'#27500A'},
+  normal: {label:'일반 평일',  color:'#888780',bg:'#F1EFE8',tc:'#2C2C2A'},
+  after:  {label:'연휴 다음날',color:'#E24B4A',bg:'#FCEBEB',tc:'#791F1F'},
 };
-const HOL_ORDER=['singleWeekday','before','consFirst','normal','weekend','consMid','after'];
+const HOL_ORDER=['holiday','before','normal','after'];
 
 function renderHoliday(d){
   const statCards=document.getElementById('holStatCards');
@@ -3724,26 +3740,25 @@ function renderHoliday(d){
   const meta=document.getElementById('holMeta');
   if(!statCards||!barRows||!upcoming) return;
 
-  // 유형별 집계
-  const stats={};
-  HOL_ORDER.forEach(k=>stats[k]={sum:0,hall:0,deliv:0,cnt:0});
+  const stats={holiday:{sum:0,hall:0,deliv:0,cnt:0},before:{sum:0,hall:0,deliv:0,cnt:0},normal:{sum:0,hall:0,deliv:0,cnt:0},after:{sum:0,hall:0,deliv:0,cnt:0}};
   d.forEach(x=>{
     const dk=dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate());
     const t=getHolType(dk);
     if(!t||!stats[t]) return;
     stats[t].sum+=x.total; stats[t].hall+=x.hall; stats[t].deliv+=x.deliv; stats[t].cnt++;
   });
-  const avg=(t)=>stats[t].cnt?Math.round(stats[t].sum/stats[t].cnt):null;
+  const avg=(t)=>stats[t]&&stats[t].cnt?Math.round(stats[t].sum/stats[t].cnt):null;
+
+  const holAvg=avg('holiday'), normAvg=avg('normal'), beforeAvg=avg('before'), afterAvg=avg('after');
+  const diff=holAvg&&normAvg?Math.round((holAvg-normAvg)/normAvg*100):null;
+  if(meta) meta.textContent=`최근 ${d.length}일 · ${stats.normal.cnt}일 기준`;
 
   // 상단 4개 stat 카드
-  const holAvg=avg('singleWeekday'), normAvg=avg('normal'), beforeAvg=avg('before'), afterAvg=avg('after');
-  const diff=holAvg&&normAvg?Math.round((holAvg-normAvg)/normAvg*100):null;
-  if(meta) meta.textContent=`${d.length}일 기준`;
   statCards.innerHTML=[
-    {lbl:'공휴일 평균',val:holAvg?fm(holAvg)+'만':'-',sub:stats.singleWeekday.cnt+'일 기준',color:'#BA7517'},
-    {lbl:'평일 평균',val:normAvg?fm(normAvg)+'만':'-',sub:stats.normal.cnt+'일 기준',color:'var(--txt)'},
-    {lbl:'차이',val:diff!=null?(diff>=0?'+':'')+diff+'%':'-',sub:diff>0?'공휴일이 더 높음':'데이터 부족',color:diff>0?'#3B6D11':diff<0?'#A32D2D':'var(--txt)'},
-    {lbl:'연휴 직전날',val:beforeAvg?fm(beforeAvg)+'만':'-',sub:'전날 효과',color:'#185FA5'},
+    {lbl:'공휴일 평균', val:holAvg?fm(holAvg)+'만':'-', sub:stats.holiday.cnt+'일 기준', color:'#BA7517'},
+    {lbl:'평일 평균',   val:normAvg?fm(normAvg)+'만':'-', sub:stats.normal.cnt+'일 기준', color:'var(--txt)'},
+    {lbl:'차이',        val:diff!=null?(diff>=0?'+':'')+diff+'%':'-', sub:diff!=null?(diff>0?'공휴일이 더 높음':'평일이 더 높음'):'데이터 부족', color:diff>0?'#3B6D11':diff<0?'#A32D2D':'var(--txt)'},
+    {lbl:'연휴 직전날', val:beforeAvg?fm(beforeAvg)+'만':'-', sub:'전날 효과', color:'#185FA5'},
   ].map(c=>`<div style="background:var(--surface);border-radius:8px;padding:9px 10px">
     <div style="font-size:10px;color:var(--tm);margin-bottom:3px">${c.lbl}</div>
     <div style="font-size:17px;font-weight:700;color:${c.color}">${c.val}</div>
@@ -3751,53 +3766,95 @@ function renderHoliday(d){
   </div>`).join('');
 
   // 유형별 막대
-  const allAvgs=HOL_ORDER.map(k=>avg(k)||0), maxVal=Math.max(...allAvgs)||1;
+  const maxVal=Math.max(...HOL_ORDER.map(k=>avg(k)||0))||1;
   barRows.innerHTML=HOL_ORDER.map(k=>{
     const a=avg(k); if(!a) return '';
-    const info=HOL_LABELS[k];
+    const info=HOL_TYPES[k];
     const pct=Math.round(a/maxVal*100);
     const hallPct=stats[k].sum>0?Math.round(stats[k].hall/stats[k].sum*100):0;
-    const delivPct=100-hallPct;
     return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px">
-      <div style="font-size:11px;color:var(--td);min-width:108px;text-align:right;line-height:1.3">${info.label}</div>
+      <div style="font-size:11px;color:var(--td);min-width:80px;text-align:right">${info.label}</div>
       <div style="flex:1;height:22px;background:var(--surface);border-radius:4px;overflow:hidden">
         <div style="height:100%;width:${pct}%;background:${info.color};border-radius:4px;display:flex;align-items:center;padding-left:7px">
           <span style="font-size:10px;font-weight:700;color:#fff">${fm(a)}만</span>
         </div>
       </div>
-      <div style="font-size:10px;color:var(--tm);min-width:76px">홀${hallPct}%/배달${delivPct}%</div>
+      <div style="font-size:10px;color:var(--tm);min-width:76px">홀${hallPct}% / ${stats[k].cnt}일</div>
     </div>`;
   }).join('');
 
-  // 다가오는 공휴일 (holidaySet에서 오늘 이후 날짜)
+  // 다가오는 공휴일
   const todayStr=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
   const future=[...holidaySet].filter(dk=>dk>=todayStr).sort().slice(0,5);
-  if(!future.length){ upcoming.innerHTML='<div style="font-size:12px;color:var(--tm);text-align:center;padding:10px">공휴일 데이터 로딩 중...</div>'; return; }
+  if(!future.length){
+    upcoming.innerHTML='<div style="font-size:12px;color:var(--tm);text-align:center;padding:10px">공휴일 데이터 로딩 중...</div>';
+    return;
+  }
   const ICONS={'01':'🎊','02':'🎊','03':'🌸','04':'🌸','05':'🎌','06':'🏖','07':'🏖','08':'🎆','09':'🎑','10':'🍂','11':'🍂','12':'🎄'};
   upcoming.innerHTML=future.map(dk=>{
     const dd=new Date(dk), dows=['일','월','화','수','목','금','토'][dd.getDay()];
-    const diff=Math.round((dd-new Date(todayStr))/(1000*60*60*24));
-    const t=getHolType(dk), info=HOL_LABELS[t]||HOL_LABELS['singleWeekday'];
-    const refAvg=avg(t)||normAvg;
-    const isWarn=t==='after'||t==='consMid';
+    const diffDays=Math.round((dd-new Date(todayStr))/(1000*60*60*24));
+    // 전날·다음날 포함해서 카드 표시
+    const prevD=new Date(dd); prevD.setDate(dd.getDate()-1);
+    const nextD=new Date(dd); nextD.setDate(dd.getDate()+1);
+    const prevDk2=dkStr(prevD.getFullYear(),prevD.getMonth(),prevD.getDate());
+    const nextDk2=dkStr(nextD.getFullYear(),nextD.getMonth(),nextD.getDate());
+    const refAvg=holAvg||normAvg;
     const predPct=normAvg&&refAvg?Math.round((refAvg-normAvg)/normAvg*100):null;
+    const afterAvg2=avg('after');
     const mm=dk.slice(5,7);
-    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:${isWarn?'#FCEBEB':'var(--surface)'};border-radius:10px;margin-bottom:6px;border:0.5px solid ${isWarn?'#F09595':'var(--border)'}">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:36px;height:36px;border-radius:8px;background:${info.bg};display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ICONS[mm]||'🎉'}</div>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:${isWarn?'#A32D2D':'var(--txt)'}">${info.label}</div>
-          <div style="font-size:11px;color:${isWarn?'#791F1F':'var(--tm)'}">
-            ${dk.slice(5).replace('-','월 ')}일 (${dows}) · ${diff===0?'오늘':diff+'일 후'}
-            ${stats[t].cnt>0?` · 과거 ${stats[t].cnt}일 기준`:''}
+    const rows=[];
+    // 전날 카드 (평일인 경우만)
+    const prevDow=prevD.getDay();
+    if(prevDow!==0&&prevDow!==6&&!holidaySet.has(prevDk2)){
+      const bRef=beforeAvg||normAvg;
+      const bPct=normAvg&&bRef?Math.round((bRef-normAvg)/normAvg*100):null;
+      rows.push(`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface);border-radius:10px;margin-bottom:5px;border:0.5px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:32px;height:32px;border-radius:7px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:15px">📅</div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#27500A">연휴 전날</div>
+            <div style="font-size:11px;color:var(--tm)">${prevDk2.slice(5).replace('-','월 ')}일 (${['일','월','화','수','목','금','토'][prevDow]})</div>
           </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-weight:700;color:#639922">${bRef?'예상 ~'+fm(bRef)+'만':'-'}</div>
+          ${bPct!=null?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;background:#EAF3DE;color:#27500A">${bPct>=0?'+':''}${bPct}%</span>`:''}
+        </div>
+      </div>`);
+    }
+    // 공휴일 카드
+    rows.push(`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface);border-radius:10px;margin-bottom:5px;border:0.5px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:8px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ICONS[mm]||'🎉'}</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--txt)">공휴일</div>
+          <div style="font-size:11px;color:var(--tm)">${dk.slice(5).replace('-','월 ')}일 (${dows}) · ${diffDays===0?'오늘':diffDays+'일 후'}${stats.holiday.cnt>0?' · 과거 '+stats.holiday.cnt+'일 기준':''}</div>
         </div>
       </div>
       <div style="text-align:right">
-        <div style="font-size:13px;font-weight:700;color:${isWarn?'#A32D2D':info.color}">${refAvg?'예상 ~'+fm(refAvg)+'만':'-'}</div>
-        ${predPct!=null?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;background:${isWarn?'#F7C1C1':predPct>=0?'#EAF3DE':'#FCEBEB'};color:${isWarn?'#791F1F':predPct>=0?'#27500A':'#791F1F'}">${predPct>=0?'+':''}${predPct}% ${stats[t].cnt<3?'참고값':'예상'}</span>`:''}
+        <div style="font-size:13px;font-weight:700;color:#BA7517">${refAvg?'예상 ~'+fm(refAvg)+'만':'-'}</div>
+        ${predPct!=null?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${predPct>=0?'#EAF3DE':'#FCEBEB'};color:${predPct>=0?'#27500A':'#791F1F'}">${predPct>=0?'+':''}${predPct}% ${stats.holiday.cnt<3?'참고값':'예상'}</span>`:''}
       </div>
-    </div>`;
+    </div>`);
+    // 다음날 카드 (평일인 경우만)
+    const nextDow=nextD.getDay();
+    if(nextDow!==0&&nextDow!==6&&!holidaySet.has(nextDk2)){
+      rows.push(`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#FCEBEB;border-radius:10px;margin-bottom:5px;border:0.5px solid #F09595">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:32px;height:32px;border-radius:7px;background:#F7C1C1;display:flex;align-items:center;justify-content:center;font-size:15px">⚡</div>
+          <div>
+            <div style="font-size:12px;font-weight:700;color:#A32D2D">연휴 다음날</div>
+            <div style="font-size:11px;color:#791F1F">${nextDk2.slice(5).replace('-','월 ')}일 (${['일','월','화','수','목','금','토'][nextDow]})</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;font-weight:700;color:#A32D2D">${afterAvg2?'예상 ~'+fm(afterAvg2)+'만':'-'}</div>
+          ${normAvg&&afterAvg2?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;background:#F7C1C1;color:#791F1F">${Math.round((afterAvg2-normAvg)/normAvg*100)}% 주의</span>`:''}
+        </div>
+      </div>`);
+    }
+    return `<div style="margin-bottom:8px">${rows.join('')}</div>`;
   }).join('');
 }
 
