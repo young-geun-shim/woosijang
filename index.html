@@ -27,8 +27,8 @@
   --txt:#1e1208;--td:#4a3520;--tm:#8a7060;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-html{height:100%;overflow:hidden;position:fixed;width:100%}
-body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;padding-bottom:72px}
+html{height:100%;overflow:hidden;position:fixed;width:100%;touch-action:pan-y}
+body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;padding-bottom:72px}
 
 /* ── 이름 오버레이 ── */
 .name-ov{position:fixed;inset:0;z-index:999;background:rgba(15,8,2,.78);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -84,7 +84,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 .bn.on{color:var(--brown)}.bn-ico{font-size:18px}
 
 /* ── VIEWS ── */
-.view{display:none;min-height:calc(100vh - 130px);padding:0 12px}.view.on{display:block}
+.view{display:none;min-height:calc(100vh - 130px);padding:0 12px;overflow-x:hidden}.view.on{display:block}
 #vCal{padding:0}
 #vChk{padding:0}
 #vAttend{padding:0}
@@ -6368,27 +6368,83 @@ const PRED_PM_GRADES=[
 function buildPredContext(){
   if(!DASH_DATA.length) return null;
   const weights = calcAutoWeights();
+  const now=new Date();
+
+  // 최근 데이터 가중 함수 (30일 이내=2배, 30~60일=1배, 60일+=0.5배)
+  function getWeight(date){
+    const days=Math.floor((now-date)/(86400000));
+    if(days<=30) return 2.0;
+    if(days<=60) return 1.0;
+    return 0.5;
+  }
+
+  // 가중 요일별 평균
   const dowAvg={};
-  DASH_DATA.forEach(x=>{if(!dowAvg[x.dow])dowAvg[x.dow]={sum:0,cnt:0};dowAvg[x.dow].sum+=x.total;dowAvg[x.dow].cnt++;});
-  const baseAvg=DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
+  DASH_DATA.forEach(x=>{
+    const w=getWeight(x.date);
+    if(!dowAvg[x.dow]) dowAvg[x.dow]={sum:0,cnt:0};
+    dowAvg[x.dow].sum+=x.total*w;
+    dowAvg[x.dow].cnt+=w;
+  });
+  // 가중 전체 평균
+  let wSum=0, wCnt=0;
+  DASH_DATA.forEach(x=>{ const w=getWeight(x.date); wSum+=x.total*w; wCnt+=w; });
+  const baseAvg=wCnt?wSum/wCnt:0;
+
+  // 가중 미세먼지 등급별
   const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null&&x.total>0);
   const pmGradeAvg={};
-  PRED_PM_GRADES.forEach(g=>{const rows=pmValid.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);if(rows.length)pmGradeAvg[g.lbl]=rows.reduce((s,x)=>s+x.total,0)/rows.length;});
+  PRED_PM_GRADES.forEach(g=>{
+    const rows=pmValid.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);
+    if(rows.length){
+      let s=0,c=0; rows.forEach(x=>{const w=getWeight(x.date);s+=x.total*w;c+=w;});
+      pmGradeAvg[g.lbl]=s/c;
+    }
+  });
+
+  // 가중 날씨별
   const wxStats={};
-  DASH_DATA.forEach(x=>{if(x.wx==null)return;if(!wxStats[x.wx])wxStats[x.wx]={sum:0,cnt:0};wxStats[x.wx].sum+=x.total;wxStats[x.wx].cnt++;});
+  DASH_DATA.forEach(x=>{
+    if(x.wx==null) return;
+    const w=getWeight(x.date);
+    if(!wxStats[x.wx]) wxStats[x.wx]={sum:0,cnt:0};
+    wxStats[x.wx].sum+=x.total*w;
+    wxStats[x.wx].cnt+=w;
+  });
+
+  // 공휴일 (가중)
   const holStats={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
-  DASH_DATA.forEach(x=>{const dk2=localDateStr(x.date);const t=getHolType(dk2);if(t&&holStats[t]){holStats[t].sum+=x.total;holStats[t].cnt++;}});
+  DASH_DATA.forEach(x=>{
+    const dk2=localDateStr(x.date);const t=getHolType(dk2);
+    if(t&&holStats[t]){const w=getWeight(x.date);holStats[t].sum+=x.total*w;holStats[t].cnt+=w;}
+  });
   const holAvgFn=t=>holStats[t].cnt?holStats[t].sum/holStats[t].cnt:baseAvg;
-  // 온도구간별 평균매출
+
+  // 가중 온도구간별
   const TEMP_BANDS=[{l:'-10~0',min:-10,max:0},{l:'0~10',min:0,max:10},{l:'10~20',min:10,max:20},{l:'20~30',min:20,max:30},{l:'30~',min:30,max:99}];
   const tempBandAvg={};
   const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
   TEMP_BANDS.forEach(b=>{
     const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
-    if(rows.length) tempBandAvg[b.l]=rows.reduce((s,x)=>s+x.total,0)/rows.length;
+    if(rows.length){
+      let s=0,c=0; rows.forEach(x=>{const w=getWeight(x.date);s+=x.total*w;c+=w;});
+      tempBandAvg[b.l]=s/c;
+    }
   });
-  const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,tempBandAvg,weights,PRED_PM_GRADES,TEMP_BANDS);
-  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, predict, isAuto:DASH_DATA.length>=5};
+
+  // 계절 평균 (예보 16일 이후 폴백용) - 같은 월 데이터 평균
+  const seasonalAvg={};
+  DASH_DATA.forEach(x=>{
+    const m=x.date.getMonth();
+    if(!seasonalAvg[m]) seasonalAvg[m]={wxCounts:[0,0,0,0],tempSum:0,tempCnt:0,pm25Sum:0,pm25Cnt:0};
+    const sa=seasonalAvg[m];
+    if(x.wx!=null) sa.wxCounts[x.wx]++;
+    if(x.lunchTemp!=null){sa.tempSum+=x.lunchTemp;sa.tempCnt++;}
+    if(x.dayPm25!=null){sa.pm25Sum+=x.dayPm25;sa.pm25Cnt++;}
+  });
+
+  const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,tempBandAvg,weights,PRED_PM_GRADES,TEMP_BANDS,seasonalAvg);
+  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, seasonalAvg, predict, isAuto:DASH_DATA.length>=5};
 }
 
 // ── 월간 예측 합산 (팝업·달력 공유) ──
@@ -6410,26 +6466,34 @@ function calcMonthPred(year, month){
 }
 
 // ── 단일 날짜 예측 (날씨+온도+미세먼지 예보 사용) ──
-function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PM_GRADES, TEMP_BANDS){
+function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PM_GRADES, TEMP_BANDS, seasonalAvg){
   const dk=localDateStr(dt);
   const dow=dt.getDay();
+  const month=dt.getMonth();
   const holType=getHolType(dk)||'normal';
   const dayBase=dowAvg[dow]?dowAvg[dow].sum/dowAvg[dow].cnt:baseAvg;
+
+  // 계절 평균 (예보 없을 때 폴백)
+  const sa=seasonalAvg&&seasonalAvg[month]?seasonalAvg[month]:null;
+  const seasonWx=sa?sa.wxCounts.indexOf(Math.max(...sa.wxCounts)):0;
+  const seasonTemp=sa&&sa.tempCnt?Math.round(sa.tempSum/sa.tempCnt):null;
+  const seasonPm25=sa&&sa.pm25Cnt?Math.round(sa.pm25Sum/sa.pm25Cnt):null;
 
   // 공휴일 보정
   const holFactor=holAvgFn(holType)/baseAvg||1;
 
-  // 날씨 보정 - 해당 날짜 예보 사용
-  let dayWx = todayWx;
+  // 날씨 보정 - 예보 → 과거 → 계절평균 순
+  let dayWx = null;
   const fw = forecastWx[dk];
   if(fw && fw.wx!=null) dayWx = fw.wx;
   else {
     const di=DASH_DATA.find(x=>localDateStr(x.date)===dk);
     if(di && di.wx!=null) dayWx = di.wx;
   }
+  if(dayWx==null) dayWx = seasonWx; // 계절 평균 (이전: todayWx)
   const wxFactor=dayWx!=null&&wxStats[dayWx]?wxStats[dayWx].sum/wxStats[dayWx].cnt/baseAvg:1;
 
-  // 미세먼지 보정
+  // 미세먼지 보정 - 예보 → 과거 → 계절평균 순
   let dayPm25 = null;
   const faq = forecastAq[dk];
   if(faq && faq.dayPm25!=null) dayPm25 = faq.dayPm25;
@@ -6437,6 +6501,7 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, te
     const di=DASH_DATA.find(x=>localDateStr(x.date)===dk);
     if(di && di.dayPm25!=null) dayPm25 = di.dayPm25;
   }
+  if(dayPm25==null) dayPm25 = seasonPm25; // 계절 평균 (이전: 최근 7일)
   if(dayPm25==null){
     const recent=DASH_DATA.slice(-7).filter(x=>x.dayPm25!=null);
     if(recent.length) dayPm25=Math.round(recent.reduce((s,x)=>s+x.dayPm25,0)/recent.length);
@@ -6444,13 +6509,14 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, te
   const pmGrade=dayPm25!=null?PM_GRADES.find(g=>dayPm25>=g.min&&dayPm25<=g.max):null;
   const pmFactor=pmGrade&&pmGradeAvg[pmGrade.lbl]?pmGradeAvg[pmGrade.lbl]/baseAvg:1;
 
-  // 온도 보정 - 해당 날짜 온도 구간별
+  // 온도 보정 - 예보 → 과거 → 계절평균 순
   let dayTemp = null;
   if(fw && fw.lunchTemp!=null) dayTemp = fw.lunchTemp;
   else {
     const di=DASH_DATA.find(x=>localDateStr(x.date)===dk);
     if(di && di.lunchTemp!=null) dayTemp = di.lunchTemp;
   }
+  if(dayTemp==null) dayTemp = seasonTemp; // 계절 평균 (이전: 최근 7일)
   if(dayTemp==null){
     const recent=DASH_DATA.slice(-7).filter(x=>x.lunchTemp!=null);
     if(recent.length) dayTemp=Math.round(recent.reduce((s,x)=>s+x.lunchTemp,0)/recent.length);
