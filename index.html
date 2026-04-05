@@ -1020,37 +1020,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
           <div class="chart-body"><canvas id="ldChart"></canvas></div>
         </div>
 
-        <!-- 날씨 카드 (방법3) -->
-        <div class="d-sec">날씨별 매출 카드</div>
-        <div id="wxCards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px"></div>
-
-        <!-- 날씨 심화분석 더보기 -->
-        <button onclick="toggleWxDetail(this)" style="width:100%;padding:12px;border:1px solid var(--bs);border-radius:10px;background:var(--surface);font-size:13px;font-weight:700;color:var(--brown);cursor:pointer;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px">
-          <span id="wxDetailArrow">▼</span> 날씨 심화분석 더보기
-        </button>
-        <div id="wxDetailSection" style="display:none">
-          <!-- 방법1: 히트맵 -->
-          <div class="d-sec">방법 1 — 온도 × 강수량 히트맵</div>
-          <div class="chart-card">
-            <div class="chart-hdr"><div class="chart-ttl">온도·강수량 조합별 평균 총매출</div><div class="chart-meta" id="heatmapWxMeta">진할수록 매출 높음</div></div>
-            <div class="chart-body"><div id="heatmapWxGrid" style="overflow-x:auto"></div></div>
-          </div>
-          <!-- 방법2: 버블차트 -->
-          <div class="d-sec">방법 2 — 온도 vs 매출 버블차트</div>
-          <div class="chart-card">
-            <div class="chart-hdr"><div class="chart-ttl">X=온도 · Y=매출 · 버블크기=강수량</div><div class="chart-meta" id="bubbleMeta">-</div></div>
-            <div class="chart-body"><canvas id="bubbleChart"></canvas></div>
-          </div>
-          <!-- 방법3: 날씨 아이콘 카드 -->
-          <div class="d-sec">방법 3 — 날씨별 매출 카드</div>
-          <div id="wxCards3" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px"></div>
-          <!-- 방법4: 온도구간 막대차트 -->
-          <div class="d-sec">방법 4 — 온도 구간별 홀 · 배달 분석</div>
-          <div class="chart-card">
-            <div class="chart-hdr"><div class="chart-ttl">점심홀 · 점심배달 · 저녁홀 · 저녁배달</div><div class="chart-meta" id="tempBand4Meta2">-</div></div>
-            <div class="chart-body"><canvas id="tempBand4Chart2"></canvas></div>
-          </div>
-        </div>
         <!-- 공휴일 분석기 -->
         <div class="d-sec">공휴일 분석기</div>
         <div class="chart-card">
@@ -1067,17 +1036,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="chart-card">
           <div class="chart-hdr"><div class="chart-ttl">다가오는 공휴일</div><div class="chart-meta">예측 매출 표시</div></div>
           <div style="padding:10px 14px"><div id="holUpcoming"></div></div>
-        </div>
-
-        <!-- 미세먼지 분석 -->
-        <div class="d-sec">미세먼지 vs 매출</div>
-        <div class="chart-card">
-          <div class="chart-hdr"><div class="chart-ttl">PM2.5 등급별 평균 매출</div><div class="chart-meta" id="pmMeta">-</div></div>
-          <div style="padding:10px 14px"><div id="pmBarRows"></div></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-hdr"><div class="chart-ttl">미세먼지 나쁜 날 홀·배달 변화</div><div class="chart-meta" id="pmDelivMeta">-</div></div>
-          <div style="padding:10px 14px"><div id="pmDelivRows"></div></div>
         </div>
 
         <div class="d-sec">배달 앱별 성장 추이</div>
@@ -1120,6 +1078,45 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="chart-card">
           <table class="tbl"><thead><tr><th>날짜 (요일)</th><th>홀</th><th>배달</th><th>합계</th></tr></thead><tbody id="detailTbl"></tbody></table>
         </div>
+
+        <!-- 날씨 심화분석기 (맨 아래) -->
+        <button onclick="toggleWxDetail(this)" style="width:100%;padding:12px;border:1px solid var(--bs);border-radius:10px;background:var(--surface);font-size:13px;font-weight:700;color:var(--brown);cursor:pointer;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px">
+          <span id="wxDetailArrow">▼</span> 날씨 심화분석기
+        </button>
+        <div id="wxDetailSection" style="display:none">
+          <!-- 방법1: 히트맵 -->
+          <div class="d-sec">방법 1 — 온도 × 강수량 히트맵</div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">온도·강수량 조합별 평균 총매출</div><div class="chart-meta" id="heatmapWxMeta">진할수록 매출 높음</div></div>
+            <div class="chart-body"><div id="heatmapWxGrid" style="overflow-x:auto"></div></div>
+          </div>
+          <!-- 방법2: 버블차트 -->
+          <div class="d-sec">방법 2 — 온도 vs 매출 버블차트</div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">X=온도 · Y=매출 · 버블크기=강수량</div><div class="chart-meta" id="bubbleMeta">-</div></div>
+            <div class="chart-body"><canvas id="bubbleChart"></canvas></div>
+          </div>
+          <!-- 방법3: 날씨 아이콘 카드 -->
+          <div class="d-sec">방법 3 — 날씨별 매출 카드</div>
+          <div id="wxCards3" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px"></div>
+          <!-- 방법4: 온도구간 막대차트 -->
+          <div class="d-sec">방법 4 — 온도 구간별 홀 · 배달 분석</div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">점심홀 · 점심배달 · 저녁홀 · 저녁배달</div><div class="chart-meta" id="tempBand4Meta2">-</div></div>
+            <div class="chart-body"><canvas id="tempBand4Chart2"></canvas></div>
+          </div>
+          <!-- 미세먼지 vs 매출 -->
+          <div class="d-sec">미세먼지 vs 매출</div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">PM2.5 등급별 평균 매출</div><div class="chart-meta" id="pmMeta">-</div></div>
+            <div style="padding:10px 14px"><div id="pmBarRows"></div></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">미세먼지 나쁜 날 홀·배달 변화</div><div class="chart-meta" id="pmDelivMeta">-</div></div>
+            <div style="padding:10px 14px"><div id="pmDelivRows"></div></div>
+          </div>
+        </div>
+
         <div style="height:12px"></div>
       </div>
     </div>
@@ -3370,7 +3367,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderWxCards(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(d);renderPM(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);renderTopBot(d);renderTable(d);}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);renderTopBot(d);renderTable(d);}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -3518,7 +3515,7 @@ function renderWeekly(d){
   const ctx=document.getElementById('wkChart').getContext('2d');
   CH['wk']=new Chart(ctx,{type:'bar',data:{labels:weeks.map(w=>w.label),datasets:[{label:'홀',data:weeks.map(w=>w.hall),backgroundColor:'rgba(92,61,30,0.8)',borderRadius:4},{label:'배달',data:weeks.map(w=>w.deliv),backgroundColor:'rgba(181,129,42,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:true,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}}}}});
 }
-// ════ 날씨 심화분석 더보기 토글 ════
+// ════ 날씨 심화분석기 토글 ════
 let wxDetailOpen=false, reportWxDetailOpen=false;
 
 function toggleWxDetail(btn){
@@ -3536,6 +3533,7 @@ function toggleWxDetail(btn){
     renderTempBand4Into(d,'tempBand4Chart2');
     const m2=document.getElementById('tempBand4Meta2');
     if(m2){ const m=document.getElementById('tempBand4Meta'); if(m) m2.textContent=m.textContent; }
+    renderPM(d);
   }
 }
 
