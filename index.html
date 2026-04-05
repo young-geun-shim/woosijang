@@ -2734,21 +2734,13 @@ function wmoToWx(code){
 function pickRepresentativeWx(hourlyWxArr){
   const business = hourlyWxArr.slice(WX_OPEN_H, WX_CLOSE_H);
   if(!business.length) return 1;
-  const rainCount = business.filter(w=>w===2).length;
-  const snowCount = business.filter(w=>w===3).length;
-  if(rainCount >= WX_RAIN_MIN_HOURS) return 2;
-  if(snowCount >= WX_RAIN_MIN_HOURS) return 3;
   const counts = [0,0,0,0];
-  business.forEach(w=>counts[w]++);
+  business.forEach(w=>{if(w>=0&&w<=3)counts[w]++;});
   return counts.indexOf(Math.max(...counts));
 }
 // 이미 슬라이싱된 배열에서 대표 날씨 결정 (lunchWx/dinnerWx 전용)
 function pickWxFromSlice(arr){
   if(!arr||!arr.length) return 1;
-  const rainCount=arr.filter(w=>w===2).length;
-  const snowCount=arr.filter(w=>w===3).length;
-  if(rainCount>=2) return 2;
-  if(snowCount>=2) return 3;
   const counts=[0,0,0,0];
   arr.forEach(w=>{if(w>=0&&w<=3)counts[w]++;});
   return counts.indexOf(Math.max(...counts));
