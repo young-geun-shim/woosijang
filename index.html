@@ -2841,23 +2841,31 @@ async function fetchHistoricalWeather(){
     await new Promise(r=>setTimeout(r,300)); // API 과부하 방지
   }
 
-  // Firebase sales 데이터에 날씨 반영
-  Object.entries(firebaseSalesData).forEach(([dk,r])=>{
+  // 전체 날짜(REAL_SALES + Firebase)에 cached 날씨 반영
+  const allDks=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
+  allDks.forEach(dk=>{
     const cv=cached[dk];
-    if(!cv) return;
+    if(!cv||typeof cv!=='object') return;
+    // REAL_SALES 업데이트
+    if(REAL_SALES[dk]){
+      REAL_SALES[dk].wx=cv.wx;
+      REAL_SALES[dk].lunchWx=cv.lunchWx??null;
+      REAL_SALES[dk].dinnerWx=cv.dinnerWx??null;
+      REAL_SALES[dk].lunchTemp=cv.lunchTemp;
+      REAL_SALES[dk].dinnerTemp=cv.dinnerTemp;
+      REAL_SALES[dk].lunchRain=cv.lunchRain;
+      REAL_SALES[dk].dinnerRain=cv.dinnerRain;
+    }
+    // DASH_DATA 업데이트
     const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
     if(!item) return;
-    if(typeof cv==='object'){
-      item.wx=cv.wx;
-      item.lunchWx=cv.lunchWx??null;
-      item.dinnerWx=cv.dinnerWx??null;
-      item.lunchTemp=cv.lunchTemp;
-      item.dinnerTemp=cv.dinnerTemp;
-      item.lunchRain=cv.lunchRain;
-      item.dinnerRain=cv.dinnerRain;
-    } else {
-      item.wx=cv;
-    }
+    item.wx=cv.wx!=null?cv.wx:item.wx;
+    item.lunchWx=cv.lunchWx??null;
+    item.dinnerWx=cv.dinnerWx??null;
+    item.lunchTemp=cv.lunchTemp;
+    item.dinnerTemp=cv.dinnerTemp;
+    item.lunchRain=cv.lunchRain;
+    item.dinnerRain=cv.dinnerRain;
   });
 
   if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
@@ -3090,12 +3098,16 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
       const fw=forecastWx[dk];
       if(fw){ lWx=fw.lunchWx; dWx=fw.dinnerWx; }
     } else {
-      // 과거: DASH_DATA 우선, 없으면 raw 데이터
+      // 과거: DASH_DATA에서 lunchWx/dinnerWx 명시 값만 사용
       const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-      if(di){ lWx=di.lunchWx??di.wx; dWx=di.dinnerWx??di.wx; }
-      else {
-        const raw=firebaseSalesData[dk]||REAL_SALES[dk];
-        if(raw){ lWx=raw.lunchWx??raw.wx; dWx=raw.dinnerWx??raw.wx; }
+      if(di){
+        lWx=di.lunchWx!=null?di.lunchWx:null;
+        dWx=di.dinnerWx!=null?di.dinnerWx:null;
+        // lunchWx 없지만 wx가 API로 받아온 값이면 wx로 표시
+        if(lWx==null&&dWx==null&&di.wx!=null){
+          const src=REAL_SALES[dk]||firebaseSalesData[dk];
+          if(src&&src.wx!=null){ lWx=di.wx; dWx=di.wx; }
+        }
       }
     }
     if(lWx!=null||dWx!=null){
