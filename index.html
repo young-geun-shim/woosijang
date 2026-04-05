@@ -6138,22 +6138,10 @@ async function autoFillRecentWeather(){
 async function fetchWeatherForecast(){
   const today = new Date();
   const todayDk = localDateStr(today);
-  const hourSlot = today.getHours(); // 0~23 (1시간 단위)
-  const cacheKey = 'ws_forecast_v6_' + todayDk + '_' + hourSlot;
-  // 이전 캐시 전부 정리 (현재 슬롯만 유지)
-  try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.startsWith('ws_forecast_')&&k!==cacheKey) localStorage.removeItem(k); } }catch(e){}
+  // 이전 캐시 전부 정리
+  try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.startsWith('ws_forecast_')) localStorage.removeItem(k); } }catch(e){}
 
-  // 캐시 확인
-  try{
-    const cached = localStorage.getItem(cacheKey);
-    if(cached){
-      const p=JSON.parse(cached);
-      if(p && p.wx && Object.keys(p.wx).length>0){
-        forecastWx=p.wx; forecastAq=p.aq||{};
-        renderDashCal(); return;
-      }
-    }
-  }catch(e){}
+  // 매번 API 새로 호출 (캐시 없음)
 
   // ── daily API (하루 날씨 1개 = 간단하고 안정적) ──
   try{
@@ -6251,7 +6239,6 @@ async function fetchWeatherForecast(){
       }
     }catch(e){}
 
-    localStorage.setItem(cacheKey, JSON.stringify({wx:forecastWx, aq:forecastAq}));
     renderDashCal();
   } catch(e){
     console.warn('예보 오류:', e);
