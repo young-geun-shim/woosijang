@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, touch-action=manipulation">
 <title>우시장회관</title>
 <meta property="og:title" content="우시장회관 운영 앱">
 <meta property="og:description" content="출퇴근·체크리스트·발주·매출 통합 관리">
@@ -23,8 +23,8 @@
   --blue:#1e4a7a;--blue-bg:#e8f0fb;--bbg:#f0f5ff;--bborder:#90b8e8;
   --txt:#1e1208;--td:#4a3520;--tm:#8a7060;
 }
-*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;min-height:100vh;overscroll-behavior:none;padding-bottom:72px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;min-height:100vh;overscroll-behavior:none;padding-bottom:72px;touch-action:pan-x pan-y}
 
 /* ── 이름 오버레이 ── */
 .name-ov{position:fixed;inset:0;z-index:999;background:rgba(15,8,2,.78);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -476,11 +476,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
           <button class="nm-chip" onclick="selName('곽진수','staff',this)">곽진수</button>
           <button class="nm-chip" onclick="selName('김성연','staff',this)">김성연</button>
           <button class="nm-chip" onclick="selName('최은란','staff',this)">최은란</button>
-          <button class="nm-chip alba" onclick="selName('알바1','part',this)">알바1</button>
-          <button class="nm-chip alba" onclick="selName('알바2','part',this)">알바2</button>
-          <button class="nm-chip alba" onclick="selName('알바3','part',this)">알바3</button>
-          <button class="nm-chip alba" onclick="selName('알바4','part',this)">알바4</button>
-          <button class="nm-chip alba" onclick="selName('알바5','part',this)">알바5</button>
+          <button class="nm-chip alba" data-key="알바1" onclick="selName('알바1','part',this)">알바1</button>
+          <button class="nm-chip alba" data-key="알바2" onclick="selName('알바2','part',this)">알바2</button>
+          <button class="nm-chip alba" data-key="알바3" onclick="selName('알바3','part',this)">알바3</button>
+          <button class="nm-chip alba" data-key="알바4" onclick="selName('알바4','part',this)">알바4</button>
+          <button class="nm-chip alba" data-key="알바5" onclick="selName('알바5','part',this)">알바5</button>
         </div>
         <button class="nm-ok" id="nmOk" onclick="confirmName()" disabled>선택 완료</button>
       </div>
@@ -897,6 +897,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       </div>
       <div class="inp-sec-lbl">특이사항</div>
       <textarea class="memo-inp2" id="f-memo" placeholder="특이사항 입력..." oninput="calcSales()"></textarea>
+      <div class="inp-sec-lbl">시간대별 매출 <span style="font-size:10px;color:var(--tm)">(총매출 영향 없음 · 대시보드 점심/저녁 비중에 반영)</span></div>
+      <div class="inp-row"><div class="inp-lbl">점심 매출</div><input type="text" inputmode="numeric" id="f-lunch" placeholder="0" oninput="fmtInput(this)"><div class="inp-won">원</div></div>
+      <div class="inp-row"><div class="inp-lbl">저녁 매출</div><input type="text" inputmode="numeric" id="f-dinner" placeholder="0" oninput="fmtInput(this)"><div class="inp-won">원</div></div>
       <div class="inp-sec-lbl">카톡 복사용 미리보기</div>
       <div class="preview-card">
         <div class="preview-head"><div class="preview-head-title">미리보기</div><button class="copy-btn" onclick="copyPreview()">복사</button></div>
@@ -965,7 +968,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
               <div class="tgt-row"><span id="tgtCur">-</span><span id="tgtGoal">-</span></div>
               <div class="tgt-bbg"><div class="tgt-bfill" id="tgtFill" style="width:0%"></div></div>
               <div class="tgt-row"><span id="tgtRemain" style="color:var(--brown);font-weight:700">-</span><span id="tgtPct" style="color:var(--green);font-weight:700">0%</span></div>
-              <div class="tgt-input-row">
+              <div class="tgt-input-row" id="tgtInputRow" style="display:none">
                 <input class="tgt-inp" type="number" id="tgtInp" placeholder="목표 금액 입력">
                 <span style="font-size:13px;color:var(--tm)">원</span>
                 <button class="tgt-set-btn" onclick="setGoal()">설정</button>
@@ -1023,11 +1026,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="chart-card">
           <div class="chart-hdr"><div class="chart-ttl">상위 · 하위 비교</div></div>
           <div class="chart-body"><canvas id="tbChart" style="max-height:200px"></canvas></div>
-        </div>
-        <div class="d-sec">매출 히트맵</div>
-        <div class="chart-card">
-          <div class="chart-hdr"><div class="chart-ttl">일별 매출 히트맵</div><div class="chart-meta">진할수록 매출 높음</div></div>
-          <div class="chart-body"><div class="hmap-row" id="heatmap"></div></div>
         </div>
         <div class="d-sec">일별 상세 내역</div>
         <div class="chart-card">
@@ -1272,6 +1270,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">원가 · 순이익 분석</div><div class="more-menu-sub">대표 전용 · 원가 입력 → 순이익 자동 계산</div></div>
       <div style="color:var(--red)">›</div>
     </button>
+    <button class="more-menu-btn" id="albaNameBtn" onclick="showAlbaNameModal()" style="background:var(--rbg);border-color:var(--rborder);display:none">
+      <div class="more-menu-ico">👤</div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">알바 이름 설정</div><div class="more-menu-sub">대표 전용 · 알바1~5 이름 변경</div></div>
+      <div style="color:var(--red)">›</div>
+    </button>
     <button class="more-menu-btn" onclick="goTab('reserve')">
       <div class="more-menu-ico">📅</div>
       <div class="more-menu-txt"><div class="more-menu-title">예약 / 단골 관리</div><div class="more-menu-sub">예약 달력 · 단골 고객 관리</div></div>
@@ -1302,6 +1305,18 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title">매출 대시보드</div><div class="more-menu-sub">그래프 · 인사이트 · 날씨 분석</div></div>
       <div style="color:var(--tm)">›</div>
     </button>
+  </div>
+</div>
+
+<!-- ═══ 알바 이름 설정 모달 ═══ -->
+<div id="albaNameModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:340px;padding:20px">
+    <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:16px">알바 이름 설정</div>
+    <div id="albaNameList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+    <div style="display:flex;gap:8px">
+      <button onclick="saveAlbaNames()" style="flex:1;padding:12px;background:var(--brown);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">저장</button>
+      <button onclick="document.getElementById('albaNameModal').style.display='none'" style="flex:1;padding:12px;border:1px solid var(--bs);border-radius:10px;background:var(--surface);font-size:14px;color:var(--tm);cursor:pointer">취소</button>
+    </div>
   </div>
 </div>
 
@@ -1466,9 +1481,21 @@ db.ref('.info/connected').on('value',s=>setSyncDot(s.val()?'ok':'err'));
 function fbSet(path,val){setSyncDot('ing');db.ref(path).set(val).then(()=>setSyncDot('ok')).catch(()=>setSyncDot('err'));}
 
 // ════ 이름 시스템 ════
-const SALES_ALLOWED=['심영근','최은란','곽진수'];
+const ADMIN = '심영근';
+const STAFF_ALLOWED = ['심영근','최은란','곽진수']; // 당일+전날 입력 가능
+const SALES_ALLOWED = ['심영근','최은란','곽진수']; // 매출 접근 가능
 // PIN: 심영근=1234, 곽진수=1111, 김성연=2222, 최은란=3333, 알바1~5=0000
 const NAME_PINS={'심영근':'1234','곽진수':'1111','김성연':'2222','최은란':'3333','알바1':'0000','알바2':'0000','알바3':'0000','알바4':'0000','알바5':'0000'};
+
+// 알바 이름 (심영근만 설정 가능, localStorage 저장)
+function loadAlbaNames(){
+  const saved=localStorage.getItem('ws_alba_names');
+  if(saved){ try{ const n=JSON.parse(saved); Object.assign(albaNames,n); }catch(e){} }
+}
+let albaNames={'알바1':'알바1','알바2':'알바2','알바3':'알바3','알바4':'알바4','알바5':'알바5'};
+loadAlbaNames();
+function getDisplayName(name){ return albaNames[name]||name; }
+
 let CU={name:'',role:''}, pendName='', pendRole='', pinMode=false;
 let payrollUnlocked=false, payrollViewName='';
 let profitUnlocked=false;
@@ -1476,19 +1503,31 @@ let profitUnlocked=false;
 function loadUser(){
   const s=localStorage.getItem('ws_user');
   if(s){try{CU=JSON.parse(s);}catch(e){}}
+  renderAlbaChips();
   if(!CU.name) showNameOv(true); else applyUser();
 }
 function applyUser(){
   document.getElementById('ubName').textContent=CU.name||'-';
   document.getElementById('attendUser').textContent=CU.name||'-';
   document.getElementById('attendRole').textContent=CU.role==='staff'?'정직원':'알바';
+  // 심영근만 보이는 버튼들
+  const albaBtn=document.getElementById('albaNameBtn');
+  if(albaBtn) albaBtn.style.display=CU.name===ADMIN?'flex':'none';
   checkSalesAccess();
+  renderAlbaChips();
 }
 function selName(name,role,btn){
   pendName=name; pendRole=role;
   document.querySelectorAll('.nm-chip').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  document.getElementById('nmOk').disabled=false;
+  // 이름 클릭 즉시 PIN 입력 화면으로 전환
+  document.getElementById('nmPinWrap').style.display='block';
+  document.getElementById('nmSelectWrap').style.display='none';
+  document.getElementById('nmPinInp').value='';
+  document.getElementById('nmPinErr').style.display='none';
+  document.getElementById('nmSubTxt').textContent=name+' — PIN 4자리 입력';
+  document.getElementById('nmOk').disabled=true;
+  setTimeout(()=>document.getElementById('nmPinInp').focus(),100);
 }
 function confirmName(){
   if(!pendName)return;
@@ -1577,9 +1616,66 @@ function closeNameOv(){
   document.getElementById('nmPinErr').style.display='none';
 }
 function checkSalesAccess(){
-  const allowed=SALES_ALLOWED.includes(CU.name);
-  document.getElementById('salesLocked').style.display=allowed?'none':'block';
-  document.getElementById('salesForm').style.display=allowed?'block':'none';
+  const isAlba = CU.role==='part';
+  const isAdmin = CU.name===ADMIN;
+  const isStaff = STAFF_ALLOWED.includes(CU.name);
+
+  if(isAlba || !isStaff){
+    document.getElementById('salesLocked').style.display='block';
+    document.getElementById('salesForm').style.display='none';
+    return;
+  }
+
+  const dk=dkStr(salesDate.getFullYear(),salesDate.getMonth(),salesDate.getDate());
+  const today=new Date(); today.setHours(0,0,0,0);
+  const yesterday=new Date(today); yesterday.setDate(today.getDate()-1);
+  const todayK=dkStr(today.getFullYear(),today.getMonth(),today.getDate());
+  const yestK=dkStr(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate());
+
+  if(isAdmin){
+    document.getElementById('salesLocked').style.display='none';
+    document.getElementById('salesForm').style.display='block';
+  } else if(dk===todayK||dk===yestK){
+    document.getElementById('salesLocked').style.display='none';
+    document.getElementById('salesForm').style.display='block';
+  } else {
+    document.getElementById('salesLocked').innerHTML=`매출 입력은 <strong>당일·전날</strong>만 가능해요.<br><small style="color:var(--tm)">전체 수정은 심영근만 가능해요.</small>`;
+    document.getElementById('salesLocked').style.display='block';
+    document.getElementById('salesForm').style.display='none';
+  }
+}
+
+// ════ 알바 이름 설정 ════
+function showAlbaNameModal(){
+  if(CU.name!==ADMIN){ showToast('대표만 설정할 수 있어요'); return; }
+  const list=document.getElementById('albaNameList');
+  if(!list) return;
+  list.innerHTML=['알바1','알바2','알바3','알바4','알바5'].map(key=>`
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="min-width:44px;font-size:13px;color:var(--tm);font-weight:700">${key}</span>
+      <input id="albaInp-${key}" type="text" value="${albaNames[key]||key}" placeholder="${key}"
+        style="flex:1;padding:10px;border:1.5px solid var(--bs);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none">
+    </div>`).join('');
+  document.getElementById('albaNameModal').style.display='flex';
+}
+
+function saveAlbaNames(){
+  ['알바1','알바2','알바3','알바4','알바5'].forEach(key=>{
+    const el=document.getElementById('albaInp-'+key);
+    if(el && el.value.trim()) albaNames[key]=el.value.trim();
+  });
+  localStorage.setItem('ws_alba_names', JSON.stringify(albaNames));
+  document.getElementById('albaNameModal').style.display='none';
+  renderAlbaChips();
+  showToast('알바 이름이 저장됐어요!');
+}
+
+function renderAlbaChips(){
+  // 이름 선택 화면 알바 버튼 텍스트 업데이트
+  document.querySelectorAll('.nm-chip.alba').forEach(btn=>{
+    const key=btn.getAttribute('data-key');
+    if(key && albaNames[key]) btn.textContent=albaNames[key];
+  });
 }
 
 // ════ TAB NAVIGATION (아래 UTILS 섹션으로 이동됨) ════
@@ -2274,7 +2370,8 @@ function loadSalesForDate(dk){
     const fields={
       'f-cash':raw.cash,'f-card':raw.card,'f-zero':raw.zero,
       'f-seoul':raw.seoul,'f-trans':raw.trans,'f-ticket':raw.ticket,
-      'f-baemin':raw.baemin,'f-coupang':raw.coupang,'f-discount':raw.discount
+      'f-baemin':raw.baemin,'f-coupang':raw.coupang,'f-discount':raw.discount,
+      'f-lunch':raw.lunch,'f-dinner':raw.dinner
     };
     Object.entries(fields).forEach(([id,v])=>{
       const el=document.getElementById(id);
@@ -2293,6 +2390,7 @@ function chgSalesDate(dir){
   salesDate.setDate(salesDate.getDate()+dir);
   updateSalesDateLbl();
   const dk=dkStr(salesDate.getFullYear(),salesDate.getMonth(),salesDate.getDate());
+  checkSalesAccess();
   loadSalesForDate(dk);
 }
 updateSalesDateLbl();
@@ -2484,7 +2582,7 @@ function saveSales(){
   const isToday=dk===dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
 
   const saveRecord=(wx)=>{
-    const record={total,cash:nvFmt('f-cash'),card:nvFmt('f-card'),zero:nvFmt('f-zero'),seoul:nvFmt('f-seoul'),trans:nvFmt('f-trans'),ticket:nvFmt('f-ticket'),baemin:nvFmt('f-baemin'),coupang:nvFmt('f-coupang'),discount:nvFmt('f-discount'),hall:nvFmt('f-cash')+nvFmt('f-card')+nvFmt('f-zero')+nvFmt('f-seoul')+nvFmt('f-trans')+nvFmt('f-ticket'),deliv:nvFmt('f-baemin')+nvFmt('f-coupang'),wx,by:CU.name,savedAt:new Date().toISOString()};
+    const record={total,cash:nvFmt('f-cash'),card:nvFmt('f-card'),zero:nvFmt('f-zero'),seoul:nvFmt('f-seoul'),trans:nvFmt('f-trans'),ticket:nvFmt('f-ticket'),baemin:nvFmt('f-baemin'),coupang:nvFmt('f-coupang'),discount:nvFmt('f-discount'),hall:nvFmt('f-cash')+nvFmt('f-card')+nvFmt('f-zero')+nvFmt('f-seoul')+nvFmt('f-trans')+nvFmt('f-ticket'),deliv:nvFmt('f-baemin')+nvFmt('f-coupang'),lunch:nvFmt('f-lunch'),dinner:nvFmt('f-dinner'),wx,by:CU.name,savedAt:new Date().toISOString()};
     fbSet('sales/'+dk,record);
     db.ref('weather/'+dk).set(wx);
     copyPreview();
@@ -2554,7 +2652,7 @@ function renderDashCal(){
   grid.style.gridTemplateColumns='repeat(8,1fr)';
   grid.innerHTML='';
 
-  let weekTotal=0;
+  let weekTotal=0, weekDays=0;
 
   // 이전달 날짜
   for(let i=0;i<first;i++){
@@ -2563,6 +2661,7 @@ function renderDashCal(){
     const raw=firebaseSalesData[dk]||REAL_SALES[dk];
     const total=raw?raw.total:0;
     weekTotal+=total;
+    if(total>0) weekDays++;
     grid.appendChild(makeCalCell(prevD,dk,total,i,todayK,true));
   }
 
@@ -2573,10 +2672,11 @@ function renderDashCal(){
     const raw=firebaseSalesData[dk]||REAL_SALES[dk];
     const total=raw?raw.total:0;
     weekTotal+=total;
+    if(total>0) weekDays++;
     grid.appendChild(makeCalCell(d,dk,total,dow,todayK,false));
     if(dow===6){
-      grid.appendChild(makeWeekCell(weekTotal,true));
-      weekTotal=0;
+      grid.appendChild(makeWeekCell(weekTotal,true,weekDays));
+      weekTotal=0; weekDays=0;
     }
   }
 
@@ -2588,30 +2688,33 @@ function renderDashCal(){
       const raw=firebaseSalesData[dk]||REAL_SALES[dk];
       const total=raw?raw.total:0;
       weekTotal+=total;
+      if(total>0) weekDays++;
       grid.appendChild(makeCalCell(nd,dk,total,lastDow+nd,todayK,true));
     }
-    grid.appendChild(makeWeekCell(weekTotal,false));
+    grid.appendChild(makeWeekCell(weekTotal,false,weekDays));
   }
 }
 
-function makeWeekCell(total, isFullWeek){
+function makeWeekCell(total, isFullWeek, dayCount){
   const wCell=document.createElement('div');
+  const avg=dayCount>0?Math.floor(total/dayCount):0;
   wCell.style.cssText=`aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(181,131,42,${isFullWeek?0.15:0.08});border:1px solid rgba(181,131,42,${isFullWeek?0.35:0.2})`;
-  wCell.innerHTML=`<div style="font-size:7px;font-weight:700;color:rgba(181,131,42,${isFullWeek?0.9:0.6});line-height:1.2">주간</div><div style="font-size:8px;color:${isFullWeek?'#FFD080':'rgba(255,208,128,0.6)'};font-weight:700;margin-top:1px">${total>0?fm(total):'-'}</div>`;
+  wCell.innerHTML=`<div style="font-size:7px;font-weight:700;color:rgba(181,131,42,${isFullWeek?0.9:0.6});line-height:1.2">주간</div><div style="font-size:8px;color:${isFullWeek?'#FFD080':'rgba(255,208,128,0.6)'};font-weight:700;margin-top:1px">${total>0?fm(total):'-'}</div>${avg>0?`<div style="font-size:7px;color:rgba(181,131,42,0.6);margin-top:1px">평균 ${fm(avg)}</div>`:''}`;
   return wCell;
 }
 
 function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   const cell=document.createElement('div');
   const isToday=dk===todayK;
-  const alpha=total>0?(isOtherMonth?0.1:0.2+Math.min(total/5000000,1)*0.75):0;
-  const bgColor=total>0?`rgba(181,131,42,${alpha})`:(isOtherMonth?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.08)');
-  const textOpacity=isOtherMonth?'0.35':'1';
-  const textColor=alpha>0.5?'#fff':total>0?'#FFD080':`rgba(255,255,255,${isOtherMonth?0.25:0.5})`;
-  cell.style.cssText=`aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${total>0&&!isOtherMonth?'pointer':'default'};background:${bgColor};border:${isToday?'1.5px solid var(--gold)':'1px solid rgba(255,255,255,0.05)'};transition:all .15s;opacity:${textOpacity}`;
-  const dowColor=dow%7===0?`rgba(255,120,120,${isOtherMonth?0.4:0.9})`:dow%7===6?`rgba(120,160,255,${isOtherMonth?0.4:0.9})`:textColor;
-  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0&&!isOtherMonth?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}`;
-  if(total>0&&!isOtherMonth){
+  const alpha=total>0?(isOtherMonth?0.15:0.2+Math.min(total/5000000,1)*0.75):0;
+  const bgColor=total>0?`rgba(181,131,42,${alpha})`:(isOtherMonth?'rgba(255,255,255,0.04)':'rgba(255,255,255,0.08)');
+  const textOpacity=isOtherMonth?'0.6':'1';
+  const textColor=alpha>0.5?'#fff':total>0?'#FFD080':`rgba(255,255,255,${isOtherMonth?0.35:0.5})`;
+  cell.style.cssText=`aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${total>0?'pointer':'default'};background:${bgColor};border:${isToday?'1.5px solid var(--gold)':'1px solid rgba(255,255,255,0.05)'};transition:all .15s;opacity:${textOpacity}`;
+  const dowColor=dow%7===0?`rgba(255,120,120,0.9)`:dow%7===6?`rgba(120,160,255,0.9)`:textColor;
+  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}`;
+  // 이전달/다음달 포함 모두 클릭 가능
+  if(total>0){
     const [y,m,day]=[parseInt(dk.split('-')[0]),parseInt(dk.split('-')[1])-1,parseInt(dk.split('-')[2])];
     cell.onclick=()=>{setPeriod('day',document.querySelector('.ptab'));dayViewDate=new Date(y,m,day);renderDayView();};
   }
@@ -2839,7 +2942,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderWeatherRatio(d);renderPay(d);renderTopBot(d);renderHeatmap(d);renderTable(d);}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderWeatherRatio(d);renderPay(d);renderTopBot(d);renderTable(d);}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -2861,6 +2964,9 @@ function renderSummary(d){
 function renderTarget(d){
   const saved=localStorage.getItem('ws_goal');if(saved)goalAmt=parseInt(saved);
   document.getElementById('tgtInp').placeholder=goalAmt.toLocaleString();
+  // 심영근만 목표 설정 가능
+  const tgtRow=document.getElementById('tgtInputRow');
+  if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
   const n=new Date();
   const md=DASH_DATA.filter(x=>x.date.getMonth()===n.getMonth()&&x.date.getFullYear()===n.getFullYear());
   const cur=md.reduce((s,x)=>s+x.total,0),pct=Math.min(100,Math.round(cur/goalAmt*100)),remain=Math.max(0,goalAmt-cur);
