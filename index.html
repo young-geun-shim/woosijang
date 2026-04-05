@@ -1111,8 +1111,14 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
           <!-- 방법4: 온도구간 막대차트 -->
           <div class="d-sec">방법 4 — 온도 구간별 홀 · 배달 분석</div>
           <div class="chart-card">
-            <div class="chart-hdr"><div class="chart-ttl">점심홀 · 점심배달 · 저녁홀 · 저녁배달</div><div class="chart-meta" id="tempBand4Meta2">-</div></div>
+            <div class="chart-hdr"><div class="chart-ttl">점심홀 · 점심배달 · 저녁홀 · 저녁배달 · 평균매출</div><div class="chart-meta" id="tempBand4Meta2">-</div></div>
             <div class="chart-body"><canvas id="tempBand4Chart2"></canvas></div>
+          </div>
+          <!-- 방법5: 강수량 구간별 막대차트 -->
+          <div class="d-sec">방법 5 — 강수량 구간별 홀 · 배달 분석</div>
+          <div class="chart-card">
+            <div class="chart-hdr"><div class="chart-ttl">강수량별 점심홀 · 점심배달 · 저녁홀 · 저녁배달 · 평균매출</div><div class="chart-meta" id="rainBandChart2Meta">-</div></div>
+            <div class="chart-body"><canvas id="rainBandChart2"></canvas></div>
           </div>
           <!-- 미세먼지 vs 매출 -->
           <div class="d-sec">미세먼지 vs 매출</div>
@@ -1796,12 +1802,23 @@ async function checkAndShowPermPopup(){
   const notifyGranted = 'Notification' in window && Notification.permission === 'granted';
   let gpsGranted = false;
   try{
-    if(navigator.permissions){
+    if(navigator.permissions && navigator.permissions.query){
       const result = await navigator.permissions.query({name:'geolocation'});
       gpsGranted = result.state === 'granted';
+      // 권한 변화 감지 (iOS 미지원이어도 안전)
+      try{ result.onchange = ()=>{ updatePermIcons(); }; }catch(e){}
     }
   }catch(e){
-    gpsGranted = localStorage.getItem('ws_gps_asked') === '1';
+    // iOS Safari: permissions.query 미지원 → GPS 시도로 판단
+    try{
+      await new Promise((resolve,reject)=>{
+        navigator.geolocation.getCurrentPosition(
+          ()=>{ gpsGranted=true; resolve(); },
+          (err)=>{ gpsGranted=(err.code!==1); resolve(); }, // code 1=PERMISSION_DENIED
+          {timeout:3000, maximumAge:60000}
+        );
+      });
+    }catch(e2){ gpsGranted=false; }
   }
   if(!notifyGranted || !gpsGranted){
     permStep = !notifyGranted ? 0 : 1;
@@ -3177,7 +3194,26 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
       if(l||r) wxEmoji=`<div style="display:flex;gap:1px;justify-content:center;font-size:7px;line-height:1;margin-top:1px">${l}${r}</div>`;
     }
   }
-  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}${wxEmoji}${holidayDot}`;
+  // 영업시간 평균온도
+  let tempHtml='';
+  if(!isOtherMonth){
+    let avgTemp=null;
+    const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+    if(di && di.lunchTemp!=null && di.dinnerTemp!=null){
+      avgTemp=Math.round((di.lunchTemp+di.dinnerTemp)/2);
+    } else if(di && di.lunchTemp!=null){
+      avgTemp=Math.round(di.lunchTemp);
+    } else {
+      const fw=forecastWx[dk];
+      if(fw && fw.lunchTemp!=null && fw.dinnerTemp!=null) avgTemp=Math.round((fw.lunchTemp+fw.dinnerTemp)/2);
+      else if(fw && fw.lunchTemp!=null) avgTemp=Math.round(fw.lunchTemp);
+    }
+    if(avgTemp!=null){
+      const tc=avgTemp<=0?'rgba(120,180,255,0.8)':avgTemp<=10?'rgba(140,200,255,0.7)':avgTemp<=20?'rgba(255,255,255,0.5)':avgTemp<=28?'rgba(255,200,100,0.7)':'rgba(255,130,100,0.8)';
+      tempHtml=`<div style="font-size:7px;color:${tc};line-height:1;margin-top:1px">${avgTemp}°</div>`;
+    }
+  }
+  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}${wxEmoji}${tempHtml}${holidayDot}`;
   if(total>0){
     const [y,m,day]=[parseInt(dk.split('-')[0]),parseInt(dk.split('-')[1])-1,parseInt(dk.split('-')[2])];
     cell.onclick=()=>{setPeriod('day',document.querySelector('.ptab'));dayViewDate=new Date(y,m,day);renderDayView();};
@@ -3783,6 +3819,7 @@ function toggleWxDetail(btn){
     renderBubble(d);
     renderWxCardsInto(d, document.getElementById('wxCards3'));
     renderTempBand4Into(d,'tempBand4Chart2');
+    renderRainBand(d,'rainBandChart2');
     const m2=document.getElementById('tempBand4Meta2');
     if(m2){ const m=document.getElementById('tempBand4Meta'); if(m) m2.textContent=m.textContent; }
     renderPM(d);
@@ -3946,7 +3983,6 @@ function renderWxCardsInto(d,wrap){
 function renderTempBand4Into(d, canvasId){
   dc(canvasId);
   const el=document.getElementById(canvasId); if(!el) return;
-  // lunchTemp 있으면 hall 추정으로 처리
   const valid=d.filter(x=>x.lunchTemp!=null&&x.total>0).map(x=>({
     ...x,
     lunchHall: x.lunchHall||(x.hall?Math.round(x.hall*0.42):0),
@@ -3957,9 +3993,33 @@ function renderTempBand4Into(d, canvasId){
   if(valid.length<2){const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('날씨 데이터가 쌓이면 표시돼요',el.width/2,60);return;}
   const bands=[{l:'~10°C',min:-99,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
   const avg=(rows,key)=>rows.length?Math.round(rows.reduce((s,x)=>s+(x[key]||0),0)/rows.length):0;
-  const active=bands.map(b=>{const rows=valid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);return rows.length?{l:b.l,lh:avg(rows,'lunchHall'),ld:avg(rows,'lunchDeliv'),dh:avg(rows,'dinnerHall'),dd:avg(rows,'dinnerDeliv')}:null;}).filter(Boolean);
+  const avgTotal=(rows)=>rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):0;
+  const active=bands.map(b=>{const rows=valid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);return rows.length?{l:b.l,lh:avg(rows,'lunchHall'),ld:avg(rows,'lunchDeliv'),dh:avg(rows,'dinnerHall'),dd:avg(rows,'dinnerDeliv'),avgSales:avgTotal(rows)}:null;}).filter(Boolean);
   if(CH[canvasId]){CH[canvasId].destroy();delete CH[canvasId];}
-  CH[canvasId]=new Chart(el.getContext('2d'),{type:'bar',data:{labels:active.map(b=>b.l),datasets:[{label:'점심홀',data:active.map(b=>b.lh),backgroundColor:'rgba(186,117,23,0.85)',borderRadius:3},{label:'점심배달',data:active.map(b=>b.ld),backgroundColor:'rgba(239,159,39,0.65)',borderRadius:3},{label:'저녁홀',data:active.map(b=>b.dh),backgroundColor:'rgba(24,95,165,0.85)',borderRadius:3},{label:'저녁배달',data:active.map(b=>b.dd),backgroundColor:'rgba(133,183,235,0.70)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}});
+  CH[canvasId]=new Chart(el.getContext('2d'),{type:'bar',data:{labels:active.map(b=>b.l),datasets:[{label:'점심홀',data:active.map(b=>b.lh),backgroundColor:'rgba(186,117,23,0.85)',borderRadius:3},{label:'점심배달',data:active.map(b=>b.ld),backgroundColor:'rgba(239,159,39,0.65)',borderRadius:3},{label:'저녁홀',data:active.map(b=>b.dh),backgroundColor:'rgba(24,95,165,0.85)',borderRadius:3},{label:'저녁배달',data:active.map(b=>b.dd),backgroundColor:'rgba(133,183,235,0.70)',borderRadius:3},{label:'평균매출',data:active.map(b=>b.avgSales),backgroundColor:'rgba(42,96,64,0.75)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}});
+}
+
+// ── 방법5: 강수량 구간별 홀·배달 분석 ──
+function renderRainBand(d, canvasId){
+  dc(canvasId);
+  const el=document.getElementById(canvasId); if(!el) return;
+  const valid=d.filter(x=>(x.lunchRain!=null||x.dinnerRain!=null)&&x.total>0).map(x=>({
+    ...x,
+    totalRain: (x.lunchRain||0)+(x.dinnerRain||0),
+    lunchHall: x.lunchHall||(x.hall?Math.round(x.hall*0.42):0),
+    lunchDeliv: x.lunchDeliv||(x.deliv?Math.round(x.deliv*0.45):0),
+    dinnerHall: x.dinnerHall||(x.hall?Math.round(x.hall*0.58):0),
+    dinnerDeliv: x.dinnerDeliv||(x.deliv?Math.round(x.deliv*0.55):0),
+  }));
+  if(valid.length<2){const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('강수량 데이터가 쌓이면 표시돼요',el.width/2,60);return;}
+  const bands=[{l:'0mm',min:0,max:0.1},{l:'0.1~2mm',min:0.1,max:2},{l:'2~10mm',min:2,max:10},{l:'10~30mm',min:10,max:30},{l:'30mm+',min:30,max:9999}];
+  const avg=(rows,key)=>rows.length?Math.round(rows.reduce((s,x)=>s+(x[key]||0),0)/rows.length):0;
+  const avgTotal=(rows)=>rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):0;
+  const active=bands.map(b=>{const rows=valid.filter(x=>x.totalRain>=b.min&&x.totalRain<b.max);return rows.length?{l:b.l,lh:avg(rows,'lunchHall'),ld:avg(rows,'lunchDeliv'),dh:avg(rows,'dinnerHall'),dd:avg(rows,'dinnerDeliv'),avgSales:avgTotal(rows),cnt:rows.length}:null;}).filter(Boolean);
+  const metaEl=document.getElementById(canvasId+'Meta');
+  if(metaEl) metaEl.textContent=`${valid.length}일 기준`;
+  if(CH[canvasId]){CH[canvasId].destroy();delete CH[canvasId];}
+  CH[canvasId]=new Chart(el.getContext('2d'),{type:'bar',data:{labels:active.map(b=>b.l+' ('+b.cnt+'일)'),datasets:[{label:'점심홀',data:active.map(b=>b.lh),backgroundColor:'rgba(186,117,23,0.85)',borderRadius:3},{label:'점심배달',data:active.map(b=>b.ld),backgroundColor:'rgba(239,159,39,0.65)',borderRadius:3},{label:'저녁홀',data:active.map(b=>b.dh),backgroundColor:'rgba(24,95,165,0.85)',borderRadius:3},{label:'저녁배달',data:active.map(b=>b.dd),backgroundColor:'rgba(133,183,235,0.70)',borderRadius:3},{label:'평균매출',data:active.map(b=>b.avgSales),backgroundColor:'rgba(42,96,64,0.75)',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}});
 }
 
 // ════ 날씨 카드 + 온도구간 4분류 차트 ════
@@ -3971,7 +4031,6 @@ function renderWxCards(d){
 function renderTempBand4(d){
   dc('tempBand4Chart');
   const el=document.getElementById('tempBand4Chart'); if(!el) return;
-  // lunchTemp 있으면 hall 추정으로 처리
   const valid=d.filter(x=>x.lunchTemp!=null&&x.total>0).map(x=>({
     ...x,
     lunchHall: x.lunchHall||(x.hall?Math.round(x.hall*0.42):0),
@@ -3986,9 +4045,10 @@ function renderTempBand4(d){
   }
   const bands=[{l:'~10°C',min:-99,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
   const avg=(rows,key)=>rows.length?Math.round(rows.reduce((s,x)=>s+(x[key]||0),0)/rows.length):0;
+  const avgTotal=(rows)=>rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):0;
   const active=bands.map(b=>{
     const rows=valid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
-    return rows.length?{l:b.l,lh:avg(rows,'lunchHall'),ld:avg(rows,'lunchDeliv'),dh:avg(rows,'dinnerHall'),dd:avg(rows,'dinnerDeliv')}:null;
+    return rows.length?{l:b.l,lh:avg(rows,'lunchHall'),ld:avg(rows,'lunchDeliv'),dh:avg(rows,'dinnerHall'),dd:avg(rows,'dinnerDeliv'),avgSales:avgTotal(rows)}:null;
   }).filter(Boolean);
   const meta=document.getElementById('tempBand4Meta');
   if(meta) meta.textContent=`${valid.length}일 기준`;
@@ -4000,6 +4060,7 @@ function renderTempBand4(d){
       {label:'점심배달',data:active.map(b=>b.ld),backgroundColor:'rgba(239,159,39,0.65)',borderRadius:3},
       {label:'저녁홀',data:active.map(b=>b.dh),backgroundColor:'rgba(24,95,165,0.85)',borderRadius:3},
       {label:'저녁배달',data:active.map(b=>b.dd),backgroundColor:'rgba(133,183,235,0.70)',borderRadius:3},
+      {label:'평균매출',data:active.map(b=>b.avgSales),backgroundColor:'rgba(42,96,64,0.75)',borderRadius:3},
     ]},
     options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}
   });
@@ -5843,14 +5904,8 @@ function showPermGuide(type){
   }
 }
 
-function showPermPopup(){
-  const notifyDone = 'Notification' in window && Notification.permission === 'granted';
-  const gpsDone = localStorage.getItem('ws_gps_asked') === '1';
-  if(notifyDone && gpsDone) return;
-  permStep = notifyDone ? 1 : 0;
-  renderPermStep();
-  document.getElementById('permOv').classList.remove('hidden');
-}
+// showPermPopup은 checkAndShowPermPopup으로 통합됨 (하위 호환)
+function showPermPopup(){ checkAndShowPermPopup(); }
 
 function renderPermStep(){
   [0,1].forEach(i=>{
@@ -6025,6 +6080,52 @@ setTimeout(fetchHistoricalAirQuality, 5000);
 setTimeout(fetchWeatherForecast, 4000);
 // 예측 팝업 (7초 뒤 - 데이터 로딩 후)
 setTimeout(showPredPopup, 7000);
+// 최근 7일 날씨/미세먼지 누락분 자동 보충 (6초 뒤)
+setTimeout(autoFillRecentWeather, 6000);
+
+// ════ 최근 7일 날씨/미세먼지 누락분 자동 보충 ════
+async function autoFillRecentWeather(){
+  const today=new Date();
+  let filled=0;
+  for(let i=1;i<=7;i++){
+    const d=new Date(today); d.setDate(today.getDate()-i);
+    const dk=localDateStr(d);
+    // 날씨 누락 체크
+    try{
+      const wxSnap=await db.ref('weather/'+dk).get();
+      if(!wxSnap.exists()){
+        const detail=await fetchWeatherDetail(dk);
+        if(detail){
+          db.ref('weather/'+dk).set(detail.wx);
+          // sales 데이터에도 날씨 병합
+          if(firebaseSalesData[dk]){
+            const merged={...firebaseSalesData[dk], wx:detail.wx, lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx, lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp, lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
+            fbSet('sales/'+dk, merged);
+            firebaseSalesData[dk]=merged;
+          }
+          filled++;
+        }
+      }
+    }catch(e){}
+    // 미세먼지 누락 체크
+    try{
+      const aqSnap=await db.ref('airquality/'+dk).get();
+      if(!aqSnap.exists()){
+        const aq=await fetchAirQuality(dk);
+        if(aq){
+          db.ref('airquality/'+dk).set(aq);
+          applyAqToData(dk,aq);
+          filled++;
+        }
+      }
+    }catch(e){}
+    await new Promise(r=>setTimeout(r,300)); // API 속도 제한
+  }
+  if(filled>0){
+    rebuildDashData();
+    if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
+  }
+}
 
 // ════ 예보 날씨 캐시 (미래 달력 이모지용) ════
 let forecastWx = {}; // {'2026-04-07': {lunchWx:0, dinnerWx:1, wx:0}, ...}
