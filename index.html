@@ -27,7 +27,8 @@
   --txt:#1e1208;--td:#4a3520;--tm:#8a7060;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;min-height:100vh;overscroll-behavior:none;padding-bottom:72px;touch-action:pan-x pan-y}
+html{height:100%;overflow:hidden;position:fixed;width:100%}
+body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;padding-bottom:72px}
 
 /* ── 이름 오버레이 ── */
 .name-ov{position:fixed;inset:0;z-index:999;background:rgba(15,8,2,.78);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -1470,8 +1471,15 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">🧮 예측 계산 분석</div>
   </div>
   <div style="padding:12px 0">
-    <button class="save-btn" onclick="renderPredDebug()" style="margin:0 0 12px;padding:12px">예측 분석 생성</button>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="save-btn" onclick="renderPredDebug()" style="flex:1;margin:0;padding:12px">분석 보기</button>
+      <button class="save-btn" onclick="refreshWeights()" style="flex:1;margin:0;padding:12px;background:var(--green);color:#fff">가중치 새로고침 저장</button>
+    </div>
     <div id="predDebugContent"></div>
+    <div style="margin-top:16px">
+      <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:8px">가중치 변경 이력</div>
+      <div id="weightHistory" style="font-size:12px;color:var(--tm)">로딩중...</div>
+    </div>
   </div>
 </div>
 
@@ -5149,7 +5157,7 @@ function goTab(tab){
   if(tab==='report'){initReport();}
   if(tab==='monthreport'){initMonthReport();}
   if(tab==='profit'){initProfit();}
-  if(tab==='predDebug'){renderPredDebug();}
+  if(tab==='predDebug'){renderPredDebug();loadWeightHistory();}
   window.scrollTo(0,0);
 }
 
@@ -6295,28 +6303,24 @@ function closePredPopup(noMore){
   document.getElementById('predPopup').style.display='none';
 }
 
-// ── 자동 보정 가중치 계산 ──
+// ── 자동 보정 가중치 계산 (데이터 있는 만큼 즉시 적용) ──
 function calcAutoWeights(){
   const defaults = {hol:0.40, wx:0.20, pm:0.20, temp:0.20};
-  if(DASH_DATA.length < 90) return defaults;
-  // 데이터 90일 이상: 상관계수 기반 가중치 자동 산출
+  if(DASH_DATA.length < 5) return defaults; // 최소 5일 이상 필요
   const baseAvg = DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
   if(!baseAvg) return defaults;
 
-  // 공휴일 영향도: 공휴일/비공휴일 매출 편차
+  // 공휴일 영향도
   const holDays=DASH_DATA.filter(x=>x.isHoliday), normDays=DASH_DATA.filter(x=>!x.isHoliday);
-  const holAvgV=holDays.length?holDays.reduce((s,x)=>s+x.total,0)/holDays.length:baseAvg;
-  const normAvgV=normDays.length?normDays.reduce((s,x)=>s+x.total,0)/normDays.length:baseAvg;
-  const holImpact=Math.abs(holAvgV-normAvgV)/baseAvg;
+  const holImpact=(holDays.length>=1&&normDays.length>=1)?Math.abs((holDays.reduce((s,x)=>s+x.total,0)/holDays.length)-(normDays.reduce((s,x)=>s+x.total,0)/normDays.length))/baseAvg:0.2;
 
-  // 날씨 영향도: 날씨 유형별 매출 분산
+  // 날씨 영향도
   const wxGroups={};
   DASH_DATA.forEach(x=>{ if(x.wx==null) return; if(!wxGroups[x.wx]) wxGroups[x.wx]=[]; wxGroups[x.wx].push(x.total); });
   let wxVariance=0, wxCount=0;
   Object.values(wxGroups).forEach(arr=>{
     if(arr.length<2) return;
-    const avg=arr.reduce((a,b)=>a+b,0)/arr.length;
-    wxVariance+=Math.abs(avg-baseAvg)/baseAvg;
+    wxVariance+=Math.abs(arr.reduce((a,b)=>a+b,0)/arr.length-baseAvg)/baseAvg;
     wxCount++;
   });
   const wxImpact=wxCount?wxVariance/wxCount:0.1;
@@ -6324,28 +6328,20 @@ function calcAutoWeights(){
   // 미세먼지 영향도
   const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null);
   let pmImpact=0.1;
-  if(pmValid.length>=20){
+  if(pmValid.length>=3){
     const pmGood=pmValid.filter(x=>x.dayPm25<=15), pmBad=pmValid.filter(x=>x.dayPm25>35);
-    if(pmGood.length&&pmBad.length){
-      const goodAvg=pmGood.reduce((s,x)=>s+x.total,0)/pmGood.length;
-      const badAvg=pmBad.reduce((s,x)=>s+x.total,0)/pmBad.length;
-      pmImpact=Math.abs(goodAvg-badAvg)/baseAvg;
-    }
+    if(pmGood.length&&pmBad.length) pmImpact=Math.abs(pmGood.reduce((s,x)=>s+x.total,0)/pmGood.length-pmBad.reduce((s,x)=>s+x.total,0)/pmBad.length)/baseAvg;
   }
 
-  // 온도 영향도: 온도구간별 매출 분산
+  // 온도 영향도
   const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
   let tempImpact=0.1;
-  if(tempValid.length>=20){
+  if(tempValid.length>=3){
     const tBands=[{min:-10,max:0},{min:0,max:10},{min:10,max:20},{min:20,max:30},{min:30,max:99}];
     let tVar=0, tCnt=0;
     tBands.forEach(b=>{
       const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
-      if(rows.length>=2){
-        const avg=rows.reduce((s,x)=>s+x.total,0)/rows.length;
-        tVar+=Math.abs(avg-baseAvg)/baseAvg;
-        tCnt++;
-      }
+      if(rows.length>=1){ tVar+=Math.abs(rows.reduce((s,x)=>s+x.total,0)/rows.length-baseAvg)/baseAvg; tCnt++; }
     });
     if(tCnt) tempImpact=tVar/tCnt;
   }
@@ -6392,7 +6388,7 @@ function buildPredContext(){
     if(rows.length) tempBandAvg[b.l]=rows.reduce((s,x)=>s+x.total,0)/rows.length;
   });
   const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,tempBandAvg,weights,PRED_PM_GRADES,TEMP_BANDS);
-  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, predict, isAuto:DASH_DATA.length>=90};
+  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, predict, isAuto:DASH_DATA.length>=5};
 }
 
 // ── 월간 예측 합산 (팝업·달력 공유) ──
@@ -6475,6 +6471,48 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, te
 }
 
 // ── 예측 계산 분석 (대표 전용) ──
+function refreshWeights(){
+  if(DASH_DATA.length<5){ showToast('데이터 5일 이상 필요해요'); return; }
+  const weights=calcAutoWeights();
+  const today=localDateStr(new Date());
+  const record={
+    date:today,
+    savedAt:new Date().toISOString(),
+    dataCount:DASH_DATA.length,
+    hol:weights.hol, wx:weights.wx, pm:weights.pm, temp:weights.temp
+  };
+  db.ref('weightHistory/'+today).set(record);
+  showToast('가중치 저장 완료! 공휴일'+Math.round(weights.hol*100)+'% 날씨'+Math.round(weights.wx*100)+'% 미세먼지'+Math.round(weights.pm*100)+'% 온도'+Math.round(weights.temp*100)+'%');
+  renderPredDebug();
+  loadWeightHistory();
+  // 달력 예측도 갱신
+  renderDashCal();
+}
+
+function loadWeightHistory(){
+  const wrap=document.getElementById('weightHistory');
+  if(!wrap) return;
+  db.ref('weightHistory').orderByKey().limitToLast(10).once('value',snap=>{
+    const data=snap.val();
+    if(!data){ wrap.innerHTML='<div style="color:var(--tm)">아직 저장된 이력이 없어요. "가중치 새로고침 저장" 버튼을 눌러보세요.</div>'; return; }
+    const entries=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0]));
+    let html='<div style="display:flex;flex-direction:column;gap:6px">';
+    entries.forEach(([dk,r])=>{
+      const isLatest=dk===entries[0][0];
+      html+=`<div style="background:${isLatest?'var(--gbg)':'var(--surface)'};border:1px solid ${isLatest?'var(--gborder)':'var(--border)'};border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center">`;
+      html+=`<div><div style="font-size:12px;font-weight:700;color:var(--brown)">${dk} ${isLatest?'(최신)':''}</div><div style="font-size:10px;color:var(--tm)">${r.dataCount||'?'}일 기준</div></div>`;
+      html+=`<div style="display:flex;gap:6px;font-size:11px;font-weight:700">`;
+      html+=`<span style="color:var(--gold)">공${Math.round((r.hol||0)*100)}</span>`;
+      html+=`<span style="color:var(--blue)">날${Math.round((r.wx||0)*100)}</span>`;
+      html+=`<span style="color:var(--red)">미${Math.round((r.pm||0)*100)}</span>`;
+      html+=`<span style="color:var(--green)">온${Math.round((r.temp||0)*100)}</span>`;
+      html+=`</div></div>`;
+    });
+    html+='</div>';
+    wrap.innerHTML=html;
+  });
+}
+
 function renderPredDebug(){
   const wrap=document.getElementById('predDebugContent');
   if(!wrap) return;
@@ -6487,7 +6525,7 @@ function renderPredDebug(){
   let html='';
 
   // 1. 가중치
-  html+=`<div class="d-sec">가중치 (${isAuto?'자동보정':'기본값 · 90일 후 자동보정'})</div>`;
+  html+=`<div class="d-sec">가중치 (${isAuto?'자동보정':'자동보정 적용중'})</div>`;
   html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">`;
   html+=`<div style="background:var(--gbg);border:1px solid var(--gborder);border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--tm)">공휴일</div><div style="font-size:18px;font-weight:700;color:var(--brown)">${Math.round(weights.hol*100)}%</div></div>`;
   html+=`<div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--tm)">날씨</div><div style="font-size:18px;font-weight:700;color:var(--blue)">${Math.round(weights.wx*100)}%</div></div>`;
@@ -6605,7 +6643,7 @@ function renderPredDebug(){
   html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--td);line-height:1.8">`;
   html+=`날씨 예보: ${fwCount}일 로드됨 ${fwCount>0?'✅':'❌'}<br>`;
   html+=`미세먼지 예보: ${faqCount}일 로드됨 ${faqCount>0?'✅':'❌'}<br>`;
-  html+=`데이터 수집일: ${DASH_DATA.length}일 / 자동보정: ${isAuto?'활성':'대기(90일 필요)'}`;
+  html+=`데이터 수집일: ${DASH_DATA.length}일 / 자동보정: ${isAuto?'활성':'데이터 5일 미만'}`;
   html+=`</div>`;
 
   wrap.innerHTML=html;
@@ -6678,7 +6716,7 @@ function buildPredContent(){
 
   const weightInfo=isAuto
     ?`<div style="font-size:10px;color:var(--green);margin-top:2px">자동보정 (공휴일${Math.round(weights.hol*100)}% 날씨${Math.round(weights.wx*100)}% 미세먼지${Math.round(weights.pm*100)}% 온도${Math.round(weights.temp*100)}%)</div>`
-    :`<div style="font-size:10px;color:var(--tm);margin-top:2px">기본 가중치 (데이터 ${DASH_DATA.length}일/90일, 자동보정 대기중)</div>`;
+    :`<div style="font-size:10px;color:var(--tm);margin-top:2px">데이터 ${DASH_DATA.length}일 — 5일 이상이면 자동보정</div>`;
 
   return `
     <div style="font-size:11px;color:var(--tm);margin-bottom:10px">공휴일·날씨예보·미세먼지 기반 예측 (과거 ${DASH_DATA.length}일 학습)${weightInfo}</div>
