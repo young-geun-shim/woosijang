@@ -1069,16 +1069,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
           <div class="chart-hdr"><div class="chart-ttl">결제 방법 분포</div><div class="chart-meta" id="payMeta">-</div></div>
           <div class="chart-body"><canvas id="payChart" style="max-height:180px"></canvas><div class="pie-legend" id="payLegend"></div></div>
         </div>
-        <div class="d-sec">매출 상위 vs 하위 5일</div>
-        <div class="chart-card">
-          <div class="chart-hdr"><div class="chart-ttl">상위 · 하위 비교</div></div>
-          <div class="chart-body"><canvas id="tbChart" style="max-height:200px"></canvas></div>
-        </div>
-        <div class="d-sec">일별 상세 내역</div>
-        <div class="chart-card">
-          <table class="tbl"><thead><tr><th>날짜 (요일)</th><th>홀</th><th>배달</th><th>합계</th></tr></thead><tbody id="detailTbl"></tbody></table>
-        </div>
-
         <!-- 날씨 심화분석기 (맨 아래) -->
         <button onclick="toggleWxDetail(this)" style="width:100%;padding:12px;border:1px solid var(--bs);border-radius:10px;background:var(--surface);font-size:13px;font-weight:700;color:var(--brown);cursor:pointer;margin-bottom:4px;display:flex;align-items:center;justify-content:center;gap:6px">
           <span id="wxDetailArrow">▼</span> 날씨 심화분석기
@@ -3419,7 +3409,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(DASH_DATA);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);renderTopBot(d);renderTable(d);}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(DASH_DATA);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -3619,12 +3609,18 @@ function renderHeatmapWxInto(d, wrap){
   if(valid.length<2){ wrap.innerHTML='<div style="text-align:center;color:#aaa;padding:20px;font-size:13px">날씨 데이터가 쌓이면 표시돼요</div>'; return; }
   const tempBands=[{l:'~5°C',min:-99,max:5},{l:'5~10°C',min:5,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
   const rainBands=[{l:'맑음',min:-1,max:0.1},{l:'약한비',min:0.1,max:2},{l:'비',min:2,max:10},{l:'폭우',min:10,max:999}];
-  // 각 셀 평균 계산
+  // 각 셀 평균 계산 (비/강수)
   const cells=rainBands.map(rb=>tempBands.map(tb=>{
-    const rows=valid.filter(x=>x.lunchTemp>=tb.min&&x.lunchTemp<tb.max&&x.lunchRain>=rb.min&&x.lunchRain<rb.max);
+    const rows=valid.filter(x=>x.wx!==3&&x.lunchTemp>=tb.min&&x.lunchTemp<tb.max&&x.lunchRain>=rb.min&&x.lunchRain<rb.max);
     return rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):null;
   }));
-  const allVals=cells.flat().filter(v=>v!=null);
+  // 눈 행
+  const snowCells=tempBands.map(tb=>{
+    const rows=valid.filter(x=>x.wx===3&&x.lunchTemp>=tb.min&&x.lunchTemp<tb.max);
+    return rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):null;
+  });
+  const allVals=[...cells.flat(),...snowCells].filter(v=>v!=null);
+  if(!allVals.length){ wrap.innerHTML='<div style="text-align:center;color:#aaa;padding:20px;font-size:13px">날씨 데이터가 쌓이면 표시돼요</div>'; return; }
   const maxV=Math.max(...allVals), minV=Math.min(...allVals);
   const alpha=(v)=>v==null?0:0.08+((v-minV)/(maxV-minV||1))*0.82;
   let html=`<table style="width:100%;border-collapse:collapse;font-size:11px">
@@ -3637,6 +3633,16 @@ function renderHeatmapWxInto(d, wrap){
     });
     html+='</tr>';
   });
+  // 눈 행
+  const hasSnow=snowCells.some(v=>v!=null);
+  if(hasSnow){
+    html+=`<tr><td style="padding:4px 6px;color:#534AB7;font-weight:600;white-space:nowrap">❄️눈</td>`;
+    snowCells.forEach(v=>{
+      const a=alpha(v);
+      html+=`<td style="padding:3px 2px;text-align:center"><div style="background:rgba(83,74,183,${v?a:0});border-radius:4px;padding:4px 2px;min-width:36px;font-size:10px;color:${a>0.5?'#fff':'var(--tm)'};font-weight:600">${v?fm(v):''}</div></td>`;
+    });
+    html+='</tr>';
+  }
   html+='</table>';
   wrap.innerHTML=html;
 }
@@ -3686,8 +3692,15 @@ function renderWxCardsInto(d,wrap){
     if(x.wx==null||x.wx<0||x.wx>3) return;
     const s=stats[x.wx];
     s.cnt++; s.total+=(x.total||0);
-    s.lunchHall+=(x.lunchHall||0); s.lunchDeliv+=(x.lunchDeliv||0);
-    s.dinnerHall+=(x.dinnerHall||0); s.dinnerDeliv+=(x.dinnerDeliv||0);
+    // lunchHall 있으면 그대로, 없으면 hall/deliv 비율로 추정
+    if(x.lunchHall||x.dinnerHall){
+      s.lunchHall+=(x.lunchHall||0); s.lunchDeliv+=(x.lunchDeliv||0);
+      s.dinnerHall+=(x.dinnerHall||0); s.dinnerDeliv+=(x.dinnerDeliv||0);
+    } else {
+      const h=x.hall||0, dv=x.deliv||0;
+      s.lunchHall+=Math.round(h*0.42); s.dinnerHall+=Math.round(h*0.58);
+      s.lunchDeliv+=Math.round(dv*0.45); s.dinnerDeliv+=Math.round(dv*0.55);
+    }
   });
   // 데이터 있는 카드만 (순서 유지: 맑음→흐림→비→눈)
   const cards = stats.map((s,i)=>{
@@ -3842,12 +3855,12 @@ function renderHoliday(d){
   const diff=holAvg&&normAvg?Math.round((holAvg-normAvg)/normAvg*100):null;
   if(meta) meta.textContent=`전체 ${d.length}일 기준`;
 
-  // 상단 4개 stat 카드
+  // 상단 stat 카드 (공휴일 / 평일 / 직전날 / 다음날)
   statCards.innerHTML=[
-    {lbl:'공휴일 평균', val:holAvg?fm(holAvg)+'만':'-', sub:stats.holiday.cnt+'일 기준', color:'#BA7517'},
-    {lbl:'평일 평균',   val:normAvg?fm(normAvg)+'만':'-', sub:stats.normal.cnt+'일 기준', color:'var(--txt)'},
-    {lbl:'차이',        val:diff!=null?(diff>=0?'+':'')+diff+'%':'-', sub:diff!=null?(diff>0?'공휴일이 더 높음':'평일이 더 높음'):'데이터 부족', color:diff>0?'#3B6D11':diff<0?'#A32D2D':'var(--txt)'},
-    {lbl:'연휴 직전날', val:beforeAvg?fm(beforeAvg)+'만':'-', sub:'전날 효과', color:'#185FA5'},
+    {lbl:'공휴일 평균',   val:holAvg?fm(holAvg)+'만':'-',    sub:stats.holiday.cnt+'일 기준', color:'#BA7517'},
+    {lbl:'평일 평균',     val:normAvg?fm(normAvg)+'만':'-',  sub:stats.normal.cnt+'일 기준',  color:'var(--txt)'},
+    {lbl:'공휴일 직전날', val:beforeAvg?fm(beforeAvg)+'만':'-', sub:'전날 효과',               color:'#185FA5'},
+    {lbl:'공휴일 다음날', val:afterAvg?fm(afterAvg)+'만':'-',   sub:'다음날 효과',             color:'#A32D2D'},
   ].map(c=>`<div style="background:var(--surface);border-radius:8px;padding:9px 10px">
     <div style="font-size:10px;color:var(--tm);margin-bottom:3px">${c.lbl}</div>
     <div style="font-size:17px;font-weight:700;color:${c.color}">${c.val}</div>
@@ -3874,76 +3887,64 @@ function renderHoliday(d){
 
   // 다가오는 공휴일
   const todayStr=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
-  const future=[...holidaySet].filter(dk=>dk>=todayStr).sort().slice(0,5);
+  const future=[...holidaySet].filter(dk=>dk>=todayStr).sort().slice(0,4);
   if(!future.length){
     upcoming.innerHTML='<div style="font-size:12px;color:var(--tm);text-align:center;padding:10px">공휴일 데이터 로딩 중...</div>';
     return;
   }
   const ICONS={'01':'🎊','02':'🎊','03':'🌸','04':'🌸','05':'🎌','06':'🏖','07':'🏖','08':'🎆','09':'🎑','10':'🍂','11':'🍂','12':'🎄'};
-  upcoming.innerHTML=future.map(dk=>{
-    const dd=new Date(dk), dows=['일','월','화','수','목','금','토'][dd.getDay()];
+  const DOWS=['일','월','화','수','목','금','토'];
+  upcoming.innerHTML=future.map(hdk=>{
+    const dd=new Date(hdk);
     const diffDays=Math.round((dd-new Date(todayStr))/(1000*60*60*24));
-    // 전날·다음날 포함해서 카드 표시
+    const mm=hdk.slice(5,7);
     const prevD=new Date(dd); prevD.setDate(dd.getDate()-1);
     const nextD=new Date(dd); nextD.setDate(dd.getDate()+1);
     const prevDk2=dkStr(prevD.getFullYear(),prevD.getMonth(),prevD.getDate());
     const nextDk2=dkStr(nextD.getFullYear(),nextD.getMonth(),nextD.getDate());
-    const refAvg=holAvg||normAvg;
-    const predPct=normAvg&&refAvg?Math.round((refAvg-normAvg)/normAvg*100):null;
-    const afterAvg2=avg('after');
-    const mm=dk.slice(5,7);
-    const rows=[];
-    // 전날 카드 (평일인 경우만)
-    const prevDow=prevD.getDay();
-    if(prevDow!==0&&prevDow!==6&&!holidaySet.has(prevDk2)){
-      const bRef=beforeAvg||normAvg;
-      const bPct=normAvg&&bRef?Math.round((bRef-normAvg)/normAvg*100):null;
-      rows.push(`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surface);border-radius:10px;margin-bottom:5px;border:0.5px solid var(--border)">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:32px;height:32px;border-radius:7px;background:#EAF3DE;display:flex;align-items:center;justify-content:center;font-size:15px">📅</div>
-          <div>
-            <div style="font-size:12px;font-weight:700;color:#27500A">연휴 전날</div>
-            <div style="font-size:11px;color:var(--tm)">${prevDk2.slice(5).replace('-','월 ')}일 (${['일','월','화','수','목','금','토'][prevDow]})</div>
-          </div>
+    const prevDow=prevD.getDay(), nextDow=nextD.getDay();
+    const bRef=beforeAvg||normAvg, aRef=afterAvg||normAvg, hRef=holAvg||normAvg;
+    const bPct=normAvg&&bRef?Math.round((bRef-normAvg)/normAvg*100):null;
+    const aPct=normAvg&&aRef?Math.round((aRef-normAvg)/normAvg*100):null;
+    const hPct=normAvg&&hRef?Math.round((hRef-normAvg)/normAvg*100):null;
+    const showPrev=prevDow!==0&&prevDow!==6&&!holidaySet.has(prevDk2);
+    const showNext=nextDow!==0&&nextDow!==6&&!holidaySet.has(nextDk2);
+    return `<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;overflow:hidden">
+      <!-- 공휴일 헤더 -->
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 14px;background:#FAEEDA">
+        <div style="font-size:22px">${ICONS[mm]||'🎉'}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:#633806">${hdk.slice(5).replace('-','월 ')}일 (${DOWS[dd.getDay()]})</div>
+          <div style="font-size:11px;color:#9A6020">${diffDays===0?'오늘':diffDays+'일 후'} · 공휴일${stats.holiday.cnt>0?' · 과거 '+stats.holiday.cnt+'일 기준':''}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-size:12px;font-weight:700;color:#639922">${bRef?'예상 ~'+fm(bRef)+'만':'-'}</div>
-          ${bPct!=null?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;background:#EAF3DE;color:#27500A">${bPct>=0?'+':''}${bPct}%</span>`:''}
-        </div>
-      </div>`);
-    }
-    // 공휴일 카드
-    rows.push(`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--surface);border-radius:10px;margin-bottom:5px;border:0.5px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:36px;height:36px;border-radius:8px;background:#FAEEDA;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${ICONS[mm]||'🎉'}</div>
-        <div>
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">공휴일</div>
-          <div style="font-size:11px;color:var(--tm)">${dk.slice(5).replace('-','월 ')}일 (${dows}) · ${diffDays===0?'오늘':diffDays+'일 후'}${stats.holiday.cnt>0?' · 과거 '+stats.holiday.cnt+'일 기준':''}</div>
+          <div style="font-size:14px;font-weight:700;color:#BA7517">${hRef?'~'+fm(hRef)+'만':'-'}</div>
+          ${hPct!=null?`<span style="font-size:10px;padding:1px 6px;border-radius:10px;background:#fff;color:${hPct>=0?'#3B6D11':'#A32D2D'}">${hPct>=0?'+':''}${hPct}%</span>`:''}
         </div>
       </div>
-      <div style="text-align:right">
-        <div style="font-size:13px;font-weight:700;color:#BA7517">${refAvg?'예상 ~'+fm(refAvg)+'만':'-'}</div>
-        ${predPct!=null?`<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:${predPct>=0?'#EAF3DE':'#FCEBEB'};color:${predPct>=0?'#27500A':'#791F1F'}">${predPct>=0?'+':''}${predPct}% ${stats.holiday.cnt<3?'참고값':'예상'}</span>`:''}
-      </div>
-    </div>`);
-    // 다음날 카드 (평일인 경우만)
-    const nextDow=nextD.getDay();
-    if(nextDow!==0&&nextDow!==6&&!holidaySet.has(nextDk2)){
-      rows.push(`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:#FCEBEB;border-radius:10px;margin-bottom:5px;border:0.5px solid #F09595">
-        <div style="display:flex;align-items:center;gap:8px">
-          <div style="width:32px;height:32px;border-radius:7px;background:#F7C1C1;display:flex;align-items:center;justify-content:center;font-size:15px">⚡</div>
-          <div>
-            <div style="font-size:12px;font-weight:700;color:#A32D2D">연휴 다음날</div>
-            <div style="font-size:11px;color:#791F1F">${nextDk2.slice(5).replace('-','월 ')}일 (${['일','월','화','수','목','금','토'][nextDow]})</div>
+      <!-- 전날 / 다음날 행 -->
+      <div style="display:grid;grid-template-columns:${showPrev&&showNext?'1fr 1fr':showPrev||showNext?'1fr':'1fr'};divide-x:1px solid var(--border)">
+        ${showPrev?`<div style="padding:9px 12px;border-right:${showNext?'1px solid var(--border)':'none'}">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+            <span style="font-size:14px">📅</span>
+            <span style="font-size:11px;font-weight:700;color:#27500A">전날</span>
+            <span style="font-size:10px;color:var(--tm);margin-left:auto">${prevDk2.slice(5).replace('-','/')}(${DOWS[prevDow]})</span>
           </div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:12px;font-weight:700;color:#A32D2D">${afterAvg2?'예상 ~'+fm(afterAvg2)+'만':'-'}</div>
-          ${normAvg&&afterAvg2?`<span style="font-size:10px;padding:2px 6px;border-radius:20px;background:#F7C1C1;color:#791F1F">${Math.round((afterAvg2-normAvg)/normAvg*100)}% 주의</span>`:''}
-        </div>
-      </div>`);
-    }
-    return `<div style="margin-bottom:8px">${rows.join('')}</div>`;
+          <div style="font-size:13px;font-weight:700;color:#639922">${bRef?'~'+fm(bRef)+'만':'-'}</div>
+          ${bPct!=null?`<span style="font-size:10px;color:#639922">${bPct>=0?'+':''}${bPct}% vs 평일</span>`:''}
+        </div>`:''}
+        ${showNext?`<div style="padding:9px 12px">
+          <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px">
+            <span style="font-size:14px">⚡</span>
+            <span style="font-size:11px;font-weight:700;color:#A32D2D">다음날</span>
+            <span style="font-size:10px;color:var(--tm);margin-left:auto">${nextDk2.slice(5).replace('-','/')}(${DOWS[nextDow]})</span>
+          </div>
+          <div style="font-size:13px;font-weight:700;color:#A32D2D">${aRef?'~'+fm(aRef)+'만':'-'}</div>
+          ${aPct!=null?`<span style="font-size:10px;color:#A32D2D">${aPct>=0?'+':''}${aPct}% vs 평일</span>`:''}
+        </div>`:''}
+        ${!showPrev&&!showNext?`<div style="padding:9px 12px;font-size:11px;color:var(--tm)">전날/다음날 모두 주말</div>`:''}
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -4174,27 +4175,13 @@ function renderPay(d){
   CH['pay']=new Chart(ctx,{type:'doughnut',data:{labels:keys,datasets:[{data:vals,backgroundColor:clrs,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:true,cutout:'60%',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.label+': '+fmF(c.raw)+' ('+Math.round(c.raw/grand*100)+'%)'}}}}});
   document.getElementById('payLegend').innerHTML=keys.map((k,i)=>`<div class="pie-item"><div class="pie-dot" style="background:${clrs[i]}"></div>${k} ${Math.round(vals[i]/grand*100)}%</div>`).join('');
 }
-function renderTopBot(d){
-  dc('tb');const sorted=[...d].sort((a,b)=>b.total-a.total),top5=sorted.slice(0,5),bot5=sorted.slice(-5).reverse();
-  const ctx=document.getElementById('tbChart').getContext('2d');
-  CH['tb']=new Chart(ctx,{type:'bar',data:{labels:[...top5.map(x=>x.ds+'('+DAYS[x.dow]+')'),...bot5.map(x=>x.ds+'('+DAYS[x.dow]+')')],datasets:[{label:'매출',data:[...top5.map(x=>x.total),...bot5.map(x=>x.total)],backgroundColor:[...top5.map(()=>'rgba(42,96,64,0.8)'),...bot5.map(()=>'rgba(163,48,48,0.7)')],borderRadius:5}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmF(c.raw)}}},scales:{y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:9},maxRotation:30},grid:{display:false}}}}});
-}
+function renderTopBot(){}
 function renderHeatmap(d){
   const mx=Math.max(...d.map(x=>x.total)),mn=Math.min(...d.map(x=>x.total));
   const wrap=document.getElementById('heatmap');wrap.innerHTML='';
   d.slice(-28).forEach(x=>{const pct=(x.total-mn)/(mx-mn||1),alpha=0.15+pct*0.75;const cell=document.createElement('div');cell.className='hmap-cell';cell.style.background=`rgba(92,61,30,${alpha})`;cell.style.color=pct>0.5?'#fff':'var(--brown)';cell.title=x.ds+'('+DAYS[x.dow]+'): '+fmF(x.total);cell.textContent=x.date.getDate();wrap.appendChild(cell);});
 }
-function renderTable(d){
-  const sorted=[...d].sort((a,b)=>b.total-a.total),bestDs=sorted[0].ds,worstDs=sorted[sorted.length-1].ds;
-  document.getElementById('detailTbl').innerHTML=[...d].reverse().map(x=>{
-    const wxLabel={0:'맑음',1:'흐림',2:'비',3:'눈'}[x.wx]||'';
-    return `<tr class="${x.ds===bestDs?'best':x.ds===worstDs?'worst':''}">
-      <td>${x.ds} (${DAYS[x.dow]}) ${wxLabel}</td>
-      <td>${fm(x.hall)}</td><td>${fm(x.deliv)}</td>
-      <td style="font-weight:700;color:var(--brown)">${fm(x.total)}</td>
-    </tr>`;
-  }).join('');
-}
+function renderTable(){}
 
 // ════ 원가 · 순이익 분석 (대표 전용) ════
 const PROFIT_ADMIN = '심영근';
