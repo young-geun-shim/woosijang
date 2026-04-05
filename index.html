@@ -1786,10 +1786,10 @@ function showAlbaNameModal(){
   const list=document.getElementById('albaNameList');
   if(!list) return;
   list.innerHTML=['알바1','알바2','알바3','알바4','알바5'].map(key=>`
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="min-width:44px;font-size:13px;color:var(--tm);font-weight:700">${key}</span>
+    <div style="display:grid;grid-template-columns:52px 1fr;align-items:center;gap:10px">
+      <span style="font-size:13px;color:var(--tm);font-weight:700;text-align:right">${key}</span>
       <input id="albaInp-${key}" type="text" value="${albaNames[key]||key}" placeholder="${key}"
-        style="flex:1;padding:10px;border:1.5px solid var(--bs);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none">
+        style="padding:10px 12px;border:1.5px solid var(--bs);border-radius:8px;font-size:14px;font-family:'Noto Sans KR',sans-serif;outline:none;width:100%;box-sizing:border-box">
     </div>`).join('');
   document.getElementById('albaNameModal').style.display='flex';
 }
@@ -2779,6 +2779,7 @@ async function fetchHistoricalWeather(){
   });
 
   if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
+  rebuildDashData();
   showToast('날씨 데이터 업데이트 완료!');
 }
 
@@ -2825,6 +2826,11 @@ function saveSales(){
       dinnerRain: typeof wxDetail==='object'?wxDetail.dinnerRain:null,
       lunchWx:    typeof wxDetail==='object'?wxDetail.lunchWx:null,
       dinnerWx:   typeof wxDetail==='object'?wxDetail.dinnerWx:null,
+      // 유료화 분석용 메타데이터
+      dow: new Date(dk).getDay(),
+      isHoliday: holidaySet.has(dk),
+      holType: getHolType(dk),
+      region: 'mapo',
       by:CU.name, savedAt:new Date().toISOString()
     };
     if(canDon){
@@ -3175,6 +3181,9 @@ const REAL_SALES = {
   // ── 카카오톡 파싱 2026-02-08 ~ 2026-03-24 ──
   '2026-02-08':{total:3687000,hall:3687000,baemin:0,coupang:0,deliv:0,cash:1308700,card:1205700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
   '2026-02-09':{total:3920400,hall:3239600,baemin:325200,coupang:355600,deliv:680800,cash:172400,card:3067200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-10':{total:2640000,hall:2006000,baemin:217000,coupang:417000,deliv:634000,cash:69000,card:1937000,zero:0,seoul:0,trans:0,ticket:0,discount:0}, // 예측(화 평균)
+  '2026-02-11':{total:3022000,hall:2375000,baemin:152000,coupang:495000,deliv:647000,cash:176000,card:2199000,zero:0,seoul:0,trans:0,ticket:0,discount:0}, // 예측(수 평균)
+  '2026-02-12':{total:3073000,hall:2485000,baemin:196000,coupang:392000,deliv:588000,cash:141000,card:2344000,zero:0,seoul:0,trans:0,ticket:0,discount:0}, // 예측(목 평균)
   '2026-02-13':{total:3623300,hall:2754600,baemin:305600,coupang:563100,deliv:868700,cash:154000,card:2600600,zero:0,seoul:0,trans:0,ticket:0,discount:73500},
   '2026-02-14':{total:2462900,hall:1518900,baemin:404200,coupang:539800,deliv:944000,cash:95700,card:1423200,zero:0,seoul:0,trans:0,ticket:0,discount:7000},
   '2026-02-15':{total:2491000,hall:1673500,baemin:157800,coupang:659700,deliv:817500,cash:361900,card:1311600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
@@ -3186,6 +3195,7 @@ const REAL_SALES = {
   '2026-02-23':{total:3010500,hall:2213100,baemin:312300,coupang:485100,deliv:797400,cash:239400,card:1973700,zero:0,seoul:0,trans:0,ticket:32900,discount:0},
   '2026-02-24':{total:2220700,hall:1539800,baemin:283800,coupang:397100,deliv:680900,cash:0,card:1506900,zero:0,seoul:0,trans:0,ticket:32900,discount:0},
   '2026-02-25':{total:3481500,hall:2791200,baemin:93800,coupang:596500,deliv:690300,cash:165300,card:2625900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-26':{total:3200000,hall:2612000,baemin:200000,coupang:388000,deliv:588000,cash:145000,card:2467000,zero:0,seoul:0,trans:0,ticket:0,discount:0}, // 예측(목 평균+주변보정)
   '2026-02-27':{total:3757900,hall:2789500,baemin:411900,coupang:556500,deliv:968400,cash:145300,card:2644200,zero:0,seoul:0,trans:0,ticket:0,discount:10000},
   '2026-02-28':{total:3159900,hall:2042400,baemin:522700,coupang:594800,deliv:1117500,cash:161700,card:1870700,zero:0,seoul:0,trans:0,ticket:0,discount:10000},
   '2026-03-01':{total:3658000,hall:2703600,baemin:346500,coupang:607900,deliv:954400,cash:116500,card:2587100,zero:0,seoul:0,trans:0,ticket:0,discount:10000},
@@ -3197,6 +3207,7 @@ const REAL_SALES = {
   '2026-03-07':{total:2919200,hall:2214500,baemin:269400,coupang:435300,deliv:704700,cash:230000,card:1968500,zero:0,seoul:0,trans:0,ticket:0,discount:16000},
   '2026-03-08':{total:2636400,hall:1493500,baemin:495300,coupang:647600,deliv:1142900,cash:134000,card:1359400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
   '2026-03-09':{total:3579100,hall:2960300,baemin:178400,coupang:440400,deliv:618800,cash:17000,card:2876300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-03-10':{total:2638000,hall:2003000,baemin:215000,coupang:420000,deliv:635000,cash:66000,card:1937000,zero:0,seoul:0,trans:0,ticket:0,discount:0}, // 예측(화 평균)
   '2026-03-11':{total:2656400,hall:2099400,baemin:191500,coupang:365500,deliv:557000,cash:208800,card:1789300,zero:0,seoul:101300,trans:0,ticket:0,discount:0},
   '2026-03-12':{total:2774800,hall:2210300,baemin:225300,coupang:339200,deliv:564500,cash:48200,card:2141200,zero:20900,seoul:0,trans:0,ticket:0,discount:0},
   '2026-03-13':{total:3599400,hall:2848400,baemin:264400,coupang:486600,deliv:751000,cash:62500,card:2755100,zero:30800,seoul:0,trans:0,ticket:0,discount:0},
@@ -3211,6 +3222,7 @@ const REAL_SALES = {
   '2026-03-22':{total:3062200,hall:1508500,baemin:561300,coupang:992400,deliv:1553700,cash:191200,card:1272400,zero:0,seoul:44900,trans:0,ticket:0,discount:0},
   '2026-03-23':{total:3099000,hall:2289400,baemin:295200,coupang:514400,deliv:809600,cash:465200,card:1778100,zero:0,seoul:25200,trans:0,ticket:20900,discount:0},
   '2026-03-24':{total:2917700,hall:2104900,baemin:243400,coupang:569400,deliv:812800,cash:73800,card:1945700,zero:0,seoul:85400,trans:0,ticket:0,discount:0},
+  '2026-03-25':{total:3024000,hall:2372000,baemin:155000,coupang:497000,deliv:652000,cash:174000,card:2198000,zero:0,seoul:0,trans:0,ticket:0,discount:0}, // 예측(수 평균)
   // ── 기존 데이터 2026-03-26 ~ ──
   '2026-03-26':{total:3560900,hall:2659300,baemin:280700,coupang:620900,deliv:901600,cash:89600,card:2445700,zero:0,seoul:103000,trans:0,ticket:21000,discount:0},
   '2026-03-27':{total:3316000,hall:2652200,baemin:351600,coupang:312200,deliv:663800,cash:55900,card:2567600,zero:0,seoul:0,trans:0,ticket:28700,discount:0},
@@ -3407,7 +3419,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);renderTopBot(d);renderTable(d);}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(DASH_DATA);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);renderTopBot(d);renderTable(d);}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -3668,23 +3680,39 @@ function renderWxCardsInto(d,wrap){
   if(!wrap) return;
   const WNAMES=['맑음','흐림','비','눈'], WICONS=['☀️','☁️','🌧️','❄️'];
   const WCOLORS=['#BA7517','#5F5E5A','#185FA5','#534AB7'];
-  const stats=WNAMES.map(()=>({lunchHall:0,lunchDeliv:0,dinnerHall:0,dinnerDeliv:0,cnt:0}));
-  d.forEach(x=>{const s=stats[x.wx];if(!s)return;s.cnt++;s.lunchHall+=(x.lunchHall||0);s.lunchDeliv+=(x.lunchDeliv||0);s.dinnerHall+=(x.dinnerHall||0);s.dinnerDeliv+=(x.dinnerDeliv||0);});
-  wrap.innerHTML=stats.map((s,i)=>{
-    if(!s.cnt) return '';
-    const lh=Math.round(s.lunchHall/s.cnt),ld=Math.round(s.lunchDeliv/s.cnt),dh=Math.round(s.dinnerHall/s.cnt),dd=Math.round(s.dinnerDeliv/s.cnt);
-    const total=lh+ld+dh+dd,delivPct=total>0?Math.round((ld+dd)/total*100):0;
-    return `<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px">
-      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px"><span style="font-size:18px">${WICONS[i]}</span><span style="font-size:12px;font-weight:700;color:${WCOLORS[i]}">${WNAMES[i]}</span><span style="font-size:10px;color:var(--tm);margin-left:auto">${s.cnt}일</span></div>
+  const WBGS=['#FAEEDA','#F1EFE8','#E6F1FB','#EEEDF7'];
+  const stats=WNAMES.map(()=>({lunchHall:0,lunchDeliv:0,dinnerHall:0,dinnerDeliv:0,cnt:0,total:0}));
+  d.forEach(x=>{
+    if(x.wx==null||x.wx<0||x.wx>3) return;
+    const s=stats[x.wx];
+    s.cnt++; s.total+=(x.total||0);
+    s.lunchHall+=(x.lunchHall||0); s.lunchDeliv+=(x.lunchDeliv||0);
+    s.dinnerHall+=(x.dinnerHall||0); s.dinnerDeliv+=(x.dinnerDeliv||0);
+  });
+  // 데이터 있는 카드만 (순서 유지: 맑음→흐림→비→눈)
+  const cards = stats.map((s,i)=>{
+    if(!s.cnt) return null;
+    const lh=Math.round(s.lunchHall/s.cnt),ld=Math.round(s.lunchDeliv/s.cnt);
+    const dh=Math.round(s.dinnerHall/s.cnt),dd=Math.round(s.dinnerDeliv/s.cnt);
+    const avg=Math.round(s.total/s.cnt);
+    const delivPct=(lh+ld+dh+dd)>0?Math.round((ld+dd)/(lh+ld+dh+dd)*100):0;
+    return `<div style="background:${WBGS[i]};border:1.5px solid ${WCOLORS[i]}33;border-radius:10px;padding:10px">
+      <div style="display:flex;align-items:center;gap:5px;margin-bottom:6px">
+        <span style="font-size:18px">${WICONS[i]}</span>
+        <span style="font-size:12px;font-weight:700;color:${WCOLORS[i]}">${WNAMES[i]}</span>
+        <span style="font-size:10px;color:var(--tm);margin-left:auto">${s.cnt}일</span>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:${WCOLORS[i]};margin-bottom:5px">${fmF(avg)}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:10px">
-        <div style="background:var(--white);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">점심홀</div><div style="font-weight:700;color:var(--brown)">${fm(lh)}</div></div>
-        <div style="background:var(--white);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">점심배달</div><div style="font-weight:700;color:var(--blue)">${fm(ld)}</div></div>
-        <div style="background:var(--white);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">저녁홀</div><div style="font-weight:700;color:var(--brown)">${fm(dh)}</div></div>
-        <div style="background:var(--white);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">저녁배달</div><div style="font-weight:700;color:var(--blue)">${fm(dd)}</div></div>
+        <div style="background:rgba(255,255,255,0.7);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">점심홀</div><div style="font-weight:700;color:var(--brown)">${fm(lh)}</div></div>
+        <div style="background:rgba(255,255,255,0.7);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">점심배달</div><div style="font-weight:700;color:var(--blue)">${fm(ld)}</div></div>
+        <div style="background:rgba(255,255,255,0.7);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">저녁홀</div><div style="font-weight:700;color:var(--brown)">${fm(dh)}</div></div>
+        <div style="background:rgba(255,255,255,0.7);border-radius:4px;padding:4px 6px"><div style="color:var(--tm)">저녁배달</div><div style="font-weight:700;color:var(--blue)">${fm(dd)}</div></div>
       </div>
       <div style="font-size:10px;color:var(--tm);margin-top:4px;text-align:right">배달비중 ${delivPct}%</div>
     </div>`;
-  }).join('');
+  }).filter(Boolean);
+  wrap.innerHTML = cards.join('');
 }
 
 // 온도구간 막대 - canvasId 지정 버전
@@ -3812,7 +3840,7 @@ function renderHoliday(d){
 
   const holAvg=avg('holiday'), normAvg=avg('normal'), beforeAvg=avg('before'), afterAvg=avg('after');
   const diff=holAvg&&normAvg?Math.round((holAvg-normAvg)/normAvg*100):null;
-  if(meta) meta.textContent=`최근 ${d.length}일 · ${stats.normal.cnt}일 기준`;
+  if(meta) meta.textContent=`전체 ${d.length}일 기준`;
 
   // 상단 4개 stat 카드
   statCards.innerHTML=[
