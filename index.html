@@ -2648,10 +2648,17 @@ let todayWx=1;
 async function loadTodayWeather(){
   const today=new Date();
   const dk=dkStr(today.getFullYear(),today.getMonth(),today.getDate());
-  const dateStr=dk; // YYYY-MM-DD 형식 그대로
+  const dateStr=dk;
   const wx=await fetchWeatherByDate(dateStr);
   todayWx=wx;
-  document.getElementById('hdrSub').textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨';
+  // 미세먼지도 함께
+  fetchAirQuality(dk).then(aq=>{
+    const pm=aq&&aq.dayPm25!=null?` · PM2.5 ${aq.dayPm25}(${pm25Grade(aq.dayPm25)})`:'';
+    document.getElementById('hdrSub').textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨'+pm;
+    if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); }
+  }).catch(()=>{
+    document.getElementById('hdrSub').textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨';
+  });
   showToast('오늘 날씨: '+WX_ICONS[wx]+' '+WX_NAMES[wx]);
 }
 
@@ -2756,6 +2763,8 @@ function saveSales(){
     };
     fbSet('sales/'+dk,record);
     db.ref('weather/'+dk).set(wx);
+    // 미세먼지 자동 수집
+    fetchAirQuality(dk).then(aq=>{ if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); } });
     copyPreview();
     showToast('저장 완료 '+WX_ICONS[wx]+' '+WX_NAMES[wx]+' · 카톡에 붙여넣기 하세요 📋');
   };
@@ -2882,8 +2891,10 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   const textOpacity=isOtherMonth?'0.6':'1';
   const textColor=alpha>0.5?'#fff':total>0?'#FFD080':`rgba(255,255,255,${isOtherMonth?0.35:0.5})`;
   cell.style.cssText=`aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${total>0?'pointer':'default'};background:${bgColor};border:${isToday?'1.5px solid var(--gold)':'1px solid rgba(255,255,255,0.05)'};transition:all .15s;opacity:${textOpacity}`;
-  const dowColor=dow%7===0?`rgba(255,120,120,0.9)`:dow%7===6?`rgba(120,160,255,0.9)`:textColor;
-  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}`;
+  const isHoliday=holidaySet.has(dk);
+  const dowColor=isHoliday||dow%7===0?`rgba(255,120,120,0.9)`:dow%7===6?`rgba(120,160,255,0.9)`:textColor;
+  const holidayDot=isHoliday&&!isOtherMonth?`<div style="width:4px;height:4px;border-radius:50%;background:rgba(255,80,80,0.8);margin:1px auto 0"></div>`:'';
+  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}${holidayDot}`;
   // 이전달/다음달 포함 모두 클릭 가능
   if(total>0){
     const [y,m,day]=[parseInt(dk.split('-')[0]),parseInt(dk.split('-')[1])-1,parseInt(dk.split('-')[2])];
@@ -3068,8 +3079,105 @@ Object.keys(REAL_SALES).forEach(dk=>{
   r.lunch=Math.floor(r.hall*0.42);
   r.dinner=r.hall-r.lunch;
   const d=new Date(dk);
-  r.date=d; r.ds=(d.getMonth()+1)+'/'+(d.getDate()); r.dow=d.getDay(); r.wx=1; // 날씨는 기본 흐림
+  r.date=d; r.ds=(d.getMonth()+1)+'/'+(d.getDate()); r.dow=d.getDay(); r.wx=1;
 });
+
+// ════ 공휴일 데이터 ════
+let holidaySet=new Set(); // 'YYYY-MM-DD' 형식
+
+async function loadHolidays(){
+  const years=[new Date().getFullYear(), new Date().getFullYear()+1];
+  for(const y of years){
+    try{
+      const res=await fetch(`https://date.nager.at/api/v3/PublicHolidays/${y}/KR`);
+      if(!res.ok) continue;
+      const data=await res.json();
+      data.forEach(h=>holidaySet.add(h.date));
+    }catch(e){ console.warn('공휴일 API 실패',e); }
+  }
+  // DASH_DATA에 반영
+  DASH_DATA.forEach(x=>{
+    const dk=dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate());
+    x.isHoliday=holidaySet.has(dk);
+  });
+  if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
+}
+
+function isHolidayDk(dk){ return holidaySet.has(dk); }
+
+// ════ 미세먼지 API (Open-Meteo Air Quality - 무료, 키 없음) ════
+const AQ_VARS='pm10,pm2_5,european_aqi';
+
+async function fetchAirQuality(dateStr){
+  // dateStr: 'YYYY-MM-DD'
+  const today=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+  const isToday=dateStr===today;
+  const baseUrl=isToday
+    ?'https://air-quality-api.open-meteo.com/v1/air-quality'
+    :'https://air-quality-api.open-meteo.com/v1/air-quality';
+  try{
+    const url=`${baseUrl}?latitude=${STORE_LAT}&longitude=${STORE_LNG}&hourly=${AQ_VARS}&start_date=${dateStr}&end_date=${dateStr}&timezone=Asia%2FSeoul`;
+    const res=await fetch(url);
+    if(!res.ok) return null;
+    const data=await res.json();
+    const h=data.hourly;
+    if(!h||!h.pm2_5) return null;
+    // 하루 평균
+    const avg=(arr)=>{ const v=arr.filter(x=>x!=null); return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length*10)/10:null; };
+    // 점심(9~16시), 저녁(16~23시) 시간대
+    const lunchPm25=avg(h.pm2_5.slice(9,16));
+    const dinnerPm25=avg(h.pm2_5.slice(16,23));
+    const lunchPm10=avg(h.pm10.slice(9,16));
+    const dinnerPm10=avg(h.pm10.slice(16,23));
+    const dayPm25=avg(h.pm2_5);
+    const dayPm10=avg(h.pm10);
+    const aqi=avg(h.european_aqi);
+    return {lunchPm25,dinnerPm25,lunchPm10,dinnerPm10,dayPm25,dayPm10,aqi};
+  }catch(e){ return null; }
+}
+
+// 미세먼지 등급 텍스트
+function pm25Grade(v){
+  if(v==null) return '-';
+  if(v<=15) return '좋음';
+  if(v<=35) return '보통';
+  if(v<=75) return '나쁨';
+  return '매우나쁨';
+}
+function pm25Color(v){
+  if(v==null) return 'var(--tm)';
+  if(v<=15) return 'var(--green)';
+  if(v<=35) return 'var(--blue)';
+  if(v<=75) return '#E85D24';
+  return 'var(--red)';
+}
+
+// 과거 미세먼지 일괄 수집
+async function fetchHistoricalAirQuality(){
+  const allDates=[...new Set([...Object.keys(REAL_SALES),...Object.keys(firebaseSalesData)])];
+  for(const dk of allDates){
+    // Firebase 캐시 확인
+    const snap=await db.ref('airquality/'+dk).get().catch(()=>null);
+    if(snap&&snap.exists()){ applyAqToData(dk,snap.val()); continue; }
+    // API 호출
+    const aq=await fetchAirQuality(dk);
+    if(aq){
+      db.ref('airquality/'+dk).set(aq);
+      applyAqToData(dk,aq);
+    }
+    await new Promise(r=>setTimeout(r,200));
+  }
+  if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
+  showToast('미세먼지 데이터 업데이트 완료!');
+}
+
+function applyAqToData(dk,aq){
+  // REAL_SALES
+  if(REAL_SALES[dk]) Object.assign(REAL_SALES[dk],aq);
+  // DASH_DATA
+  const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+  if(item) Object.assign(item,aq);
+}
 
 let DASH_DATA=Object.values(REAL_SALES).sort((a,b)=>a.date-b.date);
 let firebaseSalesData={};
@@ -3102,6 +3210,12 @@ function rebuildDashData(){
       dinnerTemp:r.dinnerTemp??null,
       lunchRain:r.lunchRain??null,
       dinnerRain:r.dinnerRain??null,
+      isHoliday:r.isHoliday||holidaySet.has(dk)||false,
+      dayPm25:r.dayPm25??null,
+      dayPm10:r.dayPm10??null,
+      lunchPm25:r.lunchPm25??null,
+      dinnerPm25:r.dinnerPm25??null,
+      aqi:r.aqi??null,
     };
   });
   DASH_DATA=Object.values(merged).sort((a,b)=>a.date-b.date);
@@ -5178,6 +5292,10 @@ initAttend();
 initOrderSystem();
 loadTodayWeather();
 setTimeout(fetchHistoricalWeather, 2000);
+// 공휴일 로드 (3초 뒤)
+setTimeout(loadHolidays, 3000);
+// 미세먼지 과거 데이터 (5초 뒤)
+setTimeout(fetchHistoricalAirQuality, 5000);
 
 // 매번 앱 열 때: 이름 있으면 권한 상태 확인 → 미허용이면 팝업
 setTimeout(async ()=>{
