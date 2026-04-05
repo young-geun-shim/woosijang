@@ -2,6 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-title" content="우시장회관">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, touch-action=manipulation">
 <title>우시장회관</title>
 <meta property="og:title" content="우시장회관 운영 앱">
@@ -466,7 +469,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
             oninput="checkPin()">
         </div>
         <div id="nmPinErr" style="font-size:12px;color:var(--red);text-align:center;margin-bottom:12px;display:none">PIN이 틀렸어요. 다시 시도해주세요.</div>
-        <button class="nm-ok" style="background:var(--tm)" onclick="cancelPin()">취소</button>
+        <button class="nm-ok" style="background:var(--tm)" onclick="cancelPin()">← 뒤로</button>
       </div>
       <!-- 이름 선택 화면 -->
       <div id="nmSelectWrap">
@@ -1520,7 +1523,7 @@ function selName(name,role,btn){
   pendName=name; pendRole=role;
   document.querySelectorAll('.nm-chip').forEach(b=>b.classList.remove('on'));
   btn.classList.add('on');
-  // 이름 클릭 즉시 PIN 입력 화면으로 전환
+  // 선택한 사람의 PIN 입력 화면으로
   document.getElementById('nmPinWrap').style.display='block';
   document.getElementById('nmSelectWrap').style.display='none';
   document.getElementById('nmPinInp').value='';
@@ -1529,6 +1532,7 @@ function selName(name,role,btn){
   document.getElementById('nmOk').disabled=true;
   setTimeout(()=>document.getElementById('nmPinInp').focus(),100);
 }
+
 function confirmName(){
   if(!pendName)return;
   CU={name:pendName,role:pendRole};
@@ -1537,8 +1541,50 @@ function confirmName(){
   try{ payrollUnlocked=false; payrollViewName=''; }catch(e){}
   applyUser();
   closeNameOv();
-  // 권한 상태 직접 확인해서 팝업 표시
   setTimeout(()=> checkAndShowPermPopup(), 400);
+}
+
+function showNameOv(firstTime=false){
+  if(firstTime || !CU.name){
+    // 첫 실행 → 이름 선택 화면 바로
+    showSelectMode();
+  } else {
+    // 변경 버튼 → PIN 없이 바로 이름 선택 화면
+    showSelectMode();
+  }
+  document.getElementById('nameOv').classList.remove('hidden');
+}
+
+function showSelectMode(){
+  pinMode=false;
+  document.getElementById('nmPinWrap').style.display='none';
+  document.getElementById('nmSelectWrap').style.display='block';
+  document.getElementById('nmSubTxt').textContent='누구세요? 선택해주세요';
+  // 현재 사람 하이라이트 제거 (선택 강요 없도록)
+  document.querySelectorAll('.nm-chip').forEach(b=>b.classList.remove('on'));
+  pendName=''; pendRole='';
+  document.getElementById('nmOk').disabled=true;
+}
+
+function checkPin(){
+  const val=document.getElementById('nmPinInp').value;
+  if(val.length===4){
+    // ★ pendName 기준으로 PIN 검증 (선택한 사람)
+    const correct=NAME_PINS[pendName]||'0000';
+    if(val===correct){
+      document.getElementById('nmPinErr').style.display='none';
+      // PIN 확인됐으면 바로 적용
+      confirmName();
+    } else {
+      document.getElementById('nmPinErr').style.display='block';
+      document.getElementById('nmPinInp').value='';
+    }
+  }
+}
+
+function cancelPin(){
+  // PIN 입력 중 취소 → 이름 선택 화면으로 돌아가기
+  showSelectMode();
 }
 
 async function checkAndShowPermPopup(){
@@ -1561,51 +1607,6 @@ async function checkAndShowPermPopup(){
     autoInitNotifications();
     checkGPS();
   }
-}
-function showNameOv(firstTime=false){
-  // 이미 이름이 있으면 PIN 확인 필요
-  if(!firstTime && CU.name){
-    showPinMode();
-  } else {
-    showSelectMode();
-  }
-  document.getElementById('nameOv').classList.remove('hidden');
-}
-function showPinMode(){
-  pinMode=true;
-  document.getElementById('nmPinWrap').style.display='block';
-  document.getElementById('nmSelectWrap').style.display='none';
-  document.getElementById('nmPinInp').value='';
-  document.getElementById('nmPinErr').style.display='none';
-  document.getElementById('nmSubTxt').textContent='이름 변경 — PIN 입력';
-  setTimeout(()=>document.getElementById('nmPinInp').focus(),100);
-}
-function showSelectMode(){
-  pinMode=false;
-  document.getElementById('nmPinWrap').style.display='none';
-  document.getElementById('nmSelectWrap').style.display='block';
-  document.getElementById('nmSubTxt').textContent='누구세요? 선택해주세요';
-  if(CU.name){
-    document.querySelectorAll('.nm-chip').forEach(b=>{if(b.textContent===CU.name)b.classList.add('on');});
-    pendName=CU.name; pendRole=CU.role;
-    document.getElementById('nmOk').disabled=false;
-  }
-}
-function checkPin(){
-  const val=document.getElementById('nmPinInp').value;
-  if(val.length===4){
-    const correct=NAME_PINS[CU.name]||'0000';
-    if(val===correct){
-      document.getElementById('nmPinErr').style.display='none';
-      showSelectMode();
-    } else {
-      document.getElementById('nmPinErr').style.display='block';
-      document.getElementById('nmPinInp').value='';
-    }
-  }
-}
-function cancelPin(){
-  closeNameOv();
 }
 function closeNameOv(){
   document.getElementById('nameOv').classList.add('hidden');
