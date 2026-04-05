@@ -3858,7 +3858,7 @@ function renderHeatmapWxInto(d, wrap){
   if(!wrap) return;
   const valid=d.filter(x=>x.lunchTemp!=null&&x.lunchRain!=null&&x.total>0);
   if(valid.length<2){ wrap.innerHTML='<div style="text-align:center;color:#aaa;padding:20px;font-size:13px">날씨 데이터가 쌓이면 표시돼요</div>'; return; }
-  const tempBands=[{l:'~5°C',min:-99,max:5},{l:'5~10°C',min:5,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
+  const tempBands=[{l:'-10~0°C',min:-10,max:0},{l:'0~10°C',min:0,max:10},{l:'10~20°C',min:10,max:20},{l:'20~30°C',min:20,max:30},{l:'30°C~',min:30,max:99}];
   const rainBands=[{l:'맑음',min:-1,max:0.1},{l:'약한비',min:0.1,max:2},{l:'비',min:2,max:10},{l:'폭우',min:10,max:999}];
   // 각 셀 평균 계산 (비/강수)
   const cells=rainBands.map(rb=>tempBands.map(tb=>{
@@ -3995,7 +3995,7 @@ function renderTempBand4Into(d, canvasId){
     dinnerDeliv: x.dinnerDeliv||(x.deliv?Math.round(x.deliv*0.55):0),
   }));
   if(valid.length<2){const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('날씨 데이터가 쌓이면 표시돼요',el.width/2,60);return;}
-  const bands=[{l:'~10°C',min:-99,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
+  const bands=[{l:'-10~0°C',min:-10,max:0},{l:'0~10°C',min:0,max:10},{l:'10~20°C',min:10,max:20},{l:'20~30°C',min:20,max:30},{l:'30°C~',min:30,max:99}];
   const avg=(rows,key)=>rows.length?Math.round(rows.reduce((s,x)=>s+(x[key]||0),0)/rows.length):0;
   const avgTotal=(rows)=>rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):0;
   const active=bands.map(b=>{const rows=valid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);return rows.length?{l:b.l,lh:avg(rows,'lunchHall'),ld:avg(rows,'lunchDeliv'),dh:avg(rows,'dinnerHall'),dd:avg(rows,'dinnerDeliv'),avgSales:avgTotal(rows)}:null;}).filter(Boolean);
@@ -4047,7 +4047,7 @@ function renderTempBand4(d){
     ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';
     ctx.fillText('날씨 데이터가 쌓이면 표시돼요',el.width/2,60);return;
   }
-  const bands=[{l:'~10°C',min:-99,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
+  const bands=[{l:'-10~0°C',min:-10,max:0},{l:'0~10°C',min:0,max:10},{l:'10~20°C',min:10,max:20},{l:'20~30°C',min:20,max:30},{l:'30°C~',min:30,max:99}];
   const avg=(rows,key)=>rows.length?Math.round(rows.reduce((s,x)=>s+(x[key]||0),0)/rows.length):0;
   const avgTotal=(rows)=>rows.length?Math.round(rows.reduce((s,x)=>s+x.total,0)/rows.length):0;
   const active=bands.map(b=>{
@@ -4343,14 +4343,12 @@ function renderTempBand(d){
     ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';
     ctx.fillText('날씨 데이터가 쌓이면 표시돼요',el.width/2,60); return;
   }
-  // 온도 구간: ~5, 5~10, 10~15, 15~20, 20~25, 25~30, 30~
+  // 온도 구간: -10~0, 0~10, 10~20, 20~30, 30~
   const bands=[
-    {label:'~5°C', min:-99, max:5},
-    {label:'5~10°C', min:5, max:10},
-    {label:'10~15°C', min:10, max:15},
-    {label:'15~20°C', min:15, max:20},
-    {label:'20~25°C', min:20, max:25},
-    {label:'25~30°C', min:25, max:30},
+    {label:'-10~0°C', min:-10, max:0},
+    {label:'0~10°C', min:0, max:10},
+    {label:'10~20°C', min:10, max:20},
+    {label:'20~30°C', min:20, max:30},
     {label:'30°C~', min:30, max:99},
   ];
   const lunchBands=bands.map(b=>{
@@ -6140,7 +6138,9 @@ async function autoFillRecentWeather(){
 async function fetchWeatherForecast(){
   const today = new Date();
   const todayDk = localDateStr(today);
-  const cacheKey = 'ws_forecast_v5_' + todayDk;
+  const hourSlot = today.getHours(); // 0~23 (1시간 단위)
+  const cacheKey = 'ws_forecast_v6_' + todayDk + '_' + hourSlot;
+  // 이전 캐시 전부 정리 (현재 슬롯만 유지)
   try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.startsWith('ws_forecast_')&&k!==cacheKey) localStorage.removeItem(k); } }catch(e){}
 
   // 캐시 확인
