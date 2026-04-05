@@ -3070,8 +3070,18 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   const isHoliday=holidaySet.has(dk);
   const dowColor=isHoliday||dow%7===0?`rgba(255,120,120,0.9)`:dow%7===6?`rgba(120,160,255,0.9)`:textColor;
   const holidayDot=isHoliday&&!isOtherMonth?`<div style="width:4px;height:4px;border-radius:50%;background:rgba(255,80,80,0.8);margin:1px auto 0"></div>`:'';
-  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}${holidayDot}`;
-  // 이전달/다음달 포함 모두 클릭 가능
+  // 점심/저녁 날씨 이모지
+  const raw=firebaseSalesData[dk]||REAL_SALES[dk];
+  let wxEmoji='';
+  if(raw&&!isOtherMonth){
+    const lWx=raw.lunchWx??raw.wx, dWx=raw.dinnerWx??raw.wx;
+    if(lWx!=null||dWx!=null){
+      const ico=['☀️','☁️','🌧️','❄️'];
+      const l=lWx!=null?ico[lWx]||'':'', r=dWx!=null?ico[dWx]||'':'';
+      if(l||r) wxEmoji=`<div style="display:flex;gap:1px;justify-content:center;font-size:7px;line-height:1;margin-top:1px">${l}${r}</div>`;
+    }
+  }
+  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}${wxEmoji}${holidayDot}`;
   if(total>0){
     const [y,m,day]=[parseInt(dk.split('-')[0]),parseInt(dk.split('-')[1])-1,parseInt(dk.split('-')[2])];
     cell.onclick=()=>{setPeriod('day',document.querySelector('.ptab'));dayViewDate=new Date(y,m,day);renderDayView();};
@@ -4087,8 +4097,10 @@ function renderPM(d){
   }).join('');
 
   // 홀·배달 변화 비교
-  const good=stats.find(s=>s.lbl==='좋음');
-  if(!good){ delivRows.innerHTML=''; return; }
+  const delivMeta=document.getElementById('pmDelivMeta');
+  const good=stats.find(s=>s.lbl==='좋음')||stats[0]; // 좋음 없으면 가장 낮은 등급 기준
+  if(!good){ delivRows.innerHTML='<div style="font-size:12px;color:var(--tm);text-align:center;padding:12px">데이터 부족</div>'; return; }
+  if(delivMeta) delivMeta.textContent=`"${good.lbl}" 기준 비교`;
   const goodHallPct=good.avgTotal>0?Math.round(good.avgHall/good.avgTotal*100):0;
   const goodDelivPct=100-goodHallPct;
   delivRows.innerHTML=stats.map(s=>{
