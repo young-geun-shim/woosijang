@@ -3231,7 +3231,7 @@ Object.keys(REAL_SALES).forEach(dk=>{
   r.lunch=Math.floor(r.hall*0.42);
   r.dinner=r.hall-r.lunch;
   const d=new Date(dk);
-  r.date=d; r.ds=(d.getMonth()+1)+'/'+(d.getDate()); r.dow=d.getDay(); r.wx=1;
+  r.date=d; r.ds=(d.getMonth()+1)+'/'+(d.getDate()); r.dow=d.getDay(); r.wx=null;
 });
 
 // ════ 공휴일 데이터 ════
@@ -3350,7 +3350,7 @@ function rebuildDashData(){
       date:d,
       ds:(d.getMonth()+1)+'/'+(d.getDate()),
       dow:d.getDay(),
-      wx:r.wx||1,
+      wx:r.wx!=null?r.wx:1,
       hall:r.hall||(r.total-(r.baemin||0)-(r.coupang||0)),
       deliv:r.deliv||((r.baemin||0)+(r.coupang||0)),
       lunch:r.lunch||Math.floor((r.hall||(r.total-(r.baemin||0)-(r.coupang||0)))*0.42),
@@ -3592,7 +3592,7 @@ function renderReportWxDetail(){
   const d=DASH_DATA;
   // 날씨 카드
   const wrap=document.getElementById('reportWxCards');
-  if(wrap){ const tmp=document.getElementById('wxCards'); if(tmp) wrap.innerHTML=tmp.innerHTML; renderWxCardsInto(d,wrap); }
+  if(wrap) renderWxCardsInto(d,wrap);
   // 히트맵
   renderHeatmapWxInto(d, document.getElementById('reportHeatmapGrid'));
   // 버블
@@ -3732,7 +3732,14 @@ function renderWxCardsInto(d,wrap){
 function renderTempBand4Into(d, canvasId){
   dc(canvasId);
   const el=document.getElementById(canvasId); if(!el) return;
-  const valid=d.filter(x=>x.lunchTemp!=null&&(x.lunchHall||x.lunchDeliv||x.dinnerHall||x.dinnerDeliv));
+  // lunchTemp 있으면 hall 추정으로 처리
+  const valid=d.filter(x=>x.lunchTemp!=null&&x.total>0).map(x=>({
+    ...x,
+    lunchHall: x.lunchHall||(x.hall?Math.round(x.hall*0.42):0),
+    lunchDeliv: x.lunchDeliv||(x.deliv?Math.round(x.deliv*0.45):0),
+    dinnerHall: x.dinnerHall||(x.hall?Math.round(x.hall*0.58):0),
+    dinnerDeliv: x.dinnerDeliv||(x.deliv?Math.round(x.deliv*0.55):0),
+  }));
   if(valid.length<2){const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('날씨 데이터가 쌓이면 표시돼요',el.width/2,60);return;}
   const bands=[{l:'~10°C',min:-99,max:10},{l:'10~15°C',min:10,max:15},{l:'15~20°C',min:15,max:20},{l:'20~25°C',min:20,max:25},{l:'25~30°C',min:25,max:30},{l:'30°C~',min:30,max:99}];
   const avg=(rows,key)=>rows.length?Math.round(rows.reduce((s,x)=>s+(x[key]||0),0)/rows.length):0;
@@ -3744,40 +3751,20 @@ function renderTempBand4Into(d, canvasId){
 // ════ 날씨 카드 + 온도구간 4분류 차트 ════
 function renderWxCards(d){
   const wrap=document.getElementById('wxCards'); if(!wrap) return;
-  const WNAMES=['맑음','흐림','비','눈'], WICONS=['☀️','☁️','🌧️','❄️'];
-  const WCOLORS=['#BA7517','#5F5E5A','#185FA5','#534AB7'];
-  const stats=WNAMES.map(()=>({lunchHall:0,lunchDeliv:0,dinnerHall:0,dinnerDeliv:0,cnt:0}));
-  d.forEach(x=>{
-    const s=stats[x.wx]; if(!s) return;
-    s.cnt++; s.lunchHall+=(x.lunchHall||0); s.lunchDeliv+=(x.lunchDeliv||0);
-    s.dinnerHall+=(x.dinnerHall||0); s.dinnerDeliv+=(x.dinnerDeliv||0);
-  });
-  wrap.innerHTML=stats.map((s,i)=>{
-    if(!s.cnt) return '';
-    const lh=Math.round(s.lunchHall/s.cnt), ld=Math.round(s.lunchDeliv/s.cnt);
-    const dh=Math.round(s.dinnerHall/s.cnt), dd=Math.round(s.dinnerDeliv/s.cnt);
-    const total=lh+ld+dh+dd, delivPct=total>0?Math.round((ld+dd)/total*100):0;
-    return `<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:12px">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
-        <span style="font-size:20px">${WICONS[i]}</span>
-        <span style="font-size:13px;font-weight:700;color:${WCOLORS[i]}">${WNAMES[i]}</span>
-        <span style="font-size:11px;color:var(--tm);margin-left:auto">${s.cnt}일</span>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px">
-        <div style="background:var(--surface);border-radius:6px;padding:5px 7px"><div style="color:var(--tm)">점심홀</div><div style="font-weight:700;color:var(--brown)">${fm(lh)}</div></div>
-        <div style="background:var(--surface);border-radius:6px;padding:5px 7px"><div style="color:var(--tm)">점심배달</div><div style="font-weight:700;color:var(--blue)">${fm(ld)}</div></div>
-        <div style="background:var(--surface);border-radius:6px;padding:5px 7px"><div style="color:var(--tm)">저녁홀</div><div style="font-weight:700;color:var(--brown)">${fm(dh)}</div></div>
-        <div style="background:var(--surface);border-radius:6px;padding:5px 7px"><div style="color:var(--tm)">저녁배달</div><div style="font-weight:700;color:var(--blue)">${fm(dd)}</div></div>
-      </div>
-      <div style="font-size:10px;color:var(--tm);margin-top:6px;text-align:right">배달비중 ${delivPct}%</div>
-    </div>`;
-  }).join('');
+  renderWxCardsInto(d, wrap);
 }
 
 function renderTempBand4(d){
   dc('tempBand4Chart');
   const el=document.getElementById('tempBand4Chart'); if(!el) return;
-  const valid=d.filter(x=>x.lunchTemp!=null&&(x.lunchHall||x.lunchDeliv||x.dinnerHall||x.dinnerDeliv));
+  // lunchTemp 있으면 hall 추정으로 처리
+  const valid=d.filter(x=>x.lunchTemp!=null&&x.total>0).map(x=>({
+    ...x,
+    lunchHall: x.lunchHall||(x.hall?Math.round(x.hall*0.42):0),
+    lunchDeliv: x.lunchDeliv||(x.deliv?Math.round(x.deliv*0.45):0),
+    dinnerHall: x.dinnerHall||(x.hall?Math.round(x.hall*0.58):0),
+    dinnerDeliv: x.dinnerDeliv||(x.deliv?Math.round(x.deliv*0.55):0),
+  }));
   if(valid.length<2){
     const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);
     ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';
@@ -3800,10 +3787,7 @@ function renderTempBand4(d){
       {label:'저녁홀',data:active.map(b=>b.dh),backgroundColor:'rgba(24,95,165,0.85)',borderRadius:3},
       {label:'저녁배달',data:active.map(b=>b.dd),backgroundColor:'rgba(133,183,235,0.70)',borderRadius:3},
     ]},
-    options:{responsive:true,maintainAspectRatio:true,
-      plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},
-      scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}
-    }
+    options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{x:{ticks:{font:{size:10}},grid:{display:false}},y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}}}}
   });
 }
 
@@ -4031,57 +4015,8 @@ function corrLabel(r){
   return `상관 없음 (r=${r})`;
 }
 
-function renderWeatherCorr(d){
-  // 데이터 있는 것만 필터
-  const lunchT = d.filter(x=>x.lunch>0 && x.lunchTemp!=null);
-  const lunchR = d.filter(x=>x.lunch>0 && x.lunchRain!=null);
-  const dinnerT = d.filter(x=>x.dinner>0 && x.dinnerTemp!=null);
-  const dinnerR = d.filter(x=>x.dinner>0 && x.dinnerRain!=null);
+function renderWeatherCorr(){}
 
-  const makeScatter = (canvasId, metaId, data, xKey, yKey, xlabel, color, corrR) => {
-    dc(canvasId);
-    const el=document.getElementById(canvasId); if(!el) return;
-    const metaEl=document.getElementById(metaId);
-    if(metaEl) metaEl.textContent = data.length>0 ? corrLabel(corrR) : '날씨 데이터 없음';
-    if(data.length<2){
-      // 데이터 부족 시 안내
-      const ctx=el.getContext('2d');
-      ctx.clearRect(0,0,el.width,el.height);
-      ctx.fillStyle='#aaa'; ctx.font='13px sans-serif'; ctx.textAlign='center';
-      ctx.fillText('날씨 데이터가 쌓이면 표시돼요', el.width/2, 60);
-      return;
-    }
-    if(CH[canvasId]){CH[canvasId].destroy();delete CH[canvasId];}
-    CH[canvasId]=new Chart(el.getContext('2d'),{
-      type:'scatter',
-      data:{datasets:[{
-        label: xlabel+' vs 매출',
-        data: data.map(x=>({x:x[xKey], y:x[yKey], label:x.ds})),
-        backgroundColor: color,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-      }]},
-      options:{
-        responsive:true, maintainAspectRatio:true,
-        plugins:{
-          legend:{display:false},
-          tooltip:{callbacks:{
-            label: c=>`${c.raw.label}: ${xlabel} ${c.raw.x}${xKey.includes('Temp')?'°C':'mm'} / 매출 ${fmF(c.raw.y)}`
-          }}
-        },
-        scales:{
-          x:{title:{display:true, text:xlabel, font:{size:10}}, ticks:{font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'}},
-          y:{title:{display:true, text:'매출(원)', font:{size:10}}, ticks:{callback:v=>fm(v), font:{size:10}}, grid:{color:'rgba(0,0,0,0.04)'}}
-        }
-      }
-    });
-  };
-
-  const rLT = calcCorrelation(lunchT.map(x=>x.lunchTemp), lunchT.map(x=>x.lunch));
-  const rLR = calcCorrelation(lunchR.map(x=>x.lunchRain), lunchR.map(x=>x.lunch));
-  const rDT = calcCorrelation(dinnerT.map(x=>x.dinnerTemp), dinnerT.map(x=>x.dinner));
-  const rDR = calcCorrelation(dinnerR.map(x=>x.dinnerRain), dinnerR.map(x=>x.dinner));
-}
 
 function renderTempBand(d){
   dc('tempBandChart');
