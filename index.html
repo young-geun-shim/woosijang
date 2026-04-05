@@ -535,6 +535,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div style="display:flex;gap:4px;align-items:center">
       <div id="gpsStatusIcon" onclick="handleGpsIconTap()" title="GPS 상태" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer">📍</div>
       <div id="notifyStatusIcon" onclick="handleNotifyIconTap()" title="알림 상태" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer">🔔</div>
+      <div onclick="showPredPopupForce()" title="매출 예측" style="width:26px;height:26px;border-radius:50%;background:rgba(181,131,42,.3);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer">🔮</div>
     </div>
     <div class="user-badge" onclick="showNameOv()" id="userBadge">
       <div class="ub-dot"></div>
@@ -6241,8 +6242,11 @@ function showPredPopup(){
   if(!CU.name) return;
   const todayKey='ws_pred_'+localDateStr(new Date());
   if(localStorage.getItem(todayKey)) return;
+  showPredPopupForce();
+}
+function showPredPopupForce(){
   const content=buildPredContent();
-  if(!content) return;
+  if(!content){ showToast('매출 데이터가 부족해요'); return; }
   document.getElementById('predPopupContent').innerHTML=content;
   document.getElementById('predPopup').style.display='flex';
 }
