@@ -2798,8 +2798,8 @@ async function fetchHistoricalWeather(){
 
   for(const dk of allDates){
     const cv=cached[dk];
-    // 이미 상세 데이터 있으면 스킵, wx 숫자만 있으면 재수집
-    const needFetch = cv===undefined || typeof cv==='number';
+    // 이미 상세 데이터 있으면 스킵, wx 숫자만 있거나 lunchRain/lunchWx 없는 구버전이면 재수집
+    const needFetch = cv===undefined || typeof cv==='number' || cv.lunchRain===undefined || cv.lunchWx===undefined;
     if(!needFetch) continue;
 
     const detail=await fetchWeatherDetail(dk);
@@ -2820,6 +2820,8 @@ async function fetchHistoricalWeather(){
     // REAL_SALES 업데이트
     if(REAL_SALES[dk]){
       REAL_SALES[dk].wx=detail.wx;
+      REAL_SALES[dk].lunchWx=detail.lunchWx;
+      REAL_SALES[dk].dinnerWx=detail.dinnerWx;
       REAL_SALES[dk].lunchTemp=detail.lunchTemp;
       REAL_SALES[dk].dinnerTemp=detail.dinnerTemp;
       REAL_SALES[dk].lunchRain=detail.lunchRain;
@@ -2829,6 +2831,8 @@ async function fetchHistoricalWeather(){
     const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
     if(item){
       item.wx=detail.wx;
+      item.lunchWx=detail.lunchWx;
+      item.dinnerWx=detail.dinnerWx;
       item.lunchTemp=detail.lunchTemp;
       item.dinnerTemp=detail.dinnerTemp;
       item.lunchRain=detail.lunchRain;
@@ -2845,6 +2849,8 @@ async function fetchHistoricalWeather(){
     if(!item) return;
     if(typeof cv==='object'){
       item.wx=cv.wx;
+      item.lunchWx=cv.lunchWx??null;
+      item.dinnerWx=cv.dinnerWx??null;
       item.lunchTemp=cv.lunchTemp;
       item.dinnerTemp=cv.dinnerTemp;
       item.lunchRain=cv.lunchRain;
@@ -2856,6 +2862,7 @@ async function fetchHistoricalWeather(){
 
   if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
   rebuildDashData();
+  renderDashCal();
   showToast('날씨 데이터 업데이트 완료!');
 }
 
@@ -3070,13 +3077,28 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
   const isHoliday=holidaySet.has(dk);
   const dowColor=isHoliday||dow%7===0?`rgba(255,120,120,0.9)`:dow%7===6?`rgba(120,160,255,0.9)`:textColor;
   const holidayDot=isHoliday&&!isOtherMonth?`<div style="width:4px;height:4px;border-radius:50%;background:rgba(255,80,80,0.8);margin:1px auto 0"></div>`:'';
-  // 점심/저녁 날씨 이모지
-  const raw=firebaseSalesData[dk]||REAL_SALES[dk];
+  // 점심/저녁 날씨 이모지 - 과거: DASH_DATA, 미래: forecastWx
   let wxEmoji='';
-  if(raw&&!isOtherMonth){
-    const lWx=raw.lunchWx??raw.wx, dWx=raw.dinnerWx??raw.wx;
+  if(!isOtherMonth){
+    const ico=['☀️','☁️','🌧️','❄️'];
+    const todayDate=new Date(); todayDate.setHours(0,0,0,0);
+    const cellDate=new Date(dk); cellDate.setHours(0,0,0,0);
+    const isFuture=cellDate>=todayDate;
+    let lWx=null, dWx=null;
+    if(isFuture){
+      // 미래: forecastWx 캐시
+      const fw=forecastWx[dk];
+      if(fw){ lWx=fw.lunchWx; dWx=fw.dinnerWx; }
+    } else {
+      // 과거: DASH_DATA 우선, 없으면 raw 데이터
+      const di=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+      if(di){ lWx=di.lunchWx??di.wx; dWx=di.dinnerWx??di.wx; }
+      else {
+        const raw=firebaseSalesData[dk]||REAL_SALES[dk];
+        if(raw){ lWx=raw.lunchWx??raw.wx; dWx=raw.dinnerWx??raw.wx; }
+      }
+    }
     if(lWx!=null||dWx!=null){
-      const ico=['☀️','☁️','🌧️','❄️'];
       const l=lWx!=null?ico[lWx]||'':'', r=dWx!=null?ico[dWx]||'':'';
       if(l||r) wxEmoji=`<div style="display:flex;gap:1px;justify-content:center;font-size:7px;line-height:1;margin-top:1px">${l}${r}</div>`;
     }
@@ -5925,14 +5947,48 @@ setTimeout(fetchHistoricalWeather, 2000);
 setTimeout(loadHolidays, 3000);
 // 미세먼지 과거 데이터 (5초 뒤)
 setTimeout(fetchHistoricalAirQuality, 5000);
-
-setTimeout(fetchHistoricalWeather, 2000);
-// 공휴일 로드 (3초 뒤)
-setTimeout(loadHolidays, 3000);
-// 미세먼지 과거 데이터 (5초 뒤)
-setTimeout(fetchHistoricalAirQuality, 5000);
+// 예보 날씨 (4초 뒤)
+setTimeout(fetchWeatherForecast, 4000);
 // 예측 팝업 (7초 뒤 - 데이터 로딩 후)
 setTimeout(showPredPopup, 7000);
+
+// ════ 예보 날씨 캐시 (미래 달력 이모지용) ════
+let forecastWx = {}; // {'2026-04-07': {lunchWx:0, dinnerWx:1}, ...}
+
+async function fetchWeatherForecast(){
+  const todayKey = 'ws_forecast_' + new Date().toISOString().slice(0,10);
+  const cached = localStorage.getItem(todayKey);
+  if(cached){
+    try{ forecastWx=JSON.parse(cached); renderDashCal(); return; }catch(e){}
+  }
+  try{
+    const today = new Date();
+    const startDate = today.toISOString().slice(0,10);
+    const endD = new Date(today); endD.setDate(today.getDate()+15);
+    const endDate = endD.toISOString().slice(0,10);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode,precipitation&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${endDate}`;
+    const res = await fetch(url);
+    const json = await res.json();
+    const h = json?.hourly;
+    if(!h||!h.weathercode) return;
+    const wxArr = h.weathercode.map(c=>wmoToWx(c));
+    forecastWx = {};
+    for(let i=0; i<16; i++){
+      const d = new Date(today); d.setDate(today.getDate()+i);
+      const dk = dkStr(d.getFullYear(), d.getMonth(), d.getDate());
+      const offset = i * 24;
+      const lunchSlice = wxArr.slice(offset+WX_LUNCH_S, offset+WX_LUNCH_E);
+      const dinnerSlice = wxArr.slice(offset+WX_DINNER_S, offset+WX_DINNER_E);
+      if(!lunchSlice.length) continue;
+      forecastWx[dk] = {
+        lunchWx: pickRepresentativeWx(lunchSlice),
+        dinnerWx: pickRepresentativeWx(dinnerSlice),
+      };
+    }
+    localStorage.setItem(todayKey, JSON.stringify(forecastWx));
+    renderDashCal();
+  } catch(e){ console.warn('예보 날씨 오류', e); }
+}
 
 // ════ 오늘/내일 매출 예측 팝업 ════
 function showPredPopup(){
