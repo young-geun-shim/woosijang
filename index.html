@@ -6163,22 +6163,28 @@ async function fetchWeatherForecast(){
     });
 
     Object.entries(dayGroups).forEach(([dk, indices])=>{
-      if(indices.length < WX_CLOSE_H) return; // 시간 데이터 부족하면 스킵
+      if(indices.length < 10) return; // 최소 10시간 데이터만 있으면 사용
       const dayWxArr = indices.map(i=>wxArr[i]);
       const dayTempArr = h.temperature_2m ? indices.map(i=>h.temperature_2m[i]) : [];
-      const dayRainArr = h.precipitation ? indices.map(i=>h.precipitation[i]) : [];
+
+      // 점심/저녁 슬라이스가 데이터 범위 안에 있는지 확인
+      const lEnd = Math.min(WX_LUNCH_E, dayWxArr.length);
+      const dEnd = Math.min(WX_DINNER_E, dayWxArr.length);
+      const lStart = Math.min(WX_LUNCH_S, dayWxArr.length);
+      const dStart = Math.min(WX_DINNER_S, dayWxArr.length);
 
       newForecast[dk] = {
-        lunchWx: pickWxFromSlice(dayWxArr.slice(WX_LUNCH_S, WX_LUNCH_E)),
-        dinnerWx: pickWxFromSlice(dayWxArr.slice(WX_DINNER_S, WX_DINNER_E)),
-        wx: pickRepresentativeWx(dayWxArr),
-        lunchTemp: dayTempArr.length>=WX_LUNCH_E ? sliceAvg(dayTempArr, WX_LUNCH_S, WX_LUNCH_E) : null,
-        dinnerTemp: dayTempArr.length>=WX_DINNER_E ? sliceAvg(dayTempArr, WX_DINNER_S, WX_DINNER_E) : null,
+        lunchWx: lEnd>lStart ? pickWxFromSlice(dayWxArr.slice(lStart, lEnd)) : pickWxFromSlice(dayWxArr),
+        dinnerWx: dEnd>dStart ? pickWxFromSlice(dayWxArr.slice(dStart, dEnd)) : pickWxFromSlice(dayWxArr),
+        wx: pickRepresentativeWx(dayWxArr.length>=22 ? dayWxArr : dayWxArr.concat(Array(24-dayWxArr.length).fill(1))),
+        lunchTemp: dayTempArr.length>lStart ? sliceAvg(dayTempArr, lStart, Math.min(lEnd, dayTempArr.length)) : null,
+        dinnerTemp: dayTempArr.length>dStart ? sliceAvg(dayTempArr, dStart, Math.min(dEnd, dayTempArr.length)) : null,
       };
     });
 
     if(Object.keys(newForecast).length > 0){
       forecastWx = newForecast;
+      showToast('예보 '+Object.keys(newForecast).length+'일 로드 완료');
     }
 
     // 미세먼지 예보
@@ -6210,15 +6216,7 @@ async function fetchWeatherForecast(){
     renderDashCal();
   } catch(e){
     console.warn('예보 API 오류:', e);
-    // API 실패 시 최소한 오늘 날씨로 미래 16일 채우기
-    if(Object.keys(forecastWx).length===0){
-      for(let i=0;i<16;i++){
-        const d=new Date(today); d.setDate(today.getDate()+i);
-        const dk=localDateStr(d);
-        forecastWx[dk]={lunchWx:todayWx,dinnerWx:todayWx,wx:todayWx,lunchTemp:null,dinnerTemp:null};
-      }
-      renderDashCal();
-    }
+    showToast('예보 로드 실패: '+e.message);
   }
 }
 
