@@ -1419,6 +1419,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">원가 · 순이익 분석</div><div class="more-menu-sub">대표 전용 · 원가 입력 → 순이익 자동 계산</div></div>
       <div style="color:var(--red)">›</div>
     </button>
+    <button class="more-menu-btn" onclick="goTabAdmin('predDebug')" style="background:var(--rbg);border-color:var(--rborder)">
+      <div class="more-menu-ico">🧮</div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">예측 계산 분석</div><div class="more-menu-sub">대표 전용 · 보정계수 · 가중치 상세</div></div>
+      <div style="color:var(--red)">›</div>
+    </button>
     <button class="more-menu-btn" id="albaNameBtn" onclick="showAlbaNameModal()" style="background:var(--rbg);border-color:var(--rborder);display:none">
       <div class="more-menu-ico">👤</div>
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">알바 이름 설정</div><div class="more-menu-sub">대표 전용 · 알바1~5 이름 변경</div></div>
@@ -1454,6 +1459,18 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title">매출 대시보드</div><div class="more-menu-sub">그래프 · 인사이트 · 날씨 분석</div></div>
       <div style="color:var(--tm)">›</div>
     </button>
+  </div>
+</div>
+
+<!-- ═══ 예측 계산 분석 (대표 전용) ═══ -->
+<div class="view" id="vPredDebug">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">🧮 예측 계산 분석</div>
+  </div>
+  <div style="padding:12px 0">
+    <button class="save-btn" onclick="renderPredDebug()" style="margin:0 0 12px;padding:12px">예측 분석 생성</button>
+    <div id="predDebugContent"></div>
   </div>
 </div>
 
@@ -5081,7 +5098,7 @@ function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg||'완료!';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
 
 // ════ TAB 시스템 업데이트 ════
-const ALL_TABS=['attend','cal','chk','board','sales','reserve','payroll','schedule','complain','more','report','monthreport','profit'];
+const ALL_TABS=['attend','cal','chk','board','sales','reserve','payroll','schedule','complain','more','report','monthreport','profit','predDebug'];
 function goTab(tab){
   ALL_TABS.forEach(t=>{
     const v=document.getElementById('v'+t.charAt(0).toUpperCase()+t.slice(1));
@@ -5123,6 +5140,7 @@ function goTab(tab){
   if(tab==='report'){initReport();}
   if(tab==='monthreport'){initMonthReport();}
   if(tab==='profit'){initProfit();}
+  if(tab==='predDebug'){renderPredDebug();}
   window.scrollTo(0,0);
 }
 
@@ -6238,7 +6256,7 @@ function closePredPopup(noMore){
 
 // ── 자동 보정 가중치 계산 ──
 function calcAutoWeights(){
-  const defaults = {hol:0.50, wx:0.25, pm:0.25};
+  const defaults = {hol:0.40, wx:0.20, pm:0.20, temp:0.20};
   if(DASH_DATA.length < 90) return defaults;
   // 데이터 90일 이상: 상관계수 기반 가중치 자동 산출
   const baseAvg = DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
@@ -6274,13 +6292,31 @@ function calcAutoWeights(){
     }
   }
 
+  // 온도 영향도: 온도구간별 매출 분산
+  const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
+  let tempImpact=0.1;
+  if(tempValid.length>=20){
+    const tBands=[{min:-10,max:0},{min:0,max:10},{min:10,max:20},{min:20,max:30},{min:30,max:99}];
+    let tVar=0, tCnt=0;
+    tBands.forEach(b=>{
+      const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
+      if(rows.length>=2){
+        const avg=rows.reduce((s,x)=>s+x.total,0)/rows.length;
+        tVar+=Math.abs(avg-baseAvg)/baseAvg;
+        tCnt++;
+      }
+    });
+    if(tCnt) tempImpact=tVar/tCnt;
+  }
+
   // 정규화: 합=1
-  const total=holImpact+wxImpact+pmImpact;
+  const total=holImpact+wxImpact+pmImpact+tempImpact;
   if(total<0.01) return defaults;
   return {
     hol: Math.round(holImpact/total*100)/100,
     wx: Math.round(wxImpact/total*100)/100,
     pm: Math.round(pmImpact/total*100)/100,
+    temp: Math.round(tempImpact/total*100)/100,
   };
 }
 
@@ -6306,8 +6342,16 @@ function buildPredContext(){
   const holStats={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
   DASH_DATA.forEach(x=>{const dk2=localDateStr(x.date);const t=getHolType(dk2);if(t&&holStats[t]){holStats[t].sum+=x.total;holStats[t].cnt++;}});
   const holAvgFn=t=>holStats[t].cnt?holStats[t].sum/holStats[t].cnt:baseAvg;
-  const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,weights,PRED_PM_GRADES);
-  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, predict, isAuto:DASH_DATA.length>=90};
+  // 온도구간별 평균매출
+  const TEMP_BANDS=[{l:'-10~0',min:-10,max:0},{l:'0~10',min:0,max:10},{l:'10~20',min:10,max:20},{l:'20~30',min:20,max:30},{l:'30~',min:30,max:99}];
+  const tempBandAvg={};
+  const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
+  TEMP_BANDS.forEach(b=>{
+    const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
+    if(rows.length) tempBandAvg[b.l]=rows.reduce((s,x)=>s+x.total,0)/rows.length;
+  });
+  const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,tempBandAvg,weights,PRED_PM_GRADES,TEMP_BANDS);
+  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, predict, isAuto:DASH_DATA.length>=90};
 }
 
 // ── 월간 예측 합산 (팝업·달력 공유) ──
@@ -6328,8 +6372,8 @@ function calcMonthPred(year, month){
   return {actual, pred, total:actual+pred, actDays, remainDays:lastDay-today.getDate(), ctx};
 }
 
-// ── 단일 날짜 예측 (미래 날씨/미세먼지 예보 사용) ──
-function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, weights, PM_GRADES){
+// ── 단일 날짜 예측 (날씨+온도+미세먼지 예보 사용) ──
+function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PM_GRADES, TEMP_BANDS){
   const dk=localDateStr(dt);
   const dow=dt.getDay();
   const holType=getHolType(dk)||'normal';
@@ -6339,16 +6383,16 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, we
   const holFactor=holAvgFn(holType)/baseAvg||1;
 
   // 날씨 보정 - 해당 날짜 예보 사용
-  let dayWx = todayWx; // 기본: 오늘 날씨
+  let dayWx = todayWx;
   const fw = forecastWx[dk];
-  if(fw && fw.wx!=null) dayWx = fw.wx; // 예보가 있으면 예보 사용
+  if(fw && fw.wx!=null) dayWx = fw.wx;
   else {
     const di=DASH_DATA.find(x=>localDateStr(x.date)===dk);
-    if(di && di.wx!=null) dayWx = di.wx; // 과거 데이터가 있으면 과거 사용
+    if(di && di.wx!=null) dayWx = di.wx;
   }
   const wxFactor=dayWx!=null&&wxStats[dayWx]?wxStats[dayWx].sum/wxStats[dayWx].cnt/baseAvg:1;
 
-  // 미세먼지 보정 - 해당 날짜 예보 사용
+  // 미세먼지 보정
   let dayPm25 = null;
   const faq = forecastAq[dk];
   if(faq && faq.dayPm25!=null) dayPm25 = faq.dayPm25;
@@ -6356,7 +6400,6 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, we
     const di=DASH_DATA.find(x=>localDateStr(x.date)===dk);
     if(di && di.dayPm25!=null) dayPm25 = di.dayPm25;
   }
-  // 예보 범위 밖이면 최근 7일 평균 사용
   if(dayPm25==null){
     const recent=DASH_DATA.slice(-7).filter(x=>x.dayPm25!=null);
     if(recent.length) dayPm25=Math.round(recent.reduce((s,x)=>s+x.dayPm25,0)/recent.length);
@@ -6364,8 +6407,167 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, we
   const pmGrade=dayPm25!=null?PM_GRADES.find(g=>dayPm25>=g.min&&dayPm25<=g.max):null;
   const pmFactor=pmGrade&&pmGradeAvg[pmGrade.lbl]?pmGradeAvg[pmGrade.lbl]/baseAvg:1;
 
-  const pred=Math.round(dayBase*holFactor*weights.hol + dayBase*wxFactor*weights.wx + dayBase*pmFactor*weights.pm);
-  return {dk,dow,holType,dayWx,dayPm25,pmGrade,pred};
+  // 온도 보정 - 해당 날짜 온도 구간별
+  let dayTemp = null;
+  if(fw && fw.lunchTemp!=null) dayTemp = fw.lunchTemp;
+  else {
+    const di=DASH_DATA.find(x=>localDateStr(x.date)===dk);
+    if(di && di.lunchTemp!=null) dayTemp = di.lunchTemp;
+  }
+  if(dayTemp==null){
+    const recent=DASH_DATA.slice(-7).filter(x=>x.lunchTemp!=null);
+    if(recent.length) dayTemp=Math.round(recent.reduce((s,x)=>s+x.lunchTemp,0)/recent.length);
+  }
+  let tempFactor=1;
+  if(dayTemp!=null && TEMP_BANDS){
+    const band=TEMP_BANDS.find(b=>dayTemp>=b.min&&dayTemp<b.max);
+    if(band && tempBandAvg[band.l]) tempFactor=tempBandAvg[band.l]/baseAvg;
+  }
+
+  const pred=Math.round(
+    dayBase*holFactor*weights.hol +
+    dayBase*wxFactor*weights.wx +
+    dayBase*pmFactor*weights.pm +
+    dayBase*tempFactor*weights.temp
+  );
+  return {dk,dow,holType,dayWx,dayPm25,dayTemp,pmGrade,pred};
+}
+
+// ── 예측 계산 분석 (대표 전용) ──
+function renderPredDebug(){
+  const wrap=document.getElementById('predDebugContent');
+  if(!wrap) return;
+  const ctx=buildPredContext();
+  if(!ctx){ wrap.innerHTML='<div class="empty-msg">매출 데이터가 없어요</div>'; return; }
+  const {weights, dowAvg, baseAvg, wxStats, pmGradeAvg, tempBandAvg, isAuto} = ctx;
+  const DAYS=['일','월','화','수','목','금','토'];
+  const WXN=['☀️맑음','☁️흐림','🌧️비','❄️눈'];
+
+  let html='';
+
+  // 1. 가중치
+  html+=`<div class="d-sec">가중치 (${isAuto?'자동보정':'기본값 · 90일 후 자동보정'})</div>`;
+  html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:14px">`;
+  html+=`<div style="background:var(--gbg);border:1px solid var(--gborder);border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--tm)">공휴일</div><div style="font-size:18px;font-weight:700;color:var(--brown)">${Math.round(weights.hol*100)}%</div></div>`;
+  html+=`<div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--tm)">날씨</div><div style="font-size:18px;font-weight:700;color:var(--blue)">${Math.round(weights.wx*100)}%</div></div>`;
+  html+=`<div style="background:var(--rbg);border:1px solid var(--rborder);border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--tm)">미세먼지</div><div style="font-size:18px;font-weight:700;color:var(--red)">${Math.round(weights.pm*100)}%</div></div>`;
+  html+=`<div style="background:var(--gbg);border:1px solid var(--gborder);border-radius:10px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--tm)">온도</div><div style="font-size:18px;font-weight:700;color:var(--green)">${Math.round(weights.temp*100)}%</div></div>`;
+  html+=`</div>`;
+
+  // 2. 계산 공식
+  html+=`<div class="d-sec">계산 공식</div>`;
+  html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;line-height:1.8;color:var(--td)">`;
+  html+=`예측 = 요일평균 × 공휴일보정 × ${Math.round(weights.hol*100)}%<br>`;
+  html+=`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 요일평균 × 날씨보정 × ${Math.round(weights.wx*100)}%<br>`;
+  html+=`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 요일평균 × 미세먼지보정 × ${Math.round(weights.pm*100)}%<br>`;
+  html+=`&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ 요일평균 × 온도보정 × ${Math.round(weights.temp*100)}%</div>`;
+
+  // 3. 전체 평균
+  html+=`<div class="d-sec">기준 데이터 (${DASH_DATA.length}일)</div>`;
+  html+=`<div style="background:var(--gbg);border:1px solid var(--gborder);border-radius:10px;padding:10px;margin-bottom:14px;text-align:center"><div style="font-size:11px;color:var(--tm)">전체 평균 매출</div><div style="font-size:18px;font-weight:700;color:var(--brown)">${fmF(Math.round(baseAvg))}</div></div>`;
+
+  // 4. 요일별 평균 + 보정계수
+  html+=`<div class="d-sec">요일별 평균매출 (베이스)</div>`;
+  html+=`<div style="display:flex;gap:4px;margin-bottom:14px;overflow-x:auto">`;
+  for(let i=0;i<7;i++){
+    const d=dowAvg[i];
+    const avg=d?Math.round(d.sum/d.cnt):0;
+    const pct=baseAvg?Math.round(avg/baseAvg*100):0;
+    html+=`<div style="flex:1;min-width:44px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 2px;text-align:center">`;
+    html+=`<div style="font-size:11px;font-weight:700;color:${i===0?'var(--red)':i===6?'var(--blue)':'var(--td)'}">${DAYS[i]}</div>`;
+    html+=`<div style="font-size:10px;font-weight:700;color:var(--brown);margin-top:2px">${fm(avg)}</div>`;
+    html+=`<div style="font-size:9px;color:var(--tm)">${d?d.cnt+'일':'-'}</div>`;
+    html+=`<div style="font-size:9px;color:${pct>=100?'var(--green)':'var(--red)'}">${pct}%</div>`;
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+
+  // 5. 날씨별 보정계수
+  html+=`<div class="d-sec">날씨별 보정계수</div>`;
+  html+=`<div style="display:flex;gap:6px;margin-bottom:14px">`;
+  [0,1,2,3].forEach(w=>{
+    const s=wxStats[w];
+    const avg=s?Math.round(s.sum/s.cnt):0;
+    const factor=s?Math.round(s.sum/s.cnt/baseAvg*100):100;
+    html+=`<div style="flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 4px;text-align:center">`;
+    html+=`<div style="font-size:14px">${WXN[w].slice(0,2)}</div>`;
+    html+=`<div style="font-size:10px;color:var(--brown);font-weight:700;margin-top:2px">${fm(avg)}</div>`;
+    html+=`<div style="font-size:9px;color:var(--tm)">${s?s.cnt+'일':'-'}</div>`;
+    html+=`<div style="font-size:11px;font-weight:700;color:${factor>=100?'var(--green)':'var(--red)'}">${factor}%</div>`;
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+
+  // 6. 온도 구간별 보정계수
+  const TEMP_BANDS_DBG=[{l:'-10~0°',min:-10,max:0},{l:'0~10°',min:0,max:10},{l:'10~20°',min:10,max:20},{l:'20~30°',min:20,max:30},{l:'30°~',min:30,max:99}];
+  html+=`<div class="d-sec">온도 구간별 보정계수</div>`;
+  html+=`<div style="display:flex;gap:4px;margin-bottom:14px;overflow-x:auto">`;
+  TEMP_BANDS_DBG.forEach(b=>{
+    const key=Object.keys(tempBandAvg).find(k=>{
+      const tb=[{l:'-10~0',min:-10,max:0},{l:'0~10',min:0,max:10},{l:'10~20',min:10,max:20},{l:'20~30',min:20,max:30},{l:'30~',min:30,max:99}];
+      const found=tb.find(t=>t.l===k&&t.min===b.min);
+      return !!found;
+    });
+    const avg=key?Math.round(tempBandAvg[key]):0;
+    const factor=avg&&baseAvg?Math.round(avg/baseAvg*100):100;
+    const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.lunchTemp>=b.min&&x.lunchTemp<b.max);
+    html+=`<div style="flex:1;min-width:50px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 2px;text-align:center">`;
+    html+=`<div style="font-size:10px;font-weight:700;color:var(--td)">${b.l}</div>`;
+    html+=`<div style="font-size:10px;color:var(--brown);font-weight:700;margin-top:2px">${avg?fm(avg):'-'}</div>`;
+    html+=`<div style="font-size:9px;color:var(--tm)">${tempValid.length}일</div>`;
+    html+=`<div style="font-size:11px;font-weight:700;color:${factor>=100?'var(--green)':'var(--red)'}">${avg?factor+'%':'-'}</div>`;
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+
+  // 7. 미세먼지 등급별 보정계수
+  html+=`<div class="d-sec">미세먼지 등급별 보정계수</div>`;
+  html+=`<div style="display:flex;gap:6px;margin-bottom:14px">`;
+  PRED_PM_GRADES.forEach(g=>{
+    const avg=pmGradeAvg[g.lbl]?Math.round(pmGradeAvg[g.lbl]):0;
+    const factor=avg&&baseAvg?Math.round(avg/baseAvg*100):100;
+    const cnt=DASH_DATA.filter(x=>x.dayPm25!=null&&x.dayPm25>=g.min&&x.dayPm25<=g.max).length;
+    html+=`<div style="flex:1;background:${g.bg};border:1px solid ${g.color}30;border-radius:8px;padding:8px 4px;text-align:center">`;
+    html+=`<div style="font-size:10px;font-weight:700;color:${g.color}">${g.lbl}</div>`;
+    html+=`<div style="font-size:10px;color:var(--brown);font-weight:700;margin-top:2px">${avg?fm(avg):'-'}</div>`;
+    html+=`<div style="font-size:9px;color:var(--tm)">${cnt}일</div>`;
+    html+=`<div style="font-size:11px;font-weight:700;color:${factor>=100?'var(--green)':'var(--red)'}">${avg?factor+'%':'-'}</div>`;
+    html+=`</div>`;
+  });
+  html+=`</div>`;
+
+  // 8. 향후 7일 예측 상세
+  html+=`<div class="d-sec">향후 7일 예측 상세</div>`;
+  const today=new Date();
+  for(let i=0;i<7;i++){
+    const dt=new Date(today); dt.setDate(today.getDate()+i);
+    const p=ctx.predict(dt);
+    const dowName=DAYS[p.dow];
+    const wxName=WXN[p.dayWx]||'?';
+    const holLabel={holiday:'공휴일',before:'연휴전날',after:'연휴다음날',normal:'평일'};
+    const dayBase=dowAvg[p.dow]?Math.round(dowAvg[p.dow].sum/dowAvg[p.dow].cnt):0;
+    html+=`<div style="background:${i===0?'var(--gbg)':'var(--surface)'};border:1px solid ${i===0?'var(--gborder)':'var(--border)'};border-radius:10px;padding:10px 12px;margin-bottom:6px">`;
+    html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">`;
+    html+=`<div style="font-size:13px;font-weight:700;color:var(--brown)">${i===0?'오늘':i===1?'내일':localDateStr(dt)} (${dowName})</div>`;
+    html+=`<div style="font-size:16px;font-weight:700;color:var(--brown)">~${fmF(p.pred)}</div>`;
+    html+=`</div>`;
+    html+=`<div style="font-size:11px;color:var(--tm);line-height:1.7">`;
+    html+=`베이스: ${dowName}요일 평균 ${fmF(dayBase)}<br>`;
+    html+=`${holLabel[p.holType]} · ${wxName} · ${p.dayTemp!=null?p.dayTemp+'°':'온도없음'} · PM2.5 ${p.dayPm25!=null?p.dayPm25:'없음'}`;
+    html+=`</div></div>`;
+  }
+
+  // 9. 예보 데이터 상태
+  html+=`<div class="d-sec">예보 데이터 상태</div>`;
+  const fwCount=Object.keys(forecastWx).length;
+  const faqCount=Object.keys(forecastAq).length;
+  html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--td);line-height:1.8">`;
+  html+=`날씨 예보: ${fwCount}일 로드됨 ${fwCount>0?'✅':'❌'}<br>`;
+  html+=`미세먼지 예보: ${faqCount}일 로드됨 ${faqCount>0?'✅':'❌'}<br>`;
+  html+=`데이터 수집일: ${DASH_DATA.length}일 / 자동보정: ${isAuto?'활성':'대기(90일 필요)'}`;
+  html+=`</div>`;
+
+  wrap.innerHTML=html;
 }
 
 function buildPredContent(){
@@ -6434,7 +6636,7 @@ function buildPredContent(){
   }
 
   const weightInfo=isAuto
-    ?`<div style="font-size:10px;color:var(--green);margin-top:2px">가중치 자동보정 적용 (공휴일${Math.round(weights.hol*100)}% 날씨${Math.round(weights.wx*100)}% 미세먼지${Math.round(weights.pm*100)}%)</div>`
+    ?`<div style="font-size:10px;color:var(--green);margin-top:2px">자동보정 (공휴일${Math.round(weights.hol*100)}% 날씨${Math.round(weights.wx*100)}% 미세먼지${Math.round(weights.pm*100)}% 온도${Math.round(weights.temp*100)}%)</div>`
     :`<div style="font-size:10px;color:var(--tm);margin-top:2px">기본 가중치 (데이터 ${DASH_DATA.length}일/90일, 자동보정 대기중)</div>`;
 
   return `
