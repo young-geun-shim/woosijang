@@ -882,13 +882,18 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="inp-row"><div class="inp-lbl">10. 할인+서비스</div><input type="text" inputmode="numeric" id="f-discount" placeholder="0" oninput="fmtInput(this)"><div class="inp-won">원</div></div>
       <div class="inp-sec-lbl">돈통 시제</div>
       <div class="don-card">
-        <div class="don-head"><span class="don-head-lbl">11. 돈통 시제</span><span class="don-total-badge" id="donTotal">0원</span></div>
+        <div class="don-head"><span class="don-head-lbl">12. 돈통 시제</span><span class="don-total-badge" id="donTotal">0원</span></div>
         <div class="don-body">
           <div class="don-row"><div class="don-denom">50,000원</div><input class="don-inp" type="number" id="d50" placeholder="0" oninput="calcDon()"><span class="don-unit">장</span><div class="don-sub" id="ds50">= 0원</div></div>
           <div class="don-row"><div class="don-denom">10,000원</div><input class="don-inp" type="number" id="d10" placeholder="0" oninput="calcDon()"><span class="don-unit">장</span><div class="don-sub" id="ds10">= 0원</div></div>
           <div class="don-row"><div class="don-denom">5,000원</div><input class="don-inp" type="number" id="d5" placeholder="0" oninput="calcDon()"><span class="don-unit">장</span><div class="don-sub" id="ds5">= 0원</div></div>
           <div class="don-row"><div class="don-denom">1,000원</div><input class="don-inp" type="number" id="d1" placeholder="0" oninput="calcDon()"><span class="don-unit">장</span><div class="don-sub" id="ds1">= 0원</div></div>
-          <div class="don-row" style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px">
+        </div>
+      </div>
+      <div class="don-card" style="margin-top:6px">
+        <div class="don-head"><span class="don-head-lbl">13. 돈주머니</span><span class="don-total-badge" id="donBagBadge"></span></div>
+        <div class="don-body">
+          <div class="don-row">
             <div class="don-denom">돈주머니</div>
             <span style="font-size:12px;color:var(--tm);margin-right:2px">-</span>
             <input class="don-inp bag" type="number" id="dbag" placeholder="0" oninput="calcDon()">
@@ -916,7 +921,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="preview-head"><div class="preview-head-title">미리보기</div><button class="copy-btn" onclick="copyPreview()">복사</button></div>
         <div class="preview-body" id="previewBody"></div>
       </div>
-      <button class="save-btn" onclick="saveSales()">저장 + 카톡 복사</button>
+      <button class="save-btn" onclick="saveSales()">저장 및 카톡 복사</button>
       <div style="height:12px"></div>
     </div>
   </div>
@@ -1084,12 +1089,8 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         </div>
         <div class="d-sec">날씨별 매출 상관관계</div>
         <div class="chart-card">
-          <div class="chart-hdr"><div class="chart-ttl">날씨별 평균 매출</div><div class="tg-row"><button class="tg on" onclick="setWT('total',this)">합계</button><button class="tg" onclick="setWT('hall',this)">홀</button><button class="tg" onclick="setWT('deliv',this)">배달</button></div></div>
+          <div class="chart-hdr"><div class="chart-ttl">날씨별 평균 매출 (합계 · 홀 · 배달 · 비율)</div><div class="chart-meta" id="wGridMeta">-</div></div>
           <div class="chart-body"><div class="w-grid" id="wGrid"></div></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-hdr"><div class="chart-ttl">날씨별 홀 : 배달 비율</div><div class="chart-meta">비 오는 날 배달이 얼마나 늘어날까?</div></div>
-          <div class="chart-body"><canvas id="wrChart"></canvas></div>
         </div>
         <div class="d-sec">결제수단 비율</div>
         <div class="chart-card">
@@ -1746,11 +1747,13 @@ function checkSalesAccess(){
   const yesterday=new Date(today); yesterday.setDate(today.getDate()-1);
   const todayK=dkStr(today.getFullYear(),today.getMonth(),today.getDate());
   const yestK=dkStr(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate());
+  const isTodayOrYest=dk===todayK||dk===yestK;
+  const canDon=isAdmin||isTodayOrYest;
 
   if(isAdmin){
     document.getElementById('salesLocked').style.display='none';
     document.getElementById('salesForm').style.display='block';
-  } else if(dk===todayK||dk===yestK){
+  } else if(isTodayOrYest){
     document.getElementById('salesLocked').style.display='none';
     document.getElementById('salesForm').style.display='block';
   } else {
@@ -1758,6 +1761,12 @@ function checkSalesAccess(){
     document.getElementById('salesLocked').style.display='block';
     document.getElementById('salesForm').style.display='none';
   }
+
+  // 돈통/돈주머니 — 심영근=전체, 직원=당일·전날, 그 외=비활성
+  ['d50','d10','d5','d1','dbag'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){ el.disabled=!canDon; el.style.opacity=canDon?'1':'0.4'; }
+  });
 }
 
 // ════ 알바 이름 설정 ════
@@ -2475,7 +2484,7 @@ function clearSalesForm(){
   });
   ['d50','d10','d5','d1','dbag'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   const memo=document.getElementById('f-memo');if(memo)memo.value='';
-  calcSales(); calcTimeSales();
+  calcDon(); calcSales(); calcTimeSales();
 }
 
 // 저녁 자동계산
@@ -2509,10 +2518,16 @@ function loadSalesForDate(dk){
     });
     const memo=document.getElementById('f-memo');
     if(memo)memo.value=raw.memo||'';
+    // 돈통 로드
+    const donFields={d50:raw.don50,d10:raw.don10,d5:raw.don5,d1:raw.don1,dbag:raw.donBag};
+    Object.entries(donFields).forEach(([id,v])=>{
+      const el=document.getElementById(id);
+      if(el) el.value=v||'';
+    });
   } else {
     clearSalesForm();
   }
-  calcSales(); calcTimeSales();
+  calcDon(); calcSales(); calcTimeSales();
 }
 
 function chgSalesDate(dir){
@@ -2532,7 +2547,9 @@ function calcDon(){
   document.getElementById('ds5').textContent='= '+comma(d5*5000)+'원';
   document.getElementById('ds1').textContent='= '+comma(d1*1000)+'원';
   document.getElementById('dsbag').textContent=bag?'-'+comma(bag)+'원':'';
-  document.getElementById('donTotal').textContent=comma(d50*50000+d10*10000+d5*5000+d1*1000-bag)+'원';
+  document.getElementById('donTotal').textContent=comma(d50*50000+d10*10000+d5*5000+d1*1000)+'원';
+  const bagBadge=document.getElementById('donBagBadge');
+  if(bagBadge) bagBadge.textContent=bag?'-'+comma(bag)+'원':'';
   calcSales();
 }
 function calcSales(){
@@ -2540,9 +2557,13 @@ function calcSales(){
   const total=cash+card+zero+seoul+trans+ticket+baemin+coupang;
   document.getElementById('f-total').value=total?comma(total):'';
   const d50=nv('d50'),d10=nv('d10'),d5=nv('d5'),d1=nv('d1'),bag=nv('dbag');
-  const donStr='50,000 - '+d50+' / 10,000 - '+d10+'\n5,000 - '+d5+' / 1,000 - '+d1+(bag?'\n돈주머니 -'+comma(bag):'');
+  const donStr='50,000 - '+d50+'장 / 10,000 - '+d10+'장\n5,000 - '+d5+'장 / 1,000 - '+d1+'장';
   const memo=document.getElementById('f-memo').value.trim();
-  const txt=`${fmtSalesDate(salesDate)}\n\n1. 총매출 : ${comma(total)}\n2. 현금매출 : ${comma(cash)}\n3. 카드매출 : ${comma(card)}\n4. 제로페이 : ${comma(zero)}\n5. 서울페이 : ${comma(seoul)}\n6. 계좌이체 : ${comma(trans)}\n\n7. 식권 : ${comma(ticket)}\n8. 배달의민족 : ${comma(baemin)}\n9. 쿠팡이츠매출 : ${comma(coupang)}\n10. 할인+서비스: ${discount?comma(discount):''}\n11. 돈통 시제 : ${donStr}${memo?'\n\n*특이사항 : '+memo:''}`;
+  const lh=nvFmt('f-lunchHall'),ld=nvFmt('f-lunchDeliv');
+  const dh=Math.max(0,(cash+card+zero+seoul+trans+ticket)-lh);
+  const dd=Math.max(0,(baemin+coupang)-ld);
+  const timeStr=lh||ld?`\n   점심홀 ${comma(lh)} / 점심배달 ${comma(ld)}\n   저녁홀 ${comma(dh)} / 저녁배달 ${comma(dd)}`:'';
+  const txt=`${fmtSalesDate(salesDate)}\n\n1. 총매출 : ${comma(total)}\n2. 현금매출 : ${comma(cash)}\n3. 카드매출 : ${comma(card)}\n4. 제로페이 : ${comma(zero)}\n5. 서울페이 : ${comma(seoul)}\n6. 계좌이체 : ${comma(trans)}\n\n7. 식권 : ${comma(ticket)}\n8. 배달의민족 : ${comma(baemin)}\n9. 쿠팡이츠매출 : ${comma(coupang)}\n10. 할인+서비스: ${discount?comma(discount):''}\n11. 시간대별 매출${timeStr}\n12. 돈통 시제 : ${d50||d10||d5||d1?donStr:'-'}\n13. 돈주머니 : ${bag?'-'+comma(bag)+'원':'-'}${memo?'\n\n*특이사항 : '+memo:''}`;
   document.getElementById('previewBody').textContent=txt;
   calcTimeSales();
 }
@@ -2584,7 +2605,7 @@ function fbCopy(txt){copyText(txt);}// 하위 호환
 // ════ 날씨 API (Open-Meteo - 무료, CORS허용) ════
 const WX_LAT = 37.5394, WX_LNG = 126.9509;
 const WX_OPEN_H = 10, WX_CLOSE_H = 22;
-const WX_RAIN_MIN_HOURS = 3;
+const WX_RAIN_MIN_HOURS = 4; // 영업시간(12h) 중 30% 이상 강수 = 4시간
 // 점심 9~16시 / 저녁 16~23시
 const WX_LUNCH_S=9, WX_LUNCH_E=16, WX_DINNER_S=16, WX_DINNER_E=23;
 
@@ -2737,7 +2758,13 @@ function saveSales(){
   const total=nvFmt('f-cash')+nvFmt('f-card')+nvFmt('f-zero')+nvFmt('f-seoul')+nvFmt('f-trans')+nvFmt('f-ticket')+nvFmt('f-baemin')+nvFmt('f-coupang');
   if(!total){alert('매출을 입력해주세요');return;}
   const dk=dkStr(salesDate.getFullYear(),salesDate.getMonth(),salesDate.getDate());
-  const isToday=dk===dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+  const today=new Date();
+  const todayK=dkStr(today.getFullYear(),today.getMonth(),today.getDate());
+  const yest=new Date(today); yest.setDate(today.getDate()-1);
+  const yestK=dkStr(yest.getFullYear(),yest.getMonth(),yest.getDate());
+  const isToday=dk===todayK;
+  const isTodayOrYest=dk===todayK||dk===yestK;
+  const isAdmin=CU.name===ADMIN;
 
   const saveRecord=(wxDetail)=>{
     const wx = typeof wxDetail==='object' ? wxDetail.wx : wxDetail;
@@ -2747,6 +2774,7 @@ function saveSales(){
     const lunchDeliv=nvFmt('f-lunchDeliv');
     const dinnerHall=Math.max(0,hallTotal-lunchHall);
     const dinnerDeliv=Math.max(0,delivTotal-lunchDeliv);
+    const canDon=isAdmin||isTodayOrYest;
     const record={
       total, cash:nvFmt('f-cash'), card:nvFmt('f-card'), zero:nvFmt('f-zero'),
       seoul:nvFmt('f-seoul'), trans:nvFmt('f-trans'), ticket:nvFmt('f-ticket'),
@@ -2761,12 +2789,16 @@ function saveSales(){
       dinnerRain: typeof wxDetail==='object'?wxDetail.dinnerRain:null,
       by:CU.name, savedAt:new Date().toISOString()
     };
+    if(canDon){
+      record.don50=nv('d50'); record.don10=nv('d10');
+      record.don5=nv('d5'); record.don1=nv('d1'); record.donBag=nv('dbag');
+    }
     fbSet('sales/'+dk,record);
     db.ref('weather/'+dk).set(wx);
-    // 미세먼지 자동 수집
     fetchAirQuality(dk).then(aq=>{ if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); } });
-    copyPreview();
-    showToast('저장 완료 '+WX_ICONS[wx]+' '+WX_NAMES[wx]+' · 카톡에 붙여넣기 하세요 📋');
+    const txt=document.getElementById('previewBody').textContent;
+    if(txt.trim()) copyText(txt,'저장 및 복사가 완료되었습니다 ✅');
+    else showToast('저장 완료 '+WX_ICONS[wx]+' '+WX_NAMES[wx]);
   };
 
   if(isToday){
@@ -2787,7 +2819,14 @@ function showSalesTab(id, btn){
   document.getElementById('sc-dash').style.display = id==='dash'?'block':'none';
   if(id==='dash'){
     renderDashCal();
-    renderDash();
+    // 1일 뷰로 진입
+    document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
+    const dayBtn=document.querySelector('.ptab');
+    if(dayBtn) dayBtn.classList.add('on');
+    document.getElementById('dayView').style.display='block';
+    document.getElementById('periodView').style.display='none';
+    curP='day';
+    renderDayView();
   }
   if(id==='input') checkSalesAccess();
   window.scrollTo(0,0);
@@ -2934,8 +2973,13 @@ function renderDayView(){
   const trans=raw.trans||0;
   const ticket=raw.ticket||0;
   const discount=raw.discount||0;
+  const lunchHall=raw.lunchHall||0;
+  const lunchDeliv=raw.lunchDeliv||0;
+  const dinnerHall=raw.dinnerHall||0;
+  const dinnerDeliv=raw.dinnerDeliv||0;
   const delivRate=total>0?Math.round((deliv/total)*100):0;
   const hallRate=100-delivRate;
+  const hasTimeData=lunchHall>0||lunchDeliv>0||dinnerHall>0||dinnerDeliv>0;
 
   el.innerHTML=`
     <!-- 총매출 카드 -->
@@ -2945,6 +2989,29 @@ function renderDayView(){
       <div style="font-size:32px;font-weight:700;color:#fff;font-family:'Noto Serif KR',serif;letter-spacing:-1px">${fmF(total)}</div>
       <div style="font-size:11px;color:rgba(255,255,255,.55);margin-top:6px">날씨 ${wx}</div>
     </div>
+
+    <!-- 시간대별 4분류 -->
+    ${hasTimeData?`<div class="chart-card" style="margin:0 0 8px">
+      <div class="chart-hdr"><div class="chart-ttl">시간대별 매출</div></div>
+      <div style="padding:10px 14px;display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div style="background:var(--surface);border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--tm)">점심 홀</div>
+          <div style="font-size:14px;font-weight:700;color:var(--brown)">${fmF(lunchHall)}</div>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--tm)">점심 배달</div>
+          <div style="font-size:14px;font-weight:700;color:var(--blue)">${fmF(lunchDeliv)}</div>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--tm)">저녁 홀</div>
+          <div style="font-size:14px;font-weight:700;color:var(--brown)">${fmF(dinnerHall)}</div>
+        </div>
+        <div style="background:var(--surface);border-radius:8px;padding:8px 10px">
+          <div style="font-size:10px;color:var(--tm)">저녁 배달</div>
+          <div style="font-size:14px;font-weight:700;color:var(--blue)">${fmF(dinnerDeliv)}</div>
+        </div>
+      </div>
+    </div>`:''}
 
     <!-- 홀 vs 배달 바차트 -->
     <div class="chart-card" style="margin:0 0 8px">
@@ -3256,7 +3323,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderWxCards(d);renderTempBand4(d);renderWeatherCorr(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderWeatherRatio(d);renderPay(d);renderTopBot(d);renderTable(d);}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderWxCards(d);renderTempBand4(d);renderWeatherCorr(d);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);renderTopBot(d);renderTable(d);}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -3731,26 +3798,41 @@ function renderTempBand(d){
   });
 }
 function renderWeather(d){
-  const WNAMES=['맑음','흐림','비','눈'],WICONS=['☀️','☁️','🌧️','❄️'],WCLRS=['#b5812a','#8a7060','#1e4a7a','#5a8aaa'];
+  const WNAMES=['맑음','흐림','강수·강우','눈'], WICONS=['☀️','☁️','🌧️','❄️'], WCLRS=['#b5812a','#8a7060','#1e4a7a','#5a8aaa'];
   const stats=WNAMES.map(()=>({sum:0,hall:0,deliv:0,cnt:0}));
-  d.forEach(x=>{stats[x.wx].sum+=x.total;stats[x.wx].hall+=x.hall;stats[x.wx].deliv+=x.deliv;stats[x.wx].cnt++;});
-  const avgs=stats.map(s=>s.cnt?{total:Math.floor(s.sum/s.cnt),hall:Math.floor(s.hall/s.cnt),deliv:Math.floor(s.deliv/s.cnt),cnt:s.cnt}:{total:0,hall:0,deliv:0,cnt:0});
-  const maxVal=Math.max(...avgs.map(a=>curWT==='hall'?a.hall:curWT==='deliv'?a.deliv:a.total));
-  const grid=document.getElementById('wGrid');grid.innerHTML='';
-  avgs.forEach((avg,i)=>{
-    if(avg.cnt===0)return;
-    const val=curWT==='hall'?avg.hall:curWT==='deliv'?avg.deliv:avg.total,pct=maxVal?(val/maxVal*100):0;
-    const sub=curWT==='total'?`홀 ${fm(avg.hall)} / 배달 ${fm(avg.deliv)}`:curWT==='hall'?`전체의 ${Math.round(avg.hall/(avg.total||1)*100)}%`:`전체의 ${Math.round(avg.deliv/(avg.total||1)*100)}%`;
-    grid.innerHTML+=`<div class="w-card"><div class="w-top"><span class="w-ico">${WICONS[i]}</span><div><div class="w-name">${WNAMES[i]}</div><div class="w-days">${avg.cnt}일 기준</div></div></div><div class="w-stats"><div class="w-srow"><span class="w-slbl">${curWT==='total'?'평균 합계':curWT==='hall'?'평균 홀':'평균 배달'}</span><span class="w-sval">${fm(val)}원</span></div><div class="w-bbar"><div class="w-bfill" style="width:${pct}%;background:${WCLRS[i]}"></div></div><div style="font-size:10px;color:var(--tm);margin-top:2px">${sub}</div></div></div>`;
+  d.forEach(x=>{
+    const s=stats[x.wx]; if(!s) return;
+    s.sum+=x.total; s.hall+=x.hall; s.deliv+=x.deliv; s.cnt++;
   });
-}
-function renderWeatherRatio(d){
-  dc('wr');const WNAMES=['맑음','흐림','비','눈'],WICONS=['☀️','☁️','🌧️','❄️'];
-  const stats=WNAMES.map(()=>({hall:0,deliv:0,cnt:0}));
-  d.forEach(x=>{stats[x.wx].hall+=x.hall;stats[x.wx].deliv+=x.deliv;stats[x.wx].cnt++;});
-  const valid=stats.map((s,i)=>({name:WICONS[i]+' '+WNAMES[i],hall:s.cnt?Math.floor(s.hall/s.cnt):0,deliv:s.cnt?Math.floor(s.deliv/s.cnt):0,cnt:s.cnt})).filter(s=>s.cnt>0);
-  const ctx=document.getElementById('wrChart').getContext('2d');
-  CH['wr']=new Chart(ctx,{type:'bar',data:{labels:valid.map(v=>v.name),datasets:[{label:'홀',data:valid.map(v=>v.hall),backgroundColor:'rgba(92,61,30,0.82)',borderRadius:5},{label:'배달',data:valid.map(v=>v.deliv),backgroundColor:'rgba(181,129,42,0.75)',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:true,indexAxis:'y',plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>{const tot=valid[c.dataIndex].hall+valid[c.dataIndex].deliv;return c.dataset.label+': '+fmF(c.raw)+' ('+Math.round(c.raw/tot*100)+'%)';} }}},scales:{x:{stacked:true,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.04)'}},y:{stacked:true,ticks:{font:{size:11}},grid:{display:false}}}}});
+  const avgs=stats.map(s=>s.cnt?{total:Math.floor(s.sum/s.cnt),hall:Math.floor(s.hall/s.cnt),deliv:Math.floor(s.deliv/s.cnt),cnt:s.cnt}:{total:0,hall:0,deliv:0,cnt:0});
+  const maxTotal=Math.max(...avgs.map(a=>a.total));
+  const grid=document.getElementById('wGrid'); grid.innerHTML='';
+  avgs.forEach((avg,i)=>{
+    if(avg.cnt===0) return;
+    const pct=maxTotal?(avg.total/maxTotal*100):0;
+    const hallPct=avg.total>0?Math.round(avg.hall/avg.total*100):0;
+    const delivPct=100-hallPct;
+    grid.innerHTML+=`<div class="w-card">
+      <div class="w-top"><span class="w-ico">${WICONS[i]}</span><div>
+        <div class="w-name">${WNAMES[i]}</div>
+        <div class="w-days">${avg.cnt}일 기준</div>
+      </div></div>
+      <div class="w-stats">
+        <div class="w-srow"><span class="w-slbl">평균 합계</span><span class="w-sval" style="color:${WCLRS[i]}">${fm(avg.total)}원</span></div>
+        <div class="w-bbar"><div class="w-bfill" style="width:${pct}%;background:${WCLRS[i]}"></div></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tm);margin-top:5px">
+          <span>홀 <strong style="color:var(--brown)">${fm(avg.hall)}</strong></span>
+          <span>배달 <strong style="color:var(--blue)">${fm(avg.deliv)}</strong></span>
+        </div>
+        <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:3px;display:flex">
+          <div style="height:100%;background:var(--brown);width:${hallPct}%"></div>
+          <div style="height:100%;background:var(--blue);width:${delivPct}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--tm);margin-top:2px">
+          <span>홀 ${hallPct}%</span><span>배달 ${delivPct}%</span>
+        </div>
+      </div></div>`;
+  });
 }
 function renderPay(d){
   dc('pay');const tots={카드:0,현금:0,배민:0,쿠팡이츠:0,제로페이:0,서울페이:0,계좌이체:0};
