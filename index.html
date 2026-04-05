@@ -2720,6 +2720,17 @@ function pickRepresentativeWx(hourlyWxArr){
   business.forEach(w=>counts[w]++);
   return counts.indexOf(Math.max(...counts));
 }
+// 이미 슬라이싱된 배열에서 대표 날씨 결정 (lunchWx/dinnerWx 전용)
+function pickWxFromSlice(arr){
+  if(!arr||!arr.length) return 1;
+  const rainCount=arr.filter(w=>w===2).length;
+  const snowCount=arr.filter(w=>w===3).length;
+  if(rainCount>=2) return 2;
+  if(snowCount>=2) return 3;
+  const counts=[0,0,0,0];
+  arr.forEach(w=>{if(w>=0&&w<=3)counts[w]++;});
+  return counts.indexOf(Math.max(...counts));
+}
 
 const WX_ICONS=['☀️','☁️','🌧️','❄️'];
 const WX_NAMES=['맑음','흐림','비','눈'];
@@ -2739,8 +2750,8 @@ async function fetchWeatherDetail(dateStr){
     const wxArr=h.weathercode.map(c=>wmoToWx(c));
     return {
       wx: pickRepresentativeWx(wxArr),
-      lunchWx:  pickRepresentativeWx(wxArr.slice(WX_LUNCH_S, WX_LUNCH_E)),
-      dinnerWx: pickRepresentativeWx(wxArr.slice(WX_DINNER_S, WX_DINNER_E)),
+      lunchWx:  pickWxFromSlice(wxArr.slice(WX_LUNCH_S, WX_LUNCH_E)),
+      dinnerWx: pickWxFromSlice(wxArr.slice(WX_DINNER_S, WX_DINNER_E)),
       lunchTemp:  sliceAvg(h.temperature_2m, WX_LUNCH_S, WX_LUNCH_E),
       dinnerTemp: sliceAvg(h.temperature_2m, WX_DINNER_S, WX_DINNER_E),
       lunchRain:  sliceSum(h.precipitation, WX_LUNCH_S, WX_LUNCH_E),
@@ -2799,7 +2810,12 @@ async function fetchHistoricalWeather(){
   for(const dk of allDates){
     const cv=cached[dk];
     // 이미 상세 데이터 있으면 스킵, wx 숫자만 있거나 lunchRain/lunchWx 없는 구버전이면 재수집
-    const needFetch = cv===undefined || typeof cv==='number' || cv.lunchRain===undefined || cv.lunchWx===undefined;
+    // lunchWx===1 이고 lunchTemp 있으면 잘못 계산된 캐시이므로 재수집
+    const needFetch = cv===undefined
+      || typeof cv==='number'
+      || cv.lunchRain===undefined
+      || cv.lunchWx===undefined
+      || (cv.lunchWx===1 && cv.dinnerWx===1 && cv.lunchTemp!=null);
     if(!needFetch) continue;
 
     const detail=await fetchWeatherDetail(dk);
@@ -5993,8 +6009,8 @@ async function fetchWeatherForecast(){
       const dinnerSlice = wxArr.slice(offset+WX_DINNER_S, offset+WX_DINNER_E);
       if(!lunchSlice.length) continue;
       forecastWx[dk] = {
-        lunchWx: pickRepresentativeWx(lunchSlice),
-        dinnerWx: pickRepresentativeWx(dinnerSlice),
+        lunchWx: pickWxFromSlice(wxArr.slice(offset+WX_LUNCH_S, offset+WX_LUNCH_E)),
+        dinnerWx: pickWxFromSlice(wxArr.slice(offset+WX_DINNER_S, offset+WX_DINNER_E)),
       };
     }
     localStorage.setItem(todayKey, JSON.stringify(forecastWx));
