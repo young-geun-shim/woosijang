@@ -6117,80 +6117,109 @@ async function autoFillRecentWeather(){
 async function fetchWeatherForecast(){
   const today = new Date();
   const todayDk = localDateStr(today);
-  const cacheVer = 'v3';
-  const cacheKey = 'ws_forecast_' + cacheVer + '_' + todayDk;
-  // 이전 버전 캐시 정리
+  const cacheKey = 'ws_forecast_v4_' + todayDk;
+  // 이전 캐시 정리
   try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.startsWith('ws_forecast_')&&k!==cacheKey) localStorage.removeItem(k); } }catch(e){}
-  const cached = localStorage.getItem(cacheKey);
-  if(cached){
-    try{
+
+  // 캐시 확인
+  try{
+    const cached = localStorage.getItem(cacheKey);
+    if(cached){
       const p=JSON.parse(cached);
-      // 새 형식: {wx:{dk:{lunchWx,...,lunchTemp,...}}, aq:{dk:{dayPm25}}}
-      // 구 형식: {dk:{lunchWx, dinnerWx}} (forecastWx 직접)
-      let fwData={}, faqData={};
-      if(p && p.wx && typeof p.wx === 'object'){
-        fwData=p.wx; faqData=p.aq||{};
-      } else if(p && typeof p === 'object' && !p.wx){
-        fwData=p; faqData={};
+      if(p && p.wx && Object.keys(p.wx).length>0){
+        forecastWx=p.wx; forecastAq=p.aq||{};
+        renderDashCal();
+        return;
       }
-      // 온도 데이터 있는지 검증 — 없으면 재수집
-      const firstKey=Object.keys(fwData)[0];
-      if(firstKey && fwData[firstKey] && fwData[firstKey].lunchTemp!=null){
-        forecastWx=fwData; forecastAq=faqData;
-        renderDashCal(); return;
-      }
-      // 온도 없으면 캐시 무시하고 API 재호출
-    }catch(e){}
-  }
+    }
+  }catch(e){}
+
+  // API 호출
   try{
     const startDate = todayDk;
     const endD = new Date(today); endD.setDate(today.getDate()+15);
     const endDate = localDateStr(endD);
-    // 날씨 예보
     const wxUrl = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode,precipitation,temperature_2m&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${endDate}`;
     const wxRes = await fetch(wxUrl);
+    if(!wxRes.ok) throw new Error('API '+wxRes.status);
     const wxJson = await wxRes.json();
     const h = wxJson?.hourly;
-    if(h&&h.weathercode){
-      const wxArr = h.weathercode.map(c=>wmoToWx(c));
-      forecastWx = {};
-      for(let i=0; i<16; i++){
-        const d = new Date(today); d.setDate(today.getDate()+i);
-        const dk = localDateStr(d);
-        const offset = i * 24;
-        const lunchSlice = wxArr.slice(offset+WX_LUNCH_S, offset+WX_LUNCH_E);
-        if(!lunchSlice.length) continue;
-        const lWx = pickWxFromSlice(wxArr.slice(offset+WX_LUNCH_S, offset+WX_LUNCH_E));
-        const dWx = pickWxFromSlice(wxArr.slice(offset+WX_DINNER_S, offset+WX_DINNER_E));
-        forecastWx[dk] = {
-          lunchWx: lWx, dinnerWx: dWx,
-          wx: pickRepresentativeWx(wxArr.slice(offset, offset+24)),
-          lunchTemp: h.temperature_2m ? sliceAvg(h.temperature_2m, offset+WX_LUNCH_S, offset+WX_LUNCH_E) : null,
-          dinnerTemp: h.temperature_2m ? sliceAvg(h.temperature_2m, offset+WX_DINNER_S, offset+WX_DINNER_E) : null,
-        };
-      }
+    if(!h||!h.weathercode||!h.time) throw new Error('데이터 없음');
+
+    // 시간 배열에서 날짜별 인덱스 매핑 (offset 계산 대신 실제 시간 기준)
+    const newForecast = {};
+    const timeArr = h.time; // ["2026-04-06T00:00","2026-04-06T01:00",...]
+    const wxArr = h.weathercode.map(c=>wmoToWx(c));
+
+    // 날짜별로 시간 인덱스 그룹핑
+    const dayGroups = {};
+    timeArr.forEach((t,idx)=>{
+      const dayKey = t.slice(0,10); // "2026-04-06"
+      // dkStr는 month가 0-indexed인데 API는 1-indexed → 변환 필요
+      const parts = dayKey.split('-');
+      const dk = dkStr(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+      if(!dayGroups[dk]) dayGroups[dk]=[];
+      dayGroups[dk].push(idx);
+    });
+
+    Object.entries(dayGroups).forEach(([dk, indices])=>{
+      if(indices.length < WX_CLOSE_H) return; // 시간 데이터 부족하면 스킵
+      const dayWxArr = indices.map(i=>wxArr[i]);
+      const dayTempArr = h.temperature_2m ? indices.map(i=>h.temperature_2m[i]) : [];
+      const dayRainArr = h.precipitation ? indices.map(i=>h.precipitation[i]) : [];
+
+      newForecast[dk] = {
+        lunchWx: pickWxFromSlice(dayWxArr.slice(WX_LUNCH_S, WX_LUNCH_E)),
+        dinnerWx: pickWxFromSlice(dayWxArr.slice(WX_DINNER_S, WX_DINNER_E)),
+        wx: pickRepresentativeWx(dayWxArr),
+        lunchTemp: dayTempArr.length>=WX_LUNCH_E ? sliceAvg(dayTempArr, WX_LUNCH_S, WX_LUNCH_E) : null,
+        dinnerTemp: dayTempArr.length>=WX_DINNER_E ? sliceAvg(dayTempArr, WX_DINNER_S, WX_DINNER_E) : null,
+      };
+    });
+
+    if(Object.keys(newForecast).length > 0){
+      forecastWx = newForecast;
     }
-    // 미세먼지 예보 (최대 5일)
-    const aqEnd = new Date(today); aqEnd.setDate(today.getDate()+4);
-    const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${DATA_LAT}&longitude=${DATA_LNG}&hourly=pm2_5,pm10&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${localDateStr(aqEnd)}`;
+
+    // 미세먼지 예보
     try{
+      const aqEnd = new Date(today); aqEnd.setDate(today.getDate()+4);
+      const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${DATA_LAT}&longitude=${DATA_LNG}&hourly=pm2_5,pm10&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${localDateStr(aqEnd)}`;
       const aqRes = await fetch(aqUrl);
-      const aqJson = await aqRes.json();
-      const ah = aqJson?.hourly;
-      if(ah&&ah.pm2_5){
-        forecastAq = {};
-        for(let i=0; i<5; i++){
-          const d = new Date(today); d.setDate(today.getDate()+i);
-          const dk = localDateStr(d);
-          const offset = i * 24;
-          const daySlice = ah.pm2_5.slice(offset, offset+24).filter(v=>v!=null);
-          if(daySlice.length) forecastAq[dk] = { dayPm25: Math.round(daySlice.reduce((a,b)=>a+b,0)/daySlice.length) };
+      if(aqRes.ok){
+        const aqJson = await aqRes.json();
+        const ah = aqJson?.hourly;
+        if(ah&&ah.pm2_5&&ah.time){
+          forecastAq = {};
+          const aqDayGroups = {};
+          ah.time.forEach((t,idx)=>{
+            const parts=t.slice(0,10).split('-');
+            const dk=dkStr(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+            if(!aqDayGroups[dk]) aqDayGroups[dk]=[];
+            aqDayGroups[dk].push(idx);
+          });
+          Object.entries(aqDayGroups).forEach(([dk,indices])=>{
+            const vals=indices.map(i=>ah.pm2_5[i]).filter(v=>v!=null);
+            if(vals.length) forecastAq[dk]={dayPm25:Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)};
+          });
         }
       }
     }catch(e){}
+
     localStorage.setItem(cacheKey, JSON.stringify({wx:forecastWx, aq:forecastAq}));
     renderDashCal();
-  } catch(e){ console.warn('예보 날씨 오류', e); }
+  } catch(e){
+    console.warn('예보 API 오류:', e);
+    // API 실패 시 최소한 오늘 날씨로 미래 16일 채우기
+    if(Object.keys(forecastWx).length===0){
+      for(let i=0;i<16;i++){
+        const d=new Date(today); d.setDate(today.getDate()+i);
+        const dk=localDateStr(d);
+        forecastWx[dk]={lunchWx:todayWx,dinnerWx:todayWx,wx:todayWx,lunchTemp:null,dinnerTemp:null};
+      }
+      renderDashCal();
+    }
+  }
 }
 
 // ════ 오늘/주간/월간 매출 예측 시스템 ════
