@@ -27,8 +27,9 @@
   --txt:#1e1208;--td:#4a3520;--tm:#8a7060;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-html{height:100%;overflow:hidden;position:fixed;width:100%;touch-action:pan-y}
-body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:none;padding-bottom:72px}
+html{height:100%;overflow:hidden;position:fixed;width:100%;touch-action:pan-y;overscroll-behavior:none}
+body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif;font-size:14px;height:100%;overflow-x:hidden;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;overscroll-behavior-y:contain;padding-bottom:72px}
+.view{overscroll-behavior:contain}
 
 /* ── 이름 오버레이 ── */
 .name-ov{position:fixed;inset:0;z-index:999;background:rgba(15,8,2,.78);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -3238,7 +3239,16 @@ function showSalesTab(id, btn){
   document.getElementById('sc-dash').style.display = id==='dash'?'block':'none';
   if(id==='dash'){
     renderDashCal();
-    // 1일 뷰로 진입
+    // 1일 뷰로 진입 - 매출 있는 가장 최근 날짜 (오늘 매출 없으면 전날)
+    const todayDk=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+    const todayRaw=firebaseSalesData[todayDk]||REAL_SALES[todayDk];
+    if(todayRaw&&todayRaw.total>0){
+      dayViewDate=new Date();
+    } else {
+      // 가장 최근 매출 있는 날 찾기
+      const latest=DASH_DATA.filter(x=>x.total>0).sort((a,b)=>b.date-a.date)[0];
+      dayViewDate=latest?new Date(latest.date):new Date();
+    }
     document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));
     const dayBtn=document.querySelector('.ptab');
     if(dayBtn) dayBtn.classList.add('on');
@@ -5901,8 +5911,18 @@ function goTab(tab){
     if(sd) sd.classList.add('on');
     document.getElementById('stab-input')?.classList.remove('on');
     document.getElementById('stab-dash')?.classList.add('on');
+    // 1일 뷰 - 매출 있는 가장 최근 날짜
+    const todayDk=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+    const todayRaw=firebaseSalesData[todayDk]||REAL_SALES[todayDk];
+    if(todayRaw&&todayRaw.total>0){
+      dayViewDate=new Date();
+    } else {
+      const latest=DASH_DATA.filter(x=>x.total>0).sort((a,b)=>b.date-a.date)[0];
+      dayViewDate=latest?new Date(latest.date):new Date();
+    }
     renderDash();
     renderDashCal();
+    renderDayView();
   }
   if(tab==='reserve'){initReserve();}
   if(tab==='payroll'){initPayroll();}
@@ -6763,6 +6783,27 @@ async function manualFetchHistoricalWeather(){
 }
 
 // ════ INIT ════
+// iOS Safari rubber-band 스크롤 차단 (콘텐츠 끝에서 더 안 당겨짐)
+(function preventRubberBand(){
+  let startY = 0;
+  document.body.addEventListener('touchstart', e=>{
+    startY = e.touches[0].clientY;
+  }, {passive:true});
+  document.body.addEventListener('touchmove', e=>{
+    const y = e.touches[0].clientY;
+    const scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
+    const scrollHeight = document.body.scrollHeight;
+    const clientHeight = document.body.clientHeight;
+    const isAtTop = scrollTop <= 0;
+    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1;
+    const movingDown = y > startY;
+    const movingUp = y < startY;
+    if((isAtTop && movingDown) || (isAtBottom && movingUp)){
+      e.preventDefault();
+    }
+  }, {passive:false});
+})();
+
 loadUser();
 subscribeCalMonth();
 initAttend();
