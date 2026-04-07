@@ -3505,6 +3505,165 @@ function setPeriod(p,btn){
 }
 // 실제 매출 데이터 (Firebase + 과거 수동 입력)
 const REAL_SALES = {
+  // ── 엑셀 2025-09-01 ~ 2026-02-07 ──
+  '2025-09-01':{total:1466700,hall:1373300,baemin:93400,coupang:0,deliv:93400,cash:164900,card:1208400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-02':{total:2582200,hall:2466300,baemin:76000,coupang:39900,deliv:115900,cash:174100,card:2292200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-03':{total:2041900,hall:1912500,baemin:106400,coupang:23000,deliv:129400,cash:286800,card:1625700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-04':{total:2394600,hall:2150700,baemin:200600,coupang:43300,deliv:243900,cash:218500,card:1932200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-05':{total:2987600,hall:2935100,baemin:52500,coupang:0,deliv:52500,cash:314600,card:2620500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-06':{total:1687900,hall:1595800,baemin:55800,coupang:36300,deliv:92100,cash:245000,card:1350800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-07':{total:1878400,hall:1634900,baemin:157700,coupang:85800,deliv:243500,cash:85200,card:1549700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-08':{total:2152300,hall:2051600,baemin:62800,coupang:37900,deliv:100700,cash:317300,card:1734300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-09':{total:2321900,hall:2245100,baemin:76800,coupang:0,deliv:76800,cash:98600,card:2146500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-10':{total:2848400,hall:2623900,baemin:224500,coupang:0,deliv:224500,cash:245200,card:2378700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-11':{total:2293300,hall:2079900,baemin:193400,coupang:20000,deliv:213400,cash:87400,card:1992500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-12':{total:2488000,hall:2211100,baemin:276900,coupang:0,deliv:276900,cash:168100,card:2043000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-13':{total:3059900,hall:2921300,baemin:115600,coupang:23000,deliv:138600,cash:381200,card:2540100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-14':{total:1764500,hall:1531300,baemin:120900,coupang:112300,deliv:233200,cash:161500,card:1369800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-15':{total:1675100,hall:1495800,baemin:179300,coupang:0,deliv:179300,cash:164800,card:1331000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-16':{total:2195100,hall:2059600,baemin:97600,coupang:37900,deliv:135500,cash:213300,card:1846300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-17':{total:2177300,hall:1916500,baemin:260800,coupang:0,deliv:260800,cash:293800,card:1622700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-18':{total:2417500,hall:2264300,baemin:100700,coupang:52500,deliv:153200,cash:26000,card:2238300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-19':{total:2673400,hall:2580400,baemin:66000,coupang:27000,deliv:93000,cash:160500,card:2419900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-20':{total:2465550,hall:2159450,baemin:238000,coupang:68100,deliv:306100,cash:144300,card:2015150,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-21':{total:3241800,hall:3062600,baemin:120300,coupang:58900,deliv:179200,cash:295200,card:2767400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-22':{total:2428500,hall:2232200,baemin:102800,coupang:93500,deliv:196300,cash:106700,card:2125500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-23':{total:1695000,hall:1598900,baemin:76100,coupang:20000,deliv:96100,cash:73200,card:1525700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-24':{total:3020500,hall:2683300,baemin:246600,coupang:90600,deliv:337200,cash:183600,card:2499700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-25':{total:2877800,hall:2737700,baemin:117000,coupang:23100,deliv:140100,cash:193700,card:2544000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-26':{total:2222000,hall:2044600,baemin:98300,coupang:79100,deliv:177400,cash:129200,card:1915400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-27':{total:3395500,hall:3184500,baemin:150900,coupang:60100,deliv:211000,cash:590100,card:2594400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-28':{total:2247900,hall:1795000,baemin:251900,coupang:201000,deliv:452900,cash:354200,card:1440800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-29':{total:2439600,hall:2193000,baemin:199100,coupang:47500,deliv:246600,cash:315100,card:1877900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-09-30':{total:2955000,hall:2955000,baemin:0,coupang:0,deliv:0,cash:472000,card:2483000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-01':{total:3486500,hall:3361100,baemin:125400,coupang:0,deliv:125400,cash:412800,card:2948300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-02':{total:2762200,hall:2560700,baemin:159500,coupang:42000,deliv:201500,cash:636200,card:1924500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-03':{total:2163700,hall:2026100,baemin:97600,coupang:40000,deliv:137600,cash:118000,card:1908100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-04':{total:1950500,hall:1733600,baemin:111600,coupang:105300,deliv:216900,cash:132100,card:1601500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-05':{total:0,hall:0,baemin:0,coupang:0,deliv:0,cash:0,card:0,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-08':{total:2156100,hall:1953300,baemin:149300,coupang:53500,deliv:202800,cash:300900,card:1652400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-09':{total:1599000,hall:1421400,baemin:114300,coupang:63300,deliv:177600,cash:103300,card:1318100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-10':{total:2016600,hall:1815400,baemin:153900,coupang:47300,deliv:201200,cash:77500,card:1737900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-11':{total:1884100,hall:1569000,baemin:213000,coupang:102100,deliv:315100,cash:196500,card:1372500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-12':{total:1558100,hall:1324100,baemin:180200,coupang:53800,deliv:234000,cash:26000,card:1298100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-13':{total:2070600,hall:1859800,baemin:108500,coupang:102300,deliv:210800,cash:193700,card:1666100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-14':{total:2409500,hall:2283900,baemin:105600,coupang:20000,deliv:125600,cash:222700,card:2061200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-15':{total:1711600,hall:1656800,baemin:54800,coupang:0,deliv:54800,cash:219700,card:1437100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-16':{total:2100000,hall:1960500,baemin:105500,coupang:34000,deliv:139500,cash:68200,card:1892300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-17':{total:3060400,hall:2895100,baemin:43300,coupang:122000,deliv:165300,cash:145800,card:2749300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-18':{total:2293500,hall:1789100,baemin:224300,coupang:280100,deliv:504400,cash:141100,card:1648000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-19':{total:2066100,hall:1644500,baemin:170100,coupang:251500,deliv:421600,cash:84400,card:1560100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-20':{total:2294400,hall:2109500,baemin:148600,coupang:36300,deliv:184900,cash:209200,card:1900300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-21':{total:2232600,hall:2016900,baemin:193200,coupang:22500,deliv:215700,cash:103400,card:1913500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-22':{total:2789000,hall:2444900,baemin:215100,coupang:129000,deliv:344100,cash:255600,card:2189300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-23':{total:2317200,hall:2017500,baemin:160700,coupang:139000,deliv:299700,cash:156300,card:1861200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-24':{total:2685700,hall:2453700,baemin:148400,coupang:83600,deliv:232000,cash:105800,card:2347900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-25':{total:2626000,hall:2545500,baemin:80500,coupang:0,deliv:80500,cash:62000,card:2483500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-26':{total:2234600,hall:1923500,baemin:167000,coupang:144100,deliv:311100,cash:160800,card:1762700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-27':{total:2309500,hall:1974500,baemin:335000,coupang:0,deliv:335000,cash:147300,card:1827200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-28':{total:2478200,hall:2272700,baemin:118900,coupang:86600,deliv:205500,cash:9500,card:2263200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-29':{total:1647500,hall:1604500,baemin:0,coupang:43000,deliv:43000,cash:90300,card:1514200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-30':{total:2994100,hall:2833700,baemin:90900,coupang:69500,deliv:160400,cash:369400,card:2464300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-10-31':{total:2564000,hall:2487800,baemin:39400,coupang:36800,deliv:76200,cash:172400,card:2315400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-01':{total:2722975,hall:2447375,baemin:275600,coupang:0,deliv:275600,cash:117300,card:2330075,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-02':{total:2371400,hall:1973700,baemin:201700,coupang:196000,deliv:397700,cash:126400,card:1847300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-03':{total:2665000,hall:2434200,baemin:143200,coupang:87600,deliv:230800,cash:299600,card:2134600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-04':{total:2858300,hall:2670100,baemin:168700,coupang:19500,deliv:188200,cash:158000,card:2512100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-05':{total:2390800,hall:2318000,baemin:52800,coupang:20000,deliv:72800,cash:226500,card:2091500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-06':{total:1782100,hall:1716000,baemin:66100,coupang:0,deliv:66100,cash:142800,card:1573200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-07':{total:2401100,hall:2303500,baemin:77600,coupang:20000,deliv:97600,cash:264500,card:2039000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-08':{total:2399800,hall:2097800,baemin:276000,coupang:26000,deliv:302000,cash:277900,card:1819900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-09':{total:2244900,hall:1824000,baemin:261100,coupang:159800,deliv:420900,cash:236900,card:1587100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-10':{total:2489500,hall:2244300,baemin:186900,coupang:58300,deliv:245200,cash:228300,card:2016000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-11':{total:2723000,hall:2542900,baemin:148300,coupang:31800,deliv:180100,cash:393100,card:2149800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-12':{total:2482400,hall:2231200,baemin:176100,coupang:75100,deliv:251200,cash:193000,card:2038200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-13':{total:2819600,hall:2639600,baemin:160500,coupang:19500,deliv:180000,cash:46700,card:2592900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-14':{total:3403700,hall:3048300,baemin:270900,coupang:84500,deliv:355400,cash:52500,card:2995800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-15':{total:2435300,hall:2235300,baemin:176000,coupang:24000,deliv:200000,cash:275700,card:1959600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-16':{total:2519700,hall:2222700,baemin:167200,coupang:129800,deliv:297000,cash:374000,card:1848700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-17':{total:2743800,hall:2420900,baemin:204400,coupang:118500,deliv:322900,cash:200300,card:2220600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-18':{total:2926200,hall:2511200,baemin:383000,coupang:32000,deliv:415000,cash:143000,card:2368200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-19':{total:2756700,hall:2333200,baemin:318500,coupang:105000,deliv:423500,cash:199500,card:2133700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-20':{total:3361900,hall:3253400,baemin:108500,coupang:0,deliv:108500,cash:227000,card:3026400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-21':{total:2882700,hall:2362400,baemin:520300,coupang:0,deliv:520300,cash:276900,card:2085500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-22':{total:2551700,hall:2158700,baemin:376500,coupang:16500,deliv:393000,cash:242500,card:1916200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-23':{total:2001500,hall:1407700,baemin:511500,coupang:82300,deliv:593800,cash:0,card:1407700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-24':{total:2245800,hall:1983900,baemin:261900,coupang:0,deliv:261900,cash:173800,card:1810100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-25':{total:2475500,hall:1907300,baemin:234600,coupang:333600,deliv:568200,cash:163800,card:1743500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-26':{total:3467300,hall:3056000,baemin:330800,coupang:80500,deliv:411300,cash:172300,card:2883700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-27':{total:2338900,hall:1762800,baemin:477500,coupang:98600,deliv:576100,cash:0,card:1762800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-28':{total:3702100,hall:3348200,baemin:233600,coupang:120300,deliv:353900,cash:146800,card:3201400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-29':{total:2282900,hall:1940900,baemin:176700,coupang:165300,deliv:342000,cash:422000,card:1518900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-11-30':{total:1842800,hall:1494500,baemin:202800,coupang:145500,deliv:348300,cash:109000,card:1385500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-01':{total:3496300,hall:3191800,baemin:198500,coupang:106000,deliv:304500,cash:160700,card:3031100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-02':{total:2778500,hall:2057700,baemin:545700,coupang:175100,deliv:720800,cash:152400,card:1905300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-03':{total:2951100,hall:2761400,baemin:77300,coupang:112400,deliv:189700,cash:329300,card:2432100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-04':{total:3126700,hall:2739000,baemin:290400,coupang:97300,deliv:387700,cash:109800,card:2629200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-05':{total:3434400,hall:3177300,baemin:86800,coupang:170300,deliv:257100,cash:331200,card:2846100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-06':{total:2506900,hall:2153500,baemin:340400,coupang:13000,deliv:353400,cash:95600,card:2057900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-07':{total:2578300,hall:1799300,baemin:488300,coupang:290700,deliv:779000,cash:377700,card:1421600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-08':{total:3325800,hall:2903600,baemin:280200,coupang:142000,deliv:422200,cash:84200,card:2819400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-09':{total:3780700,hall:3239900,baemin:375900,coupang:164900,deliv:540800,cash:133100,card:3106800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-10':{total:3298500,hall:2640700,baemin:443300,coupang:214500,deliv:657800,cash:188200,card:2452500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-11':{total:3150375,hall:2503975,baemin:457200,coupang:189200,deliv:646400,cash:341600,card:2162375,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-12':{total:2628500,hall:2072000,baemin:384500,coupang:172000,deliv:556500,cash:283000,card:1789000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-13':{total:2794400,hall:2163600,baemin:455200,coupang:175600,deliv:630800,cash:491400,card:1672200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-14':{total:3218800,hall:2372500,baemin:516800,coupang:329500,deliv:846300,cash:222100,card:2150400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-15':{total:2971800,hall:2508900,baemin:301300,coupang:161600,deliv:462900,cash:276300,card:2232600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-16':{total:2597900,hall:1889900,baemin:448100,coupang:259900,deliv:708000,cash:141800,card:1748100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-17':{total:3438900,hall:2670600,baemin:726500,coupang:41800,deliv:768300,cash:115800,card:2554800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-18':{total:3461300,hall:2766800,baemin:374200,coupang:320300,deliv:694500,cash:145000,card:2621800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-19':{total:3396100,hall:3200100,baemin:116500,coupang:79500,deliv:196000,cash:197200,card:3002900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-20':{total:2598200,hall:1770700,baemin:572200,coupang:255300,deliv:827500,cash:55900,card:1714800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-21':{total:4239800,hall:3099700,baemin:670800,coupang:469300,deliv:1140100,cash:120800,card:2978900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-22':{total:4934600,hall:4386800,baemin:355300,coupang:192500,deliv:547800,cash:239300,card:4147500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-23':{total:3377100,hall:2699000,baemin:423600,coupang:254500,deliv:678100,cash:264100,card:2434900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-24':{total:3373800,hall:2267600,baemin:406600,coupang:699600,deliv:1106200,cash:262700,card:2004900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-25':{total:2567200,hall:1916200,baemin:362800,coupang:288200,deliv:651000,cash:123800,card:1792400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-26':{total:2783300,hall:2191000,baemin:344000,coupang:248300,deliv:592300,cash:282500,card:1908500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-27':{total:3099900,hall:2311400,baemin:472600,coupang:315900,deliv:788500,cash:107800,card:2203600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-28':{total:2699100,hall:1867900,baemin:577700,coupang:253500,deliv:831200,cash:174700,card:1693200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-29':{total:2996100,hall:2509900,baemin:310300,coupang:175900,deliv:486200,cash:215600,card:2294300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-30':{total:3224100,hall:2393200,baemin:536600,coupang:294300,deliv:830900,cash:156700,card:2236500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2025-12-31':{total:2922400,hall:2382500,baemin:336100,coupang:203800,deliv:539900,cash:450440,card:1932060,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-01':{total:3124600,hall:2154100,baemin:648100,coupang:322400,deliv:970500,cash:477900,card:1676200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-02':{total:4204750,hall:3425550,baemin:425800,coupang:353400,deliv:779200,cash:285400,card:3140150,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-03':{total:2667500,hall:2199900,baemin:391100,coupang:76500,deliv:467600,cash:397500,card:1802400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-04':{total:3048100,hall:2358600,baemin:349500,coupang:340000,deliv:689500,cash:283200,card:2075400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-05':{total:3246500,hall:2495200,baemin:481400,coupang:269900,deliv:751300,cash:391800,card:2103400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-06':{total:2352100,hall:1784600,baemin:317500,coupang:250000,deliv:567500,cash:136200,card:1648400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-07':{total:3065400,hall:2652200,baemin:219900,coupang:193300,deliv:413200,cash:118400,card:2533800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-08':{total:3010000,hall:2132400,baemin:451100,coupang:426500,deliv:877600,cash:126200,card:2006200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-09':{total:2649100,hall:2259300,baemin:257500,coupang:132300,deliv:389800,cash:172100,card:2087200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-10':{total:3018600,hall:2116100,baemin:365800,coupang:536700,deliv:902500,cash:152200,card:1963900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-11':{total:2860600,hall:1888200,baemin:455100,coupang:517300,deliv:972400,cash:364100,card:1524100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-12':{total:3383400,hall:2546400,baemin:538700,coupang:298300,deliv:837000,cash:445900,card:2100500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-13':{total:2858600,hall:2209100,baemin:366600,coupang:282900,deliv:649500,cash:150700,card:2058400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-14':{total:2299100,hall:1902700,baemin:307000,coupang:89400,deliv:396400,cash:104800,card:1797900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-15':{total:3487700,hall:3030300,baemin:191300,coupang:266100,deliv:457400,cash:242400,card:2787900,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-16':{total:3206200,hall:2694500,baemin:302200,coupang:209500,deliv:511700,cash:231000,card:2463500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-17':{total:2488700,hall:1762400,baemin:266700,coupang:459600,deliv:726300,cash:204300,card:1558100,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-18':{total:3047500,hall:2198400,baemin:519800,coupang:329300,deliv:849100,cash:431700,card:1766700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-19':{total:3271700,hall:2371800,baemin:554100,coupang:345800,deliv:899900,cash:300100,card:2071700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-20':{total:3332500,hall:2814100,baemin:313900,coupang:204500,deliv:518400,cash:160300,card:2653800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-21':{total:3365500,hall:2535500,baemin:485300,coupang:344700,deliv:830000,cash:156700,card:2378800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-22':{total:3448200,hall:2683100,baemin:316800,coupang:448300,deliv:765100,cash:148800,card:2534300,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-23':{total:3418800,hall:2905400,baemin:417100,coupang:96300,deliv:513400,cash:289600,card:2615800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-24':{total:2315500,hall:1594100,baemin:319000,coupang:402400,deliv:721400,cash:88300,card:1505800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-25':{total:3230800,hall:2231700,baemin:429200,coupang:569900,deliv:999100,cash:121000,card:2110700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-26':{total:2760200,hall:2177400,baemin:388300,coupang:194500,deliv:582800,cash:111800,card:2065600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-27':{total:2662400,hall:2266100,baemin:177300,coupang:219000,deliv:396300,cash:126500,card:2139600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-28':{total:3032200,hall:2633100,baemin:258200,coupang:140900,deliv:399100,cash:91600,card:2541500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-29':{total:2336900,hall:1727500,baemin:387800,coupang:221600,deliv:609400,cash:356000,card:1371500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-30':{total:3111200,hall:2400300,baemin:304200,coupang:406700,deliv:710900,cash:249300,card:2151000,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-01-31':{total:2594900,hall:1894000,baemin:412800,coupang:288100,deliv:700900,cash:74200,card:1819800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-01':{total:2252800,hall:1718700,baemin:388500,coupang:145600,deliv:534100,cash:131200,card:1587500,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-02':{total:2547100,hall:2226800,baemin:123700,coupang:196600,deliv:320300,cash:337200,card:1889600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-03':{total:2304000,hall:1779800,baemin:346500,coupang:177700,deliv:524200,cash:345200,card:1434600,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-04':{total:2395200,hall:2043700,baemin:143200,coupang:208300,deliv:351500,cash:415000,card:1628700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-05':{total:2588500,hall:2089600,baemin:285300,coupang:213600,deliv:498900,cash:133800,card:1955800,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-06':{total:3149600,hall:2618300,baemin:268800,coupang:262500,deliv:531300,cash:306100,card:2312200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
+  '2026-02-07':{total:2949600,hall:1520100,baemin:724800,coupang:704700,deliv:1429500,cash:680700,card:839400,zero:0,seoul:0,trans:0,ticket:0,discount:0},
   // ── 카카오톡 파싱 2026-02-08 ~ 2026-03-24 ──
   '2026-02-08':{total:3687000,hall:3687000,baemin:0,coupang:0,deliv:0,cash:1308700,card:1205700,zero:0,seoul:0,trans:0,ticket:0,discount:0},
   '2026-02-09':{total:3920400,hall:3239600,baemin:325200,coupang:355600,deliv:680800,cash:172400,card:3067200,zero:0,seoul:0,trans:0,ticket:0,discount:0},
@@ -3703,8 +3862,8 @@ function rebuildDashData(){
       wx:r.wx!=null?(r.wxVersion===5?r.wx:migrateWx(r.wx)):1,
       hall:r.hall||(r.total-(r.baemin||0)-(r.coupang||0)),
       deliv:r.deliv||((r.baemin||0)+(r.coupang||0)),
-      lunch:r.lunch||Math.floor((r.hall||(r.total-(r.baemin||0)-(r.coupang||0)))*0.42),
-      dinner:r.dinner||Math.floor((r.hall||(r.total-(r.baemin||0)-(r.coupang||0)))*0.58),
+      lunch:r.lunch??null,
+      dinner:r.dinner??null,
       lunchHall:r.lunchHall??null,
       lunchDeliv:r.lunchDeliv??null,
       dinnerHall:r.dinnerHall??null,
@@ -3738,6 +3897,8 @@ function rebuildDashData(){
   });
   DASH_DATA=Object.values(merged).sort((a,b)=>a.date-b.date);
   if(document.getElementById('sc-dash').style.display==='block') renderDash();
+  // 예측 계산 분석 탭 열려있으면 자동 갱신
+  if(document.getElementById('vPredDebug')?.classList.contains('on')) renderPredDebug();
 }
 
 let curP='week',curMT='bar',curDT='total',curWT='total',goalAmt=80000000;
@@ -3879,8 +4040,9 @@ function renderInsights(d){
   ins.push({cls:'gold',icon:'📅',title:'최고 요일',body:`<strong>${DAYS[bestDow]}요일</strong> 평균 ${fmF(avgs[bestDow])}`});
 
   // ⑧ 점심 vs 저녁
-  const lAvg=Math.floor(d.reduce((s,x)=>s+x.lunch,0)/d.length);
-  const dAvg=Math.floor(d.reduce((s,x)=>s+x.dinner,0)/d.length);
+  const ldV=d.filter(x=>x.lunch!=null);
+  const lAvg=ldV.length?Math.floor(ldV.reduce((s,x)=>s+x.lunch,0)/ldV.length):0;
+  const dAvg=ldV.length?Math.floor(ldV.reduce((s,x)=>s+x.dinner,0)/ldV.length):0;
   ins.push({cls:'gold',icon:'🍽️',title:'시간대별',body:`점심 평균 <strong>${fm(lAvg)}원</strong><br>저녁 평균 <strong>${fm(dAvg)}원</strong>`});
 
   document.getElementById('insightRow').innerHTML=ins.map(i=>`<div class="ins-card ${i.cls}"><div class="ins-icon">${i.icon}</div><div class="ins-title">${i.title}</div><div class="ins-body">${i.body}</div></div>`).join('');
@@ -3900,11 +4062,11 @@ function renderHD(d){
   CH['hd']=new Chart(ctx,{type:isLine?'line':'bar',data:{labels:d.map(x=>x.ds+'('+DAYS[x.dow]+')'),datasets:[{label:'홀',data:d.map(x=>x.hall),backgroundColor:'rgba(92,61,30,0.8)',borderColor:'rgba(92,61,30,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine},{label:'배달',data:d.map(x=>x.deliv),backgroundColor:'rgba(181,129,42,0.7)',borderColor:'rgba(181,129,42,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:!isLine,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:!isLine,ticks:{font:{size:10},maxRotation:0},grid:{display:false}}}}});
 }
 function renderLD(d){
-  dc('ld');const lt=d.reduce((s,x)=>s+x.lunch,0),dt=d.reduce((s,x)=>s+x.dinner,0),r=Math.round(lt/(lt+dt)*100);
-  document.getElementById('ldMeta').textContent=`점심 ${r}% : 저녁 ${100-r}% · ${d.length}일 기준`;
+  dc('ld');const dValid=d.filter(x=>x.lunch!=null&&x.dinner!=null);const lt=dValid.reduce((s,x)=>s+x.lunch,0),dt=dValid.reduce((s,x)=>s+x.dinner,0),r=(lt+dt)>0?Math.round(lt/(lt+dt)*100):0;
+  document.getElementById('ldMeta').textContent=`점심 ${r}% : 저녁 ${100-r}% · ${dValid.length}일 기준`;
   const ctx=document.getElementById('ldChart').getContext('2d');
   const isLine=curLDType==='line';
-  CH['ld']=new Chart(ctx,{type:isLine?'line':'bar',data:{labels:d.map(x=>x.ds+'('+DAYS[x.dow]+')'),datasets:[{label:'점심',data:d.map(x=>x.lunch),backgroundColor:'rgba(181,129,42,0.75)',borderColor:'rgba(181,129,42,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine},{label:'저녁',data:d.map(x=>x.dinner),backgroundColor:'rgba(30,74,122,0.65)',borderColor:'rgba(30,74,122,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:!isLine,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:!isLine,ticks:{font:{size:10},maxRotation:0},grid:{display:false}}}}});
+  CH['ld']=new Chart(ctx,{type:isLine?'line':'bar',data:{labels:dValid.map(x=>x.ds+'('+DAYS[x.dow]+')'),datasets:[{label:'점심',data:dValid.map(x=>x.lunch),backgroundColor:'rgba(181,129,42,0.75)',borderColor:'rgba(181,129,42,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine},{label:'저녁',data:dValid.map(x=>x.dinner),backgroundColor:'rgba(30,74,122,0.65)',borderColor:'rgba(30,74,122,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:!isLine,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:!isLine,ticks:{font:{size:10},maxRotation:0},grid:{display:false}}}}});
 }
 function renderDA(d){
   dc('da');const bt=d.reduce((s,x)=>s+x.baemin,0),ct=d.reduce((s,x)=>s+x.coupang,0);
