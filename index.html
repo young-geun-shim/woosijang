@@ -852,13 +852,13 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   <!-- 상단 탭 -->
   <div style="background:var(--brown);padding:0 16px 0">
     <div class="btabs">
-      <button class="btab on" id="stab-input" onclick="showSalesTab('input',this)">✏️ 매출 입력</button>
-      <button class="btab" id="stab-dash" onclick="showSalesTab('dash',this)">📊 대시보드</button>
+      <button class="btab on" id="stab-dash" onclick="showSalesTab('dash',this)">📊 대시보드</button>
+      <button class="btab" id="stab-input" onclick="showSalesTab('input',this)">✏️ 매출 입력</button>
     </div>
   </div>
 
   <!-- 매출 입력 탭 -->
-  <div class="bc on" id="sc-input">
+  <div class="bc" id="sc-input">
     <div id="salesLocked" class="locked-msg" style="display:none">
       매출 입력은<br><strong>심영근 · 최은란 · 곽진수</strong>만<br>접근할 수 있어요.<br><br>
       <button onclick="showNameOv()" style="padding:10px 20px;background:var(--brown);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">이름 변경하기</button>
@@ -928,7 +928,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   </div>
 
   <!-- 대시보드 탭 -->
-  <div class="bc" id="sc-dash" style="padding:0">
+  <div class="bc on" id="sc-dash" style="padding:0">
 
     <!-- 매출 달력 -->
     <div style="background:var(--brown);padding:12px 8px 14px">
@@ -3338,15 +3338,23 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
       }
     }
 
-    // 2순위: forecastWx (오늘+미래, 실제 없을 때)
+    // 2순위: Firebase weather 캐시 (매출 없는 날도 표시)
+    if(lWx==null && dWx==null){
+      const fwx=firebaseWxData[dk];
+      if(fwx && typeof fwx==='object'){
+        lWx=fwx.lunchWx!=null?fwx.lunchWx:null;
+        dWx=fwx.dinnerWx!=null?fwx.dinnerWx:null;
+        if(lWx==null&&dWx==null&&fwx.wx!=null){ lWx=fwx.wx; dWx=fwx.wx; }
+      }
+    }
+
+    // 3순위: forecastWx (오늘+미래, 실제 없을 때)
     if(lWx==null && dWx==null && dk>=todayDk){
       const fw=forecastWx[dk];
       if(fw){
         if(dk===todayDk && fw.lunchWx!=null){
-          // 오늘: 점심/저녁 2개
           lWx=fw.lunchWx; dWx=fw.dinnerWx!=null?fw.dinnerWx:fw.wx;
         } else {
-          // 미래: 영업시간 최빈값 1개
           singleWx=fw.wx;
         }
       }
@@ -3368,7 +3376,14 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
     if(diT && diT.lunchTemp!=null){
       avgTemp=diT.dinnerTemp!=null?Math.round((diT.lunchTemp+diT.dinnerTemp)/2):Math.round(diT.lunchTemp);
     }
-    // 2순위: forecastWx (예보 온도 - 실제 없을 때)
+    // 2순위: Firebase weather 캐시
+    if(avgTemp==null){
+      const fwx=firebaseWxData[dk];
+      if(fwx && typeof fwx==='object' && fwx.lunchTemp!=null){
+        avgTemp=fwx.dinnerTemp!=null?Math.round((fwx.lunchTemp+fwx.dinnerTemp)/2):Math.round(fwx.lunchTemp);
+      }
+    }
+    // 3순위: forecastWx (예보 온도)
     if(avgTemp==null){
       const fwT=forecastWx[dk];
       if(fwT && fwT.lunchTemp!=null){
@@ -3387,7 +3402,12 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
     // 1순위: DASH_DATA
     const diPm=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
     if(diPm && diPm.dayPm25!=null) pm25=diPm.dayPm25;
-    // 2순위: forecastAq
+    // 2순위: Firebase airquality 직접
+    if(pm25==null){
+      const aq=firebaseAqData[dk];
+      if(aq && aq.dayPm25!=null) pm25=aq.dayPm25;
+    }
+    // 3순위: forecastAq
     if(pm25==null){
       const faq=forecastAq[dk];
       if(faq && faq.dayPm25!=null) pm25=faq.dayPm25;
@@ -5784,12 +5804,14 @@ function goTab(tab){
   if(tab==='sales'){
     checkSalesAccess();
     const si=document.getElementById('sc-input'), sd=document.getElementById('sc-dash');
-    if(si) si.style.display='block';
-    if(sd) sd.style.display='none';
-    document.getElementById('stab-input')?.classList.add('on');
-    document.getElementById('stab-dash')?.classList.remove('on');
-    const dk=dkStr(salesDate.getFullYear(),salesDate.getMonth(),salesDate.getDate());
-    loadSalesForDate(dk);
+    if(si) si.style.display='none';
+    if(sd) sd.style.display='block';
+    if(si) si.classList.remove('on');
+    if(sd) sd.classList.add('on');
+    document.getElementById('stab-input')?.classList.remove('on');
+    document.getElementById('stab-dash')?.classList.add('on');
+    renderDash();
+    renderDashCal();
   }
   if(tab==='reserve'){initReserve();}
   if(tab==='payroll'){initPayroll();}
@@ -6669,6 +6691,8 @@ setInterval(()=>{
 }, 6*60*60*1000);
 // 예측 팝업 (7초 뒤 - 데이터 로딩 후)
 setTimeout(showPredPopup, 7000);
+// 하루 1번 자동 가중치 갱신 (데이터 로딩 후 10초)
+setTimeout(autoRefreshWeightsDaily, 10000);
 
 // ════ 최근 7일 날씨/미세먼지 누락분 자동 보충 ════
 async function autoFillRecentWeather(){
@@ -7007,42 +7031,46 @@ function closePredPopup(noMore){
 // ── 자동 보정 가중치 계산 (데이터 있는 만큼 즉시 적용) ──
 function calcAutoWeights(){
   const defaults = {hol:0.40, wx:0.20, pm:0.20, temp:0.20};
-  if(DASH_DATA.length < 5) return defaults; // 최소 5일 이상 필요
-  const baseAvg = DASH_DATA.reduce((s,x)=>s+x.total,0)/DASH_DATA.length;
+  // 매출 있는 날만 사용
+  const data = DASH_DATA.filter(x=>x.total>0);
+  if(data.length < 5) return defaults;
+  const baseAvg = data.reduce((s,x)=>s+x.total,0)/data.length;
   if(!baseAvg) return defaults;
 
   // 공휴일 영향도
-  const holDays=DASH_DATA.filter(x=>x.isHoliday), normDays=DASH_DATA.filter(x=>!x.isHoliday);
+  const holDays=data.filter(x=>x.isHoliday), normDays=data.filter(x=>!x.isHoliday);
   const holImpact=(holDays.length>=1&&normDays.length>=1)?Math.abs((holDays.reduce((s,x)=>s+x.total,0)/holDays.length)-(normDays.reduce((s,x)=>s+x.total,0)/normDays.length))/baseAvg:0.2;
 
-  // 날씨 영향도
+  // 날씨 영향도 (최소 3일 이상인 날씨 그룹만)
   const wxGroups={};
-  DASH_DATA.forEach(x=>{ if(x.wx==null) return; if(!wxGroups[x.wx]) wxGroups[x.wx]=[]; wxGroups[x.wx].push(x.total); });
+  data.forEach(x=>{ if(x.wx==null) return; if(!wxGroups[x.wx]) wxGroups[x.wx]=[]; wxGroups[x.wx].push(x.total); });
   let wxVariance=0, wxCount=0;
   Object.values(wxGroups).forEach(arr=>{
-    if(arr.length<2) return;
+    if(arr.length<3) return; // 최소 3일 이상 (노이즈 방지)
     wxVariance+=Math.abs(arr.reduce((a,b)=>a+b,0)/arr.length-baseAvg)/baseAvg;
     wxCount++;
   });
   const wxImpact=wxCount?wxVariance/wxCount:0.1;
 
   // 미세먼지 영향도
-  const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null);
+  const pmValid=data.filter(x=>x.dayPm25!=null);
   let pmImpact=0.1;
-  if(pmValid.length>=3){
+  if(pmValid.length>=5){
     const pmGood=pmValid.filter(x=>x.dayPm25<=15), pmBad=pmValid.filter(x=>x.dayPm25>35);
-    if(pmGood.length&&pmBad.length) pmImpact=Math.abs(pmGood.reduce((s,x)=>s+x.total,0)/pmGood.length-pmBad.reduce((s,x)=>s+x.total,0)/pmBad.length)/baseAvg;
+    if(pmGood.length>=2&&pmBad.length>=2){
+      pmImpact=Math.abs(pmGood.reduce((s,x)=>s+x.total,0)/pmGood.length-pmBad.reduce((s,x)=>s+x.total,0)/pmBad.length)/baseAvg;
+    }
   }
 
   // 온도 영향도
-  const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
+  const tempValid=data.filter(x=>x.lunchTemp!=null);
   let tempImpact=0.1;
-  if(tempValid.length>=3){
+  if(tempValid.length>=5){
     const tBands=[{min:-10,max:0},{min:0,max:10},{min:10,max:20},{min:20,max:30},{min:30,max:99}];
     let tVar=0, tCnt=0;
     tBands.forEach(b=>{
       const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
-      if(rows.length>=1){ tVar+=Math.abs(rows.reduce((s,x)=>s+x.total,0)/rows.length-baseAvg)/baseAvg; tCnt++; }
+      if(rows.length>=3){ tVar+=Math.abs(rows.reduce((s,x)=>s+x.total,0)/rows.length-baseAvg)/baseAvg; tCnt++; }
     });
     if(tCnt) tempImpact=tVar/tCnt;
   }
@@ -7254,6 +7282,25 @@ function refreshWeights(){
   loadWeightHistory();
   // 달력 예측도 갱신
   renderDashCal();
+}
+
+// 하루 1번 자동 가중치 갱신 - 조용히 저장
+function autoRefreshWeightsDaily(){
+  if(DASH_DATA.length<5) return;
+  const today=localDateStr(new Date());
+  const lastAuto=localStorage.getItem('ws_weight_last_auto');
+  if(lastAuto===today) return; // 오늘 이미 갱신함
+  const weights=calcAutoWeights();
+  const record={
+    date:today,
+    savedAt:new Date().toISOString(),
+    dataCount:DASH_DATA.length,
+    hol:weights.hol, wx:weights.wx, pm:weights.pm, temp:weights.temp,
+    auto:true
+  };
+  db.ref('weightHistory/'+today).set(record);
+  localStorage.setItem('ws_weight_last_auto', today);
+  console.log('[가중치] 자동 갱신:', today, weights);
 }
 
 function loadWeightHistory(){
