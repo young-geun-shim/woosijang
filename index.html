@@ -929,10 +929,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   </div>
 
   <!-- 대시보드 탭 -->
-  <div class="bc" id="sc-dash" style="padding:0 12px">
+  <div class="bc" id="sc-dash" style="padding:0">
 
     <!-- 매출 달력 -->
-    <div style="background:var(--brown);padding:12px 16px 14px">
+    <div style="background:var(--brown);padding:12px 12px 14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <button class="cal-arrow" onclick="changeDashCal(-1)" style="background:rgba(255,255,255,.15);border:none;color:#fff">‹</button>
         <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:#fff" id="dashCalLbl"></div>
@@ -3119,19 +3119,19 @@ function renderDashCal(){
   const nextM=dashCalM===11?0:dashCalM+1;
   const nextY=dashCalM===11?dashCalY+1:dashCalY;
 
-  // 요일 헤더 - 8컬럼으로 고정 (중복 추가 방지)
+  // 요일 헤더 - 8컬럼 (요일 1fr * 7 + 합계 0.6fr)
   const dowHeader=grid.previousElementSibling;
   if(dowHeader){
-    dowHeader.style.gridTemplateColumns='repeat(8,1fr)';
+    dowHeader.style.gridTemplateColumns='repeat(7,1fr) 0.6fr';
     if(dowHeader.children.length===7){
       const wk=document.createElement('div');
-      wk.style.cssText='text-align:center;font-size:10px;font-weight:700;color:rgba(181,131,42,.9)';
+      wk.style.cssText='text-align:center;font-size:9px;font-weight:700;color:rgba(181,131,42,.9)';
       wk.textContent='합계';
       dowHeader.appendChild(wk);
     }
   }
 
-  grid.style.gridTemplateColumns='repeat(8,1fr)';
+  grid.style.gridTemplateColumns='repeat(7,1fr) 0.6fr';
   grid.innerHTML='';
 
   let weekTotal=0, weekDays=0;
@@ -3211,8 +3211,8 @@ function renderDashCal(){
 function makeWeekCell(total, isFullWeek, dayCount){
   const wCell=document.createElement('div');
   const avg=dayCount>0?Math.floor(total/dayCount):0;
-  wCell.style.cssText=`aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(181,131,42,${isFullWeek?0.15:0.08});border:1px solid rgba(181,131,42,${isFullWeek?0.35:0.2})`;
-  wCell.innerHTML=`<div style="font-size:7px;font-weight:700;color:rgba(181,131,42,${isFullWeek?0.9:0.6});line-height:1.2">주간</div><div style="font-size:8px;color:${isFullWeek?'#FFD080':'rgba(255,208,128,0.6)'};font-weight:700;margin-top:1px">${total>0?fm(total):'-'}</div>${avg>0?`<div style="font-size:7px;color:rgba(181,131,42,0.6);margin-top:1px">평균 ${fm(avg)}</div>`:''}`;
+  wCell.style.cssText=`min-height:54px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(181,131,42,${isFullWeek?0.15:0.08});border:1px solid rgba(181,131,42,${isFullWeek?0.35:0.2});padding:2px`;
+  wCell.innerHTML=`<div style="font-size:7px;font-weight:700;color:rgba(181,131,42,${isFullWeek?0.9:0.6});line-height:1">주</div><div style="font-size:9px;color:${isFullWeek?'#FFD080':'rgba(255,208,128,0.6)'};font-weight:700;margin-top:2px">${total>0?fm(total):'-'}</div>${avg>0?`<div style="font-size:7px;color:rgba(181,131,42,0.7);margin-top:1px">${fm(avg)}</div>`:''}`;
   return wCell;
 }
 
