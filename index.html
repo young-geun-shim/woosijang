@@ -2897,42 +2897,56 @@ async function fetchHistoricalWeather(){
 
   // REAL_SALES + Firebase sales 전체 날짜 대상
   const allDates=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
+  const todayDk = localDateStr(new Date());
 
+  // 필요한 날짜만 필터 - 한 번 저장된 과거 날짜는 영구 사용
+  const needList = [];
   for(const dk of allDates){
+    if(dk >= todayDk) continue; // 오늘/미래는 예보가 담당
     const cv=cached[dk];
-    // 이미 상세 데이터 있으면 스킵, wx 숫자만 있거나 lunchRain/lunchWx 없는 구버전이면 재수집
-    // lunchWx===1 이고 lunchTemp 있으면 잘못 계산된 캐시이므로 재수집
+    // 완전히 없거나, 숫자만 있는 구버전이거나, lunchWx 필드 자체가 없으면 수집
     const needFetch = cv===undefined
       || typeof cv==='number'
-      || cv.lunchRain===undefined
-      || cv.lunchWx===undefined
-      || (cv.lunchWx===1 && cv.dinnerWx===1 && cv.lunchTemp!=null);
-    if(!needFetch) continue;
+      || (typeof cv==='object' && cv.lunchWx===undefined);
+    if(needFetch) needList.push(dk);
+  }
 
-    const detail=await fetchWeatherDetail(dk);
-    // Firebase weather에 상세 저장
-    db.ref('weather/'+dk).set(detail);
-    cached[dk]=detail;
+  // 최근 날짜부터 처리, 세션당 최대 30일 (rate limit 방지)
+  needList.sort().reverse();
+  const batch = needList.slice(0, 30);
+  console.log(`[과거날씨] 총 필요: ${needList.length}일, 이번 처리: ${batch.length}일 (세션당 30일씩)`);
 
-    // Firebase sales에도 날씨 병합 저장 (rebuildDashData에서 읽을 수 있도록)
-    if(firebaseSalesData[dk]){
-      const merged={...firebaseSalesData[dk], wx:detail.wx, wxVersion:5,
-        lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx,
-        lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp,
-        lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
-      fbSet('sales/'+dk, merged);
-      firebaseSalesData[dk]=merged;
-    }
+  let ok=0, fail=0;
+  for(const dk of batch){
+    try{
+      const detail=await fetchWeatherDetail(dk);
+      if(!detail || (detail.wx===1 && detail.lunchTemp==null && detail.lunchRain==null)){
+        fail++;
+        await new Promise(r=>setTimeout(r,1500));
+        continue;
+      }
 
-    // REAL_SALES 업데이트
-    if(REAL_SALES[dk]){
-      REAL_SALES[dk].wx=detail.wx;
-      REAL_SALES[dk].lunchWx=detail.lunchWx;
-      REAL_SALES[dk].dinnerWx=detail.dinnerWx;
-      REAL_SALES[dk].lunchTemp=detail.lunchTemp;
-      REAL_SALES[dk].dinnerTemp=detail.dinnerTemp;
-      REAL_SALES[dk].lunchRain=detail.lunchRain;
-      REAL_SALES[dk].dinnerRain=detail.dinnerRain;
+      // Firebase weather에 영구 저장 (다시 가져올 일 없음)
+      db.ref('weather/'+dk).set({...detail, wxVersion:5, savedAt:Date.now()});
+      cached[dk]=detail;
+
+      if(firebaseSalesData[dk]){
+        const merged={...firebaseSalesData[dk], wx:detail.wx, wxVersion:5,
+          lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx,
+          lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp,
+          lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
+        fbSet('sales/'+dk, merged);
+        firebaseSalesData[dk]=merged;
+      }
+
+      if(REAL_SALES[dk]){
+        REAL_SALES[dk].wx=detail.wx;
+        REAL_SALES[dk].lunchWx=detail.lunchWx;
+        REAL_SALES[dk].dinnerWx=detail.dinnerWx;
+        REAL_SALES[dk].lunchTemp=detail.lunchTemp;
+        REAL_SALES[dk].dinnerTemp=detail.dinnerTemp;
+        REAL_SALES[dk].lunchRain=detail.lunchRain;
+        REAL_SALES[dk].dinnerRain=detail.dinnerRain;
     }
     // DASH_DATA 업데이트
     const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
@@ -2945,8 +2959,15 @@ async function fetchHistoricalWeather(){
       item.lunchRain=detail.lunchRain;
       item.dinnerRain=detail.dinnerRain;
     }
-    await new Promise(r=>setTimeout(r,300)); // API 과부하 방지
+    ok++;
+    await new Promise(r=>setTimeout(r,800)); // API rate limit 방지 (800ms)
+    }catch(e){
+      console.error('[과거날씨] 실패', dk, e);
+      fail++;
+      await new Promise(r=>setTimeout(r,2000));
+    }
   }
+  console.log(`[과거날씨] 완료: 성공 ${ok}, 실패 ${fail}, 남은 ${needList.length-batch.length}`);
 
   // 전체 날짜(REAL_SALES + Firebase)에 cached 날씨 반영
   const allDks=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
@@ -3812,23 +3833,43 @@ function pm25Color(v){
 // 과거 미세먼지 일괄 수집
 async function fetchHistoricalAirQuality(){
   const allDates=[...new Set([...Object.keys(REAL_SALES),...Object.keys(firebaseSalesData)])];
-  for(const dk of allDates){
-    const snap=await db.ref('airquality/'+dk).get().catch(()=>null);
-    const aq=snap&&snap.exists()?snap.val():await fetchAirQuality(dk);
-    if(aq){
-      if(!snap||!snap.exists()) db.ref('airquality/'+dk).set(aq);
-      applyAqToData(dk,aq);
-      // sales에도 병합 저장
-      if(firebaseSalesData[dk]){
-        const merged={...firebaseSalesData[dk],...aq};
-        fbSet('sales/'+dk, merged);
-        firebaseSalesData[dk]=merged;
-      }
-    }
-    await new Promise(r=>setTimeout(r,200));
+  const todayDk = localDateStr(new Date());
+
+  // 캐시 스냅샷으로 한 번에 체크 (날짜별 N번 Firebase 쿼리 방지)
+  const aqSnap=await db.ref('airquality').get().catch(()=>null);
+  const cached=aqSnap&&aqSnap.exists()?aqSnap.val():{};
+
+  // 필요한 날짜만 (과거만, 캐시 없는 것만)
+  const needList = allDates.filter(dk => dk < todayDk && !cached[dk]).sort().reverse();
+  const batch = needList.slice(0, 30);
+  console.log(`[과거미세먼지] 총 필요: ${needList.length}일, 이번: ${batch.length}일`);
+
+  let ok=0, fail=0;
+  for(const dk of batch){
+    try{
+      const aq=await fetchAirQuality(dk);
+      if(aq){
+        db.ref('airquality/'+dk).set(aq);
+        applyAqToData(dk,aq);
+        if(firebaseSalesData[dk]){
+          const merged={...firebaseSalesData[dk],...aq};
+          fbSet('sales/'+dk, merged);
+          firebaseSalesData[dk]=merged;
+        }
+        ok++;
+      } else fail++;
+    } catch(e){ fail++; }
+    await new Promise(r=>setTimeout(r,800));
   }
+  console.log(`[과거미세먼지] 완료: 성공 ${ok}, 실패 ${fail}`);
+
+  // 이미 캐시된 것도 적용
+  allDates.forEach(dk => {
+    if(cached[dk]) applyAqToData(dk, cached[dk]);
+  });
+
   if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
-  showToast('미세먼지 데이터 업데이트 완료!');
+  if(ok>0) showToast('미세먼지 '+ok+'일 업데이트 완료');
 }
 
 function applyAqToData(dk,aq){
@@ -5573,7 +5614,7 @@ function copyMonthReport(){
 
 // ════ UTILS ════
 function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg||'완료!';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+function showToast(msg,dur){const t=document.getElementById('toast');t.textContent=msg||'완료!';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur||2500);}
 
 // ════ TAB 시스템 업데이트 ════
 const ALL_TABS=['attend','cal','chk','board','sales','reserve','payroll','schedule','complain','more','report','monthreport','profit','predDebug'];
@@ -6445,24 +6486,24 @@ subscribeCalMonth();
 initAttend();
 initOrderSystem();
 loadTodayWeather();
-setTimeout(fetchHistoricalWeather, 2000);
-// 공휴일 로드 (3초 뒤)
-setTimeout(loadHolidays, 3000);
-// 미세먼지 과거 데이터 (5초 뒤)
-setTimeout(fetchHistoricalAirQuality, 5000);
-// 예보 날씨 (4초 뒤)
-// 즉시 예보 호출 (대기 없음)
+// 1. 즉시: 예보 (대시보드용, 우선순위 최고)
 fetchWeatherForecast();
-// 6시간마다 예보+미세먼지 자동 갱신 (하루 4회)
+// 2. 3초 뒤: 공휴일
+setTimeout(loadHolidays, 3000);
+// 3. 10초 뒤: 최근 7일 날씨 자동 보충
+setTimeout(autoFillRecentWeather, 10000);
+// 4. 20초 뒤: 과거 날씨 수집 (30일씩 배치, rate limit 방지)
+setTimeout(fetchHistoricalWeather, 20000);
+// 5. 60초 뒤: 과거 미세먼지 수집
+setTimeout(fetchHistoricalAirQuality, 60000);
+// 6시간마다 예보 자동 갱신
 setInterval(()=>{
   fetchWeatherForecast();
   showToast('예보 자동 갱신 완료');
 }, 6*60*60*1000);
-setTimeout(replaceForecastWithActual, 8000);
+setTimeout(replaceForecastWithActual, 15000);
 // 예측 팝업 (7초 뒤 - 데이터 로딩 후)
 setTimeout(showPredPopup, 7000);
-// 최근 7일 날씨/미세먼지 누락분 자동 보충 (6초 뒤)
-setTimeout(autoFillRecentWeather, 6000);
 
 // ════ 최근 7일 날씨/미세먼지 누락분 자동 보충 ════
 async function autoFillRecentWeather(){
@@ -6685,7 +6726,9 @@ async function fetchWeatherForecast(retryCount=0){
         if(adata.forecastAq) forecastAq = adata.forecastAq;
       }
     }catch(_){}
-    showToast('⚠️ 예보 로드 실패: '+(e.message||'알 수 없음'));
+    const errMsg = e && (e.message || e.name || String(e)) || '알 수 없음';
+    showToast('⚠️ 예보 실패: '+errMsg, 8000);
+    console.error('[예보] 최종 실패:', e);
     renderDashCal();
   }
 }
