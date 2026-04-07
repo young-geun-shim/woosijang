@@ -768,14 +768,14 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 <div class="view" id="vBoard">
   <div style="background:var(--brown);padding:0 16px 0">
     <div class="btabs">
-      <button class="btab on" id="bt-order" onclick="showBTab('order',this)">📦 발주 입력</button>
+      <button class="btab on" id="bt-cal" onclick="showBTab('cal2',this)">📅 달력</button>
+      <button class="btab" id="bt-order" onclick="showBTab('order',this)">📦 발주 입력</button>
       <button class="btab" id="bt-list" onclick="showBTab('list',this)">📋 발주 목록</button>
-      <button class="btab" id="bt-cal" onclick="showBTab('cal2',this)">📅 달력</button>
     </div>
   </div>
 
   <!-- ① 발주 입력 탭 -->
-  <div class="bc on" id="bc-order">
+  <div class="bc" id="bc-order">
     <!-- 날짜 선택 -->
     <div class="date-bar" style="margin-bottom:10px">
       <button class="date-nav-btn" onclick="chgOrderDate(-1)">‹</button>
@@ -828,7 +828,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   </div>
 
   <!-- ③ 달력 탭 -->
-  <div class="bc" id="bc-cal2">
+  <div class="bc on" id="bc-cal2">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0 10px">
       <button class="cal-arrow" onclick="changeOrderCalMonth(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--brown)">‹</button>
       <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)" id="orderCalLbl"></div>
@@ -1865,13 +1865,17 @@ function cancelPin(){
 
 async function checkAndShowPermPopup(){
   updatePermIcons();
-  const notifyGranted = 'Notification' in window && Notification.permission === 'granted';
+  // 한번 허용했다는 기록이 있으면 다시 안 물어봄
+  const gpsAskedBefore = localStorage.getItem('ws_gps_granted')==='1';
+  if(gpsAskedBefore){
+    checkGPS();
+    return;
+  }
   let gpsGranted = false;
   try{
     if(navigator.permissions && navigator.permissions.query){
       const result = await navigator.permissions.query({name:'geolocation'});
       gpsGranted = result.state === 'granted';
-      // 권한 변화 감지 (iOS 미지원이어도 안전)
       try{ result.onchange = ()=>{ updatePermIcons(); }; }catch(e){}
     }
   }catch(e){
@@ -1880,18 +1884,20 @@ async function checkAndShowPermPopup(){
       await new Promise((resolve,reject)=>{
         navigator.geolocation.getCurrentPosition(
           ()=>{ gpsGranted=true; resolve(); },
-          (err)=>{ gpsGranted=(err.code!==1); resolve(); }, // code 1=PERMISSION_DENIED
+          (err)=>{ gpsGranted=(err.code!==1); resolve(); },
           {timeout:3000, maximumAge:60000}
         );
       });
     }catch(e2){ gpsGranted=false; }
   }
-  // 알림 기능 비활성화 - GPS만 체크
+  // GPS만 체크
   if(!gpsGranted){
-    permStep = 1; // GPS 단계로 바로
+    permStep = 1;
     renderPermStep();
     document.getElementById('permOv').classList.remove('hidden');
   } else {
+    // 허용됐으면 영구 저장 (다음부터 재확인 안 함)
+    localStorage.setItem('ws_gps_granted','1');
     checkGPS();
   }
 }
@@ -2630,6 +2636,16 @@ function showBTab(id,btn){
   document.querySelectorAll('#vBoard .btab').forEach(t=>t.classList.remove('on'));
   document.getElementById('bc-'+id).classList.add('on');
   btn.classList.add('on');
+  if(id==='order'){
+    // 발주 입력 탭 = 항상 오늘 날짜로 리셋
+    orderDate = new Date();
+    renderOrderDateLbl();
+    // 선택된 항목 초기화 + 오늘 날짜 기존 발주 로드
+    selectedOrderItems = {};
+    renderOrderItems();
+    const etcInp = document.getElementById('orderEtcInp');
+    if(etcInp) etcInp.value = '';
+  }
   if(id==='list') loadOrderList();
   if(id==='cal2'){renderOrderCal();document.getElementById('orderCalDetail').style.display='none';}
 }
@@ -3155,7 +3171,14 @@ function showSalesTab(id, btn){
     curP='day';
     renderDayView();
   }
-  if(id==='input') checkSalesAccess();
+  if(id==='input'){
+    // 매출 입력 탭 = 항상 오늘 날짜로 리셋
+    salesDate = new Date();
+    updateSalesDateLbl();
+    const dk = dkStr(salesDate.getFullYear(), salesDate.getMonth(), salesDate.getDate());
+    loadSalesForDate(dk);
+    checkSalesAccess();
+  }
   window.scrollTo(0,0);
 }
 
@@ -3919,6 +3942,7 @@ function applyAqToData(dk,aq){
 let DASH_DATA=Object.values(REAL_SALES).sort((a,b)=>a.date-b.date);
 let firebaseSalesData={};
 let firebaseAqData={};
+let firebaseWxData={};
 
 // Firebase 실제 매출 구독
 db.ref('sales').on('value',snap=>{
@@ -3929,6 +3953,26 @@ db.ref('sales').on('value',snap=>{
 // Firebase 미세먼지 구독
 db.ref('airquality').on('value',snap=>{
   firebaseAqData=snap.val()||{};
+  rebuildDashData();
+});
+
+// Firebase 날씨 구독 - REAL_SALES에 자동 병합 (영구 저장 활용)
+db.ref('weather').on('value',snap=>{
+  firebaseWxData=snap.val()||{};
+  // REAL_SALES에 Firebase weather 병합
+  Object.entries(firebaseWxData).forEach(([dk,wv])=>{
+    if(!REAL_SALES[dk]) return;
+    if(wv && typeof wv==='object'){
+      REAL_SALES[dk].wx = wv.wx ?? REAL_SALES[dk].wx;
+      REAL_SALES[dk].lunchWx = wv.lunchWx ?? null;
+      REAL_SALES[dk].dinnerWx = wv.dinnerWx ?? null;
+      REAL_SALES[dk].lunchTemp = wv.lunchTemp ?? null;
+      REAL_SALES[dk].dinnerTemp = wv.dinnerTemp ?? null;
+      REAL_SALES[dk].lunchRain = wv.lunchRain ?? null;
+      REAL_SALES[dk].dinnerRain = wv.dinnerRain ?? null;
+      REAL_SALES[dk].wxVersion = 5;
+    }
+  });
   rebuildDashData();
 });
 
@@ -6538,15 +6582,18 @@ function handlePermAllow(){
           return;
         }
         localStorage.setItem('ws_gps_asked','1');
+        localStorage.setItem('ws_gps_granted','1');
         closePermPopup();
         checkGPS();
       }).catch(function(){
         localStorage.setItem('ws_gps_asked','1');
+        localStorage.setItem('ws_gps_granted','1');
         closePermPopup();
         checkGPS();
       });
     } else {
       localStorage.setItem('ws_gps_asked','1');
+      localStorage.setItem('ws_gps_granted','1');
       closePermPopup();
       checkGPS();
     }
