@@ -2939,24 +2939,38 @@ async function fetchHistoricalWeather(){
   const endDate = needList[needList.length-1];
   console.log(`[과거날씨] 범위: ${startDate} ~ ${endDate} (${needList.length}일)`);
 
-  // 한 번의 API 호출로 전체 기간 가져오기
-  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode,temperature_2m,precipitation&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${endDate}`;
-  const res = await fetchWithTimeout(url, 30000);
-  if(!res.ok) throw new Error('HTTP '+res.status);
-  const json = await res.json();
-  const h = json?.hourly;
-  if(!h || !h.weathercode || !h.time) throw new Error('hourly 데이터 없음');
-
-  // 날짜별로 시간대 데이터 그룹화
+  // archive-api는 보통 5일 전 데이터까지 → 두 API 병행 사용
   const byDay = {};
-  h.time.forEach((t, idx)=>{
-    const parts = t.slice(0,10).split('-');
-    const dk = dkStr(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
-    if(!byDay[dk]) byDay[dk] = {wx:[], temp:[], rain:[]};
-    byDay[dk].wx.push(h.weathercode[idx]);
-    byDay[dk].temp.push(h.temperature_2m[idx]);
-    byDay[dk].rain.push(h.precipitation[idx]);
-  });
+  const processApi = async(url, label)=>{
+    try{
+      const res = await fetchWithTimeout(url, 30000);
+      if(!res.ok){ console.warn('['+label+'] HTTP '+res.status); return; }
+      const json = await res.json();
+      const h = json?.hourly;
+      if(!h || !h.weathercode || !h.time){ console.warn('['+label+'] 데이터 없음'); return; }
+      h.time.forEach((t, idx)=>{
+        const parts = t.slice(0,10).split('-');
+        const dk = dkStr(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+        if(!byDay[dk]) byDay[dk] = {wx:[], temp:[], rain:[]};
+        if(h.weathercode[idx]!=null){
+          byDay[dk].wx.push(h.weathercode[idx]);
+          byDay[dk].temp.push(h.temperature_2m[idx]);
+          byDay[dk].rain.push(h.precipitation[idx]);
+        }
+      });
+      console.log('['+label+'] 로드 완료');
+    }catch(e){ console.warn('['+label+'] 실패:', e.message); }
+  };
+
+  const archiveUrl = `https://archive-api.open-meteo.com/v1/archive?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode,temperature_2m,precipitation&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${endDate}`;
+  const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode,temperature_2m,precipitation&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${endDate}&past_days=92`;
+
+  // 1. archive (오래된 과거)
+  await processApi(archiveUrl, 'archive');
+  // 2. forecast with past_days (최근 과거, archive 공백 메우기)
+  await processApi(forecastUrl, 'forecast');
+
+  if(Object.keys(byDay).length === 0) throw new Error('양쪽 API 모두 실패');
 
   // 각 날짜 처리 + 저장
   let saved = 0;
