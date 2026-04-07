@@ -6344,7 +6344,8 @@ setTimeout(loadHolidays, 3000);
 // 미세먼지 과거 데이터 (5초 뒤)
 setTimeout(fetchHistoricalAirQuality, 5000);
 // 예보 날씨 (4초 뒤)
-setTimeout(fetchWeatherForecast, 4000);
+// 즉시 예보 호출 (대기 없음)
+fetchWeatherForecast();
 // 6시간마다 예보+미세먼지 자동 갱신 (하루 4회)
 setInterval(()=>{
   fetchWeatherForecast();
@@ -6526,9 +6527,12 @@ async function fetchWeatherForecast(){
     }catch(e){}
 
     renderDashCal();
+    console.log('예보 로드 완료:', Object.keys(forecastWx).length, '일');
   } catch(e){
-    console.warn('예보 오류:', e);
-    showToast('예보 로드 실패: '+e.message);
+    console.error('예보 오류:', e);
+    showToast('⚠️ 예보 로드 실패: '+e.message);
+    // 실패해도 달력은 갱신
+    renderDashCal();
   }
 }
 
