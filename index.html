@@ -1488,6 +1488,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title">매출 대시보드</div><div class="more-menu-sub">그래프 · 인사이트 · 날씨 분석</div></div>
       <div style="color:var(--tm)">›</div>
     </button>
+    <button class="more-menu-btn" onclick="manualFetchHistoricalWeather()">
+      <div class="more-menu-ico">🌤️</div>
+      <div class="more-menu-txt"><div class="more-menu-title">과거 날씨 수집</div><div class="more-menu-sub">매출 데이터에 날씨 채우기 (30일씩)</div></div>
+      <div style="color:var(--tm)">›</div>
+    </button>
     <button class="more-menu-btn" onclick="showLastError()">
       <div class="more-menu-ico">🐛</div>
       <div class="more-menu-txt"><div class="more-menu-title">마지막 에러 보기</div><div class="more-menu-sub">예보 실패 원인 확인</div></div>
@@ -2833,7 +2838,8 @@ async function fetchWeatherDetail(dateStr){
   const vars='weathercode,temperature_2m,precipitation';
   const tryFetch=async(base)=>{
     const url=`${base}?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=${vars}&timezone=Asia%2FSeoul&start_date=${dateStr}&end_date=${dateStr}`;
-    const res=await fetch(url); const json=await res.json();
+    const res=await fetchWithTimeout(url, 15000);
+    const json=await res.json();
     const h=json?.hourly;
     if(!h||!h.weathercode||h.weathercode.length<WX_CLOSE_H) return null;
     const wxArr=h.weathercode.map(c=>wmoToWx(c));
@@ -2847,9 +2853,9 @@ async function fetchWeatherDetail(dateStr){
       dinnerRain: sliceSum(h.precipitation, WX_DINNER_S, WX_DINNER_E),
     };
   };
-  try{ const r=await tryFetch('https://api.open-meteo.com/v1/forecast'); if(r) return r; }catch(e){}
-  try{ const r=await tryFetch('https://archive-api.open-meteo.com/v1/archive'); if(r) return r; }catch(e){}
-  return {wx:1,lunchTemp:null,dinnerTemp:null,lunchRain:null,dinnerRain:null};
+  try{ const r=await tryFetch('https://api.open-meteo.com/v1/forecast'); if(r) return r; }catch(e){ console.warn('[날씨]',dateStr,'forecast 실패:',e.message); }
+  try{ const r=await tryFetch('https://archive-api.open-meteo.com/v1/archive'); if(r) return r; }catch(e){ console.warn('[날씨]',dateStr,'archive 실패:',e.message); }
+  return null;
 }
 
 // 기존 단순 날씨 조회 (하위 호환)
@@ -2909,112 +2915,103 @@ function localDateStr(d){ return dkStr(d.getFullYear(), d.getMonth(), d.getDate(
 async function fetchHistoricalWeather(){
   const wxSnap=await db.ref('weather').get();
   const cached=wxSnap.exists()?wxSnap.val():{};
-
-  // REAL_SALES + Firebase sales 전체 날짜 대상
   const allDates=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
   const todayDk = localDateStr(new Date());
 
-  // 필요한 날짜만 필터 - 한 번 저장된 과거 날짜는 영구 사용
+  // 필요한 날짜만 필터
   const needList = [];
   for(const dk of allDates){
-    if(dk >= todayDk) continue; // 오늘/미래는 예보가 담당
+    if(dk >= todayDk) continue;
     const cv=cached[dk];
-    // 완전히 없거나, 숫자만 있는 구버전이거나, lunchWx 필드 자체가 없으면 수집
     const needFetch = cv===undefined
       || typeof cv==='number'
       || (typeof cv==='object' && cv.lunchWx===undefined);
     if(needFetch) needList.push(dk);
   }
-
-  // 최근 날짜부터 처리, 세션당 최대 30일 (rate limit 방지)
-  needList.sort().reverse();
-  const batch = needList.slice(0, 30);
-  console.log(`[과거날씨] 총 필요: ${needList.length}일, 이번 처리: ${batch.length}일 (세션당 30일씩)`);
-
-  let ok=0, fail=0;
-  for(const dk of batch){
-    try{
-      const detail=await fetchWeatherDetail(dk);
-      if(!detail || (detail.wx===1 && detail.lunchTemp==null && detail.lunchRain==null)){
-        fail++;
-        await new Promise(r=>setTimeout(r,1500));
-        continue;
-      }
-
-      // Firebase weather에 영구 저장 (다시 가져올 일 없음)
-      db.ref('weather/'+dk).set({...detail, wxVersion:5, savedAt:Date.now()});
-      cached[dk]=detail;
-
-      if(firebaseSalesData[dk]){
-        const merged={...firebaseSalesData[dk], wx:detail.wx, wxVersion:5,
-          lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx,
-          lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp,
-          lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
-        fbSet('sales/'+dk, merged);
-        firebaseSalesData[dk]=merged;
-      }
-
-      if(REAL_SALES[dk]){
-        REAL_SALES[dk].wx=detail.wx;
-        REAL_SALES[dk].lunchWx=detail.lunchWx;
-        REAL_SALES[dk].dinnerWx=detail.dinnerWx;
-        REAL_SALES[dk].lunchTemp=detail.lunchTemp;
-        REAL_SALES[dk].dinnerTemp=detail.dinnerTemp;
-        REAL_SALES[dk].lunchRain=detail.lunchRain;
-        REAL_SALES[dk].dinnerRain=detail.dinnerRain;
-    }
-    // DASH_DATA 업데이트
-    const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-    if(item){
-      item.wx=detail.wx;
-      item.lunchWx=detail.lunchWx;
-      item.dinnerWx=detail.dinnerWx;
-      item.lunchTemp=detail.lunchTemp;
-      item.dinnerTemp=detail.dinnerTemp;
-      item.lunchRain=detail.lunchRain;
-      item.dinnerRain=detail.dinnerRain;
-    }
-    ok++;
-    await new Promise(r=>setTimeout(r,800)); // API rate limit 방지 (800ms)
-    }catch(e){
-      console.error('[과거날씨] 실패', dk, e);
-      fail++;
-      await new Promise(r=>setTimeout(r,2000));
-    }
+  needList.sort();
+  if(!needList.length){
+    console.log('[과거날씨] 수집할 날짜 없음');
+    showToast('모든 과거 날씨 이미 수집됨');
+    return 0;
   }
-  console.log(`[과거날씨] 완료: 성공 ${ok}, 실패 ${fail}, 남은 ${needList.length-batch.length}`);
 
-  // 전체 날짜(REAL_SALES + Firebase)에 cached 날씨 반영
-  const allDks=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
-  allDks.forEach(dk=>{
-    const cv=cached[dk];
-    if(!cv||typeof cv!=='object') return;
-    // REAL_SALES 업데이트
-    if(REAL_SALES[dk]){
-      REAL_SALES[dk].wx=cv.wx;
-      REAL_SALES[dk].lunchWx=cv.lunchWx??null;
-      REAL_SALES[dk].dinnerWx=cv.dinnerWx??null;
-      REAL_SALES[dk].lunchTemp=cv.lunchTemp;
-      REAL_SALES[dk].dinnerTemp=cv.dinnerTemp;
-      REAL_SALES[dk].lunchRain=cv.lunchRain;
-      REAL_SALES[dk].dinnerRain=cv.dinnerRain;
-    }
-    // DASH_DATA 업데이트
-    const item=DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
-    if(!item) return;
-    item.wx=cv.wx!=null?cv.wx:item.wx;
-    item.lunchWx=cv.lunchWx??null;
-    item.dinnerWx=cv.dinnerWx??null;
-    item.lunchTemp=cv.lunchTemp;
-    item.dinnerTemp=cv.dinnerTemp;
-    item.lunchRain=cv.lunchRain;
-    item.dinnerRain=cv.dinnerRain;
+  const startDate = needList[0];
+  const endDate = needList[needList.length-1];
+  console.log(`[과거날씨] 범위: ${startDate} ~ ${endDate} (${needList.length}일)`);
+
+  // 한 번의 API 호출로 전체 기간 가져오기
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=${WX_LAT}&longitude=${WX_LNG}&hourly=weathercode,temperature_2m,precipitation&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${endDate}`;
+  const res = await fetchWithTimeout(url, 30000);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const json = await res.json();
+  const h = json?.hourly;
+  if(!h || !h.weathercode || !h.time) throw new Error('hourly 데이터 없음');
+
+  // 날짜별로 시간대 데이터 그룹화
+  const byDay = {};
+  h.time.forEach((t, idx)=>{
+    const parts = t.slice(0,10).split('-');
+    const dk = dkStr(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+    if(!byDay[dk]) byDay[dk] = {wx:[], temp:[], rain:[]};
+    byDay[dk].wx.push(h.weathercode[idx]);
+    byDay[dk].temp.push(h.temperature_2m[idx]);
+    byDay[dk].rain.push(h.precipitation[idx]);
   });
 
-  if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
+  // 각 날짜 처리 + 저장
+  let saved = 0;
+  for(const dk of needList){
+    const day = byDay[dk];
+    if(!day || day.wx.length < WX_CLOSE_H) continue;
+    const wxArr = day.wx.map(c=>wmoToWx(c));
+    const detail = {
+      wx: pickRepresentativeWx(wxArr),
+      lunchWx: pickWxFromSlice(wxArr.slice(WX_LUNCH_S, WX_LUNCH_E)),
+      dinnerWx: pickWxFromSlice(wxArr.slice(WX_DINNER_S, WX_DINNER_E)),
+      lunchTemp: sliceAvg(day.temp, WX_LUNCH_S, WX_LUNCH_E),
+      dinnerTemp: sliceAvg(day.temp, WX_DINNER_S, WX_DINNER_E),
+      lunchRain: sliceSum(day.rain, WX_LUNCH_S, WX_LUNCH_E),
+      dinnerRain: sliceSum(day.rain, WX_DINNER_S, WX_DINNER_E),
+    };
+    db.ref('weather/'+dk).set({...detail, wxVersion:5, savedAt:Date.now()});
+    cached[dk] = detail;
+
+    if(firebaseSalesData[dk]){
+      const merged = {...firebaseSalesData[dk], wx:detail.wx, wxVersion:5,
+        lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx,
+        lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp,
+        lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain};
+      fbSet('sales/'+dk, merged);
+      firebaseSalesData[dk] = merged;
+    }
+
+    if(REAL_SALES[dk]){
+      REAL_SALES[dk].wx = detail.wx;
+      REAL_SALES[dk].lunchWx = detail.lunchWx;
+      REAL_SALES[dk].dinnerWx = detail.dinnerWx;
+      REAL_SALES[dk].lunchTemp = detail.lunchTemp;
+      REAL_SALES[dk].dinnerTemp = detail.dinnerTemp;
+      REAL_SALES[dk].lunchRain = detail.lunchRain;
+      REAL_SALES[dk].dinnerRain = detail.dinnerRain;
+    }
+
+    const item = DASH_DATA.find(x=>dkStr(x.date.getFullYear(),x.date.getMonth(),x.date.getDate())===dk);
+    if(item){
+      item.wx = detail.wx;
+      item.lunchWx = detail.lunchWx;
+      item.dinnerWx = detail.dinnerWx;
+      item.lunchTemp = detail.lunchTemp;
+      item.dinnerTemp = detail.dinnerTemp;
+      item.lunchRain = detail.lunchRain;
+      item.dinnerRain = detail.dinnerRain;
+    }
+    saved++;
+  }
+  console.log(`[과거날씨] 저장 완료: ${saved}일`);
   rebuildDashData();
   renderDashCal();
-  showToast('날씨 데이터 업데이트 완료!');
+  if(document.getElementById('sc-dash')?.style.display==='block') renderDash();
+  return saved;
 }
 
 function saveSalesPartial(){
@@ -6503,6 +6500,23 @@ function showLastError(){
     const e = JSON.parse(raw);
     alert('[마지막 에러]\n\n시간: '+e.time+'\n\n메시지: '+e.msg+'\n\n이름: '+e.name+'\n\n스택: '+e.stack);
   }catch(_){ alert('에러 파싱 실패: '+raw); }
+}
+
+// 수동 과거 날씨 수집 (더보기 버튼)
+async function manualFetchHistoricalWeather(){
+  if(!confirm('과거 매출 데이터에 날씨를 수집합니다.\n한 번의 API 호출로 전체 기간을 가져와요.\n10~20초 걸려요. 진행할까요?')) return;
+  showToast('🌤️ 과거 날씨 수집 중 - 10~20초 걸려요', 10000);
+  try{
+    const saved = await fetchHistoricalWeather();
+    if(saved > 0){
+      showToast('✅ 과거 날씨 '+saved+'일 수집 완료!', 5000);
+    } else if(saved === 0){
+      showToast('✅ 모든 과거 날씨가 이미 수집됨', 4000);
+    }
+  }catch(e){
+    showToast('⚠️ 수집 실패: '+(e?.message||'알 수 없음'), 6000);
+    console.error('[수동 수집] 실패:', e);
+  }
 }
 
 // ════ INIT ════
