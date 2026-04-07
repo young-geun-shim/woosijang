@@ -110,7 +110,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 .sprogbar{height:4px;background:rgba(255,255,255,.2);overflow:hidden}
 .sprogfill{height:100%;background:linear-gradient(90deg,var(--gold),#f0d070);transition:width .4s ease}
 
-.sec-content{display:none;padding-bottom:20px}.sec-content.on{display:block}
+.sec-swipe-container{display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;width:100%}
+.sec-swipe-container::-webkit-scrollbar{display:none}
+.sec-content{flex:0 0 100%;min-width:100%;scroll-snap-align:start;padding:0 16px 20px;box-sizing:border-box}
 .sc-top{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
 .sc-title{font-family:'Noto Serif KR',serif;font-size:16px;font-weight:700;color:var(--txt)}
 .sc-time{font-size:11px;color:var(--tm)}
@@ -653,24 +655,27 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div class="sprogbar"><div class="sprogfill" id="totalProgFill" style="width:0%"></div></div>
   </div>
 
+  <div class="sec-swipe-container" id="secSwipeContainer">
   <!-- 오픈준비 -->
-  <div class="sec-content on" id="sec-open">
+  <div class="sec-content" id="sec-open">
     <div class="sc-top"><div><div class="sc-title">오픈 준비</div><div class="sc-time">09:00~11:00</div></div><div class="sc-pct" id="pct-open">0%</div></div>
     <div class="cards">
+      <div class="blk-hd">출근</div>
+      <div class="ci" id="w-open-attend"><div class="ci-num">1</div><input type="checkbox" id="open-attend" onchange="onChkAttend(this,'w-open-attend')"><div class="ci-body"><div class="ci-main"><strong>출근 찍기</strong> — 체크 시 자동으로 출근 기록</div><div class="ci-by" id="by-open-attend"></div></div></div>
       <div class="blk-hd">기본 세팅</div>
-      <div class="ci" id="w-open-1"><div class="ci-num">1</div><input type="checkbox" id="open-1" onchange="onChk('open-1','w-open-1')"><div class="ci-body"><div class="ci-main"><strong>유니폼 및 앞치마 착용</strong></div><div class="ci-by" id="by-open-1"></div></div></div>
-      <div class="ci" id="w-open-2"><div class="ci-num">2</div><input type="checkbox" id="open-2" onchange="onChk('open-2','w-open-2')"><div class="ci-body"><div class="ci-main"><strong>전등 켜기</strong> — 입구 전등, LED 전등<br><strong>기기 켜기</strong> — 컴퓨터, POS, 테이블오더(배터리 삽입 후 켜기), 음악</div><div class="ci-by" id="by-open-2"></div></div></div>
-      <div class="ci" id="w-open-3"><div class="ci-num">3</div><input type="checkbox" id="open-3" onchange="onChk('open-3','w-open-3')"><div class="ci-body"><div class="ci-main"><strong>배달용 밥 18개 만들기</strong> + <strong>새 밥 짓기</strong></div><div class="ci-by" id="by-open-3"></div></div></div>
-      <div class="ci" id="w-open-4"><div class="ci-num">4</div><input type="checkbox" id="open-4" onchange="onChk('open-4','w-open-4')"><div class="ci-body"><div class="ci-main"><strong>바닥 청소</strong> — 의자 전부 빼서 꼼꼼하게 쓸고 닦기</div><div class="ci-by" id="by-open-4"></div></div></div>
-      <div class="ci" id="w-open-5"><div class="ci-num">5</div><input type="checkbox" id="open-5" onchange="onChk('open-5','w-open-5')"><div class="ci-body"><div class="ci-main"><strong>화장실 청소</strong></div><div class="ci-by" id="by-open-5"></div></div></div>
+      <div class="ci" id="w-open-1"><div class="ci-num">2</div><input type="checkbox" id="open-1" onchange="onChk('open-1','w-open-1')"><div class="ci-body"><div class="ci-main"><strong>유니폼 및 앞치마 착용</strong></div><div class="ci-by" id="by-open-1"></div></div></div>
+      <div class="ci" id="w-open-2"><div class="ci-num">3</div><input type="checkbox" id="open-2" onchange="onChk('open-2','w-open-2')"><div class="ci-body"><div class="ci-main"><strong>전등 켜기</strong> — 입구 전등, LED 전등<br><strong>기기 켜기</strong> — 컴퓨터, POS, 테이블오더(배터리 삽입 후 켜기), 음악</div><div class="ci-by" id="by-open-2"></div></div></div>
+      <div class="ci" id="w-open-3"><div class="ci-num">4</div><input type="checkbox" id="open-3" onchange="onChk('open-3','w-open-3')"><div class="ci-body"><div class="ci-main"><strong>배달용 밥 18개 만들기</strong> + <strong>새 밥 짓기</strong></div><div class="ci-by" id="by-open-3"></div></div></div>
+      <div class="ci" id="w-open-4"><div class="ci-num">5</div><input type="checkbox" id="open-4" onchange="onChk('open-4','w-open-4')"><div class="ci-body"><div class="ci-main"><strong>바닥 청소</strong> — 의자 전부 빼서 꼼꼼하게 쓸고 닦기</div><div class="ci-by" id="by-open-4"></div></div></div>
+      <div class="ci" id="w-open-5"><div class="ci-num">6</div><input type="checkbox" id="open-5" onchange="onChk('open-5','w-open-5')"><div class="ci-body"><div class="ci-main"><strong>화장실 청소</strong></div><div class="ci-by" id="by-open-5"></div></div></div>
       <div class="blk-hd">홀 세팅</div>
-      <div class="ci" id="w-open-6"><div class="ci-num">6</div><input type="checkbox" id="open-6" onchange="onChk('open-6','w-open-6')"><div class="ci-body"><div class="ci-main"><strong>테이블 세팅</strong> — 물, 김치, 접시, 소스, 고추장아찌</div><div class="ci-by" id="by-open-6"></div></div></div>
-      <div class="ci" id="w-open-7"><div class="ci-num">7</div><input type="checkbox" id="open-7" onchange="onChk('open-7','w-open-7')"><div class="ci-body"><div class="ci-main"><strong>소모품 보충</strong> — 테이블 티슈, 거는 티슈, 물티슈</div><div class="ci-by" id="by-open-7"></div></div></div>
-      <div class="ci" id="w-open-8"><div class="ci-num">8</div><input type="checkbox" id="open-8" onchange="onChk('open-8','w-open-8')"><div class="ci-body"><div class="ci-main"><strong>포장 용기·배달 봉투</strong> 채워놓기</div><div class="ci-by" id="by-open-8"></div></div></div>
+      <div class="ci" id="w-open-6"><div class="ci-num">7</div><input type="checkbox" id="open-6" onchange="onChk('open-6','w-open-6')"><div class="ci-body"><div class="ci-main"><strong>테이블 세팅</strong> — 물, 김치, 접시, 소스, 고추장아찌</div><div class="ci-by" id="by-open-6"></div></div></div>
+      <div class="ci" id="w-open-7"><div class="ci-num">8</div><input type="checkbox" id="open-7" onchange="onChk('open-7','w-open-7')"><div class="ci-body"><div class="ci-main"><strong>소모품 보충</strong> — 테이블 티슈, 거는 티슈, 물티슈</div><div class="ci-by" id="by-open-7"></div></div></div>
+      <div class="ci" id="w-open-8"><div class="ci-num">9</div><input type="checkbox" id="open-8" onchange="onChk('open-8','w-open-8')"><div class="ci-body"><div class="ci-main"><strong>포장 용기·배달 봉투</strong> 채워놓기</div><div class="ci-by" id="by-open-8"></div></div></div>
       <div class="blk-hd">배달 준비</div>
-      <div class="ci" id="w-open-9"><div class="ci-num">9</div><input type="checkbox" id="open-9" onchange="onChk('open-9','w-open-9')"><div class="ci-body"><div class="ci-main"><strong>배달 용기 채우기</strong> — 장아찌, 육사시미 소스, 쌈장, 김치, 국밥 용기</div><div class="ci-by" id="by-open-9"></div></div></div>
-      <div class="ci" id="w-open-10"><div class="ci-num">10</div><input type="checkbox" id="open-10" onchange="onChk('open-10','w-open-10')"><div class="ci-body"><div class="ci-main"><strong>계란 상태 확인</strong> → 필요 시 삶기</div><div class="ci-by" id="by-open-10"></div></div></div>
-      <div class="ci" id="w-open-11"><div class="ci-num">11</div><input type="checkbox" id="open-11" onchange="onChk('open-11','w-open-11')"><div class="ci-body"><div class="ci-main"><strong>육사시미 소스 만들기</strong> + 소스통 채우기</div><div class="ci-by" id="by-open-11"></div></div></div>
+      <div class="ci" id="w-open-9"><div class="ci-num">10</div><input type="checkbox" id="open-9" onchange="onChk('open-9','w-open-9')"><div class="ci-body"><div class="ci-main"><strong>배달 용기 채우기</strong> — 장아찌, 육사시미 소스, 쌈장, 김치, 국밥 용기</div><div class="ci-by" id="by-open-9"></div></div></div>
+      <div class="ci" id="w-open-10"><div class="ci-num">11</div><input type="checkbox" id="open-10" onchange="onChk('open-10','w-open-10')"><div class="ci-body"><div class="ci-main"><strong>계란 상태 확인</strong> → 필요 시 삶기</div><div class="ci-by" id="by-open-10"></div></div></div>
+      <div class="ci" id="w-open-11"><div class="ci-num">12</div><input type="checkbox" id="open-11" onchange="onChk('open-11','w-open-11')"><div class="ci-body"><div class="ci-main"><strong>육사시미 소스 만들기</strong> + 소스통 채우기</div><div class="ci-by" id="by-open-11"></div></div></div>
       <div class="opt-hd">⏰ 시간 여유 있을 때 (못한 건 오후에)</div>
       <div class="opt-grid">
         <div class="opt-ci" id="ow-opt-1"><input type="checkbox" id="o-opt-1" onchange="onOptChk(1,this)"><label for="o-opt-1">배달 김치 만들기</label></div>
@@ -695,6 +700,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="ci" id="w-lunch-3"><div class="ci-num">3</div><input type="checkbox" id="lunch-3" onchange="onChk('lunch-3','w-lunch-3')"><div class="ci-body"><div class="ci-main"><strong>수저 물기 닦고 채워놓기</strong></div><div class="ci-by" id="by-lunch-3"></div></div></div>
       <div class="ci" id="w-lunch-4"><div class="ci-num">4</div><input type="checkbox" id="lunch-4" onchange="onChk('lunch-4','w-lunch-4')"><div class="ci-body"><div class="ci-main"><strong>고기 뜯기</strong></div><div class="ci-by" id="by-lunch-4"></div></div></div>
       <div class="ci" id="w-lunch-5"><div class="ci-num">5</div><input type="checkbox" id="lunch-5" onchange="onChk('lunch-5','w-lunch-5')"><div class="ci-body"><div class="ci-main"><em>14:40</em> <strong>브레이크타임 안내</strong> — 남은 손님께 조용히 고지</div><div class="ci-by" id="by-lunch-5"></div></div></div>
+      <button onclick="goToSalesInput()" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px;background:var(--gold);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;margin-top:8px;box-shadow:0 2px 6px rgba(181,131,42,0.25)"><span style="font-size:18px">💰</span><span style="flex:1;text-align:left">6. 점심 매출 저장하기</span><span>›</span></button>
       <div class="opt-hd">⏰ 시간 여유 있을 때</div>
       <div class="opt-grid">
         <div class="opt-ci" id="lw-opt-1"><input type="checkbox" id="l-opt-1" onchange="onOptChk(1,this)"><label for="l-opt-1">배달 김치 만들기</label></div>
@@ -759,8 +765,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="ci" id="w-close2-4"><div class="ci-num">4</div><input type="checkbox" id="close2-4" onchange="onChk('close2-4','w-close2-4')"><div class="ci-body"><div class="ci-main"><strong>테이블 위 접시 깔기</strong> (내일 오픈 준비)</div><div class="ci-by" id="by-close2-4"></div></div></div>
       <div class="ci" id="w-close2-5"><div class="ci-num">5</div><input type="checkbox" id="close2-5" onchange="onChk('close2-5','w-close2-5')"><div class="ci-body"><div class="ci-main"><strong>시간 여유 있으면</strong> — 홀 쓸고 닦기</div><div class="ci-by" id="by-close2-5"></div></div></div>
       <div class="ci" id="w-close2-6"><div class="ci-num">6</div><input type="checkbox" id="close2-6" onchange="onChk('close2-6','w-close2-6')"><div class="ci-body"><div class="ci-main"><strong>매출 계산 준비</strong> — 계산만 해두고, 퇴근 후 카톡방에 매출 보고</div><div class="ci-by" id="by-close2-6"></div></div></div>
+      <div class="ci" id="w-close2-leave"><div class="ci-num">7</div><input type="checkbox" id="close2-leave" onchange="onChkLeave(this,'w-close2-leave')"><div class="ci-body"><div class="ci-main"><strong>퇴근 찍기</strong> — 체크 시 자동으로 퇴근 기록</div><div class="ci-by" id="by-close2-leave"></div></div></div>
+      <button onclick="goToSalesInput()" style="display:flex;align-items:center;gap:10px;width:100%;padding:14px;background:var(--gold);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;margin-top:8px;box-shadow:0 2px 6px rgba(181,131,42,0.25)"><span style="font-size:18px">💰</span><span style="flex:1;text-align:left">8. 매출 보고</span><span>›</span></button>
     </div>
     <button class="reset-btn" onclick="resetSec('close2')">↺ 이 섹션 초기화</button>
+  </div>
   </div>
 </div>
 
@@ -962,6 +971,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div style="text-align:center;flex:1">
           <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-bottom:2px">이달 예상</div>
           <div id="dashCalPred" style="font-size:13px;font-weight:700;color:rgba(255,180,80,0.85)">-</div>
+          <div id="dashCalPredDetail" style="font-size:8px;color:rgba(255,255,255,0.45);margin-top:1px;line-height:1.2">-</div>
         </div>
       </div>
     </div>
@@ -2038,11 +2048,11 @@ function renderRecent(){
 const OPT_IDS=['opt-1','opt-2','opt-3','opt-4','opt-5','opt-6','opt-7','opt-8'];
 const OPT_PFX=['o','l','d'];
 const SEC_IDS={
-  open:['open-1','open-2','open-3','open-4','open-5','open-6','open-7','open-8','open-9','open-10','open-11',...OPT_IDS],
+  open:['open-attend','open-1','open-2','open-3','open-4','open-5','open-6','open-7','open-8','open-9','open-10','open-11',...OPT_IDS],
   lunch:['lunch-1','lunch-2','lunch-3','lunch-4','lunch-5',...OPT_IDS],
   dinner:['dinner-1','dinner-2','dinner-3','dinner-4',...OPT_IDS],
   close1:['close1-1','close1-2','close1-3','close1-4','close1-5','close1-6','close1-7'],
-  close2:['close2-1','close2-2','close2-3','close2-4','close2-5','close2-6']
+  close2:['close2-1','close2-2','close2-3','close2-4','close2-5','close2-6','close2-leave']
 };
 const ALL_IDS=[...SEC_IDS.open,...SEC_IDS.lunch.filter(id=>!OPT_IDS.includes(id)),...SEC_IDS.dinner.filter(id=>!OPT_IDS.includes(id)),...SEC_IDS.close1,...SEC_IDS.close2];
 
@@ -2059,6 +2069,13 @@ function openDay(y,m,d){
   document.getElementById('vCal').classList.remove('on');
   document.getElementById('vChk').classList.add('on');
   window.scrollTo(0,0);
+  // 가로 스와이프 동기화 + 오픈 섹션으로 이동
+  setupSecSwipeSync();
+  setTimeout(()=>{
+    const container=document.getElementById('secSwipeContainer');
+    if(container) container.scrollLeft=0;
+    document.querySelectorAll('.stab').forEach((t,i)=>t.classList.toggle('on',i===0));
+  },50);
 }
 function goBackCal(){
   if(dayListener){db.ref('checks/'+curChkDate).off('value',dayListener);dayListener=null;}
@@ -2103,6 +2120,44 @@ function onChk(id,wrapId){
   const val=cb.checked?{checked:true,by:CU.name||'?',at:timeLbl()}:null;
   fbSet('checks/'+curChkDate+'/'+id,val);
 }
+// 체크 시 자동 출근
+function onChkAttend(cb,wrapId){
+  const wrap=document.getElementById(wrapId);
+  if(cb.checked){
+    wrap.classList.add('done');
+    doStamp('in');
+  } else wrap.classList.remove('done');
+  const val=cb.checked?{checked:true,by:CU.name||'?',at:timeLbl()}:null;
+  fbSet('checks/'+curChkDate+'/open-attend',val);
+}
+// 체크 시 매출 입력 화면으로 이동
+function onChkSaveLunch(cb,wrapId){
+  const wrap=document.getElementById(wrapId);
+  if(cb.checked){
+    wrap.classList.add('done');
+    setTimeout(()=>{
+      goTab('sales');
+      setTimeout(()=>showSalesTab('input',document.getElementById('stab-input')),100);
+    },300);
+  } else wrap.classList.remove('done');
+  const val=cb.checked?{checked:true,by:CU.name||'?',at:timeLbl()}:null;
+  fbSet('checks/'+curChkDate+'/lunch-savesales',val);
+}
+// 매출 입력 화면으로 바로 이동 (런치 6번, 마감2 8번 버튼)
+function goToSalesInput(){
+  goTab('sales');
+  setTimeout(()=>showSalesTab('input',document.getElementById('stab-input')),100);
+}
+// 체크 시 자동 퇴근
+function onChkLeave(cb,wrapId){
+  const wrap=document.getElementById(wrapId);
+  if(cb.checked){
+    wrap.classList.add('done');
+    doStamp('out');
+  } else wrap.classList.remove('done');
+  const val=cb.checked?{checked:true,by:CU.name||'?',at:timeLbl()}:null;
+  fbSet('checks/'+curChkDate+'/close2-leave',val);
+}
 function onOptChk(n,cb){
   const val=cb.checked?{checked:true,by:CU.name||'?',at:timeLbl()}:null;
   fbSet('checks/'+curChkDate+'/opt-'+n,val);
@@ -2115,10 +2170,31 @@ function resetSec(sec){
   db.ref().update(upd).then(()=>setSyncDot('ok')).catch(()=>setSyncDot('err'));
 }
 function showSec(id,btn){
-  document.querySelectorAll('.sec-content').forEach(s=>s.classList.remove('on'));
   document.querySelectorAll('.stab').forEach(t=>t.classList.remove('on'));
-  document.getElementById('sec-'+id).classList.add('on');
-  btn.classList.add('on'); window.scrollTo(0,0);
+  if(btn) btn.classList.add('on');
+  const target=document.getElementById('sec-'+id);
+  if(target){
+    target.scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});
+  }
+}
+// 스크롤 시 현재 보이는 섹션 감지해서 탭 활성화
+function setupSecSwipeSync(){
+  const container=document.getElementById('secSwipeContainer');
+  if(!container||container.dataset.synced==='1') return;
+  container.dataset.synced='1';
+  const secOrder=['open','lunch','dinner','close1','close2'];
+  let scrollTimer=null;
+  container.addEventListener('scroll',()=>{
+    clearTimeout(scrollTimer);
+    scrollTimer=setTimeout(()=>{
+      const idx=Math.round(container.scrollLeft/container.clientWidth);
+      const sec=secOrder[idx];
+      if(!sec) return;
+      document.querySelectorAll('.stab').forEach((t,i)=>{
+        t.classList.toggle('on',i===idx);
+      });
+    },80);
+  });
 }
 
 // ════ 출퇴근 ════
@@ -3288,14 +3364,24 @@ function renderDashCal(){
       const now=new Date(), nowY=now.getFullYear(), nowM=now.getMonth();
       const isCurrentMonth=(dashCalY===nowY && dashCalM===nowM);
       const isFutureMonth=(dashCalY>nowY||(dashCalY===nowY&&dashCalM>nowM));
+      const detailEl=document.getElementById('dashCalPredDetail');
       if((isCurrentMonth||isFutureMonth) && DASH_DATA.length>=3){
         const mp=calcMonthPred(dashCalY, dashCalM);
-        if(mp) predEl.textContent='~'+fmF(mp.total);
-        else predEl.textContent='계산 불가';
+        if(mp){
+          predEl.textContent='~'+fmF(mp.total);
+          if(detailEl){
+            detailEl.innerHTML='<span style="color:#FFD080">홀 '+fmF(mp.totalHall||0)+'</span> · <span style="color:#FFD080">배달 '+fmF(mp.totalDeliv||0)+'</span><br>실제 '+mp.actDays+'일+예측 '+(mp.predDays||0)+'일';
+          }
+        } else {
+          predEl.textContent='계산 불가';
+          if(detailEl) detailEl.textContent='-';
+        }
       } else if(!isCurrentMonth && !isFutureMonth){
         predEl.textContent='-';
+        if(detailEl) detailEl.textContent='-';
       } else {
         predEl.textContent='데이터 부족';
+        if(detailEl) detailEl.textContent='-';
       }
     }catch(e){ predEl.textContent='-'; }
   }
@@ -7041,24 +7127,26 @@ function closePredPopup(noMore){
 }
 
 // ── 자동 보정 가중치 계산 (데이터 있는 만큼 즉시 적용) ──
-function calcAutoWeights(){
+function calcAutoWeights(target='total'){
+  // target: 'total' | 'hall' | 'deliv'
   const defaults = {hol:0.40, wx:0.20, pm:0.20, temp:0.20};
   // 매출 있는 날만 사용
   const data = DASH_DATA.filter(x=>x.total>0);
   if(data.length < 5) return defaults;
-  const baseAvg = data.reduce((s,x)=>s+x.total,0)/data.length;
+  const getVal = x => target==='hall' ? (x.hall||0) : target==='deliv' ? (x.deliv||0) : x.total;
+  const baseAvg = data.reduce((s,x)=>s+getVal(x),0)/data.length;
   if(!baseAvg) return defaults;
 
   // 공휴일 영향도
   const holDays=data.filter(x=>x.isHoliday), normDays=data.filter(x=>!x.isHoliday);
-  const holImpact=(holDays.length>=1&&normDays.length>=1)?Math.abs((holDays.reduce((s,x)=>s+x.total,0)/holDays.length)-(normDays.reduce((s,x)=>s+x.total,0)/normDays.length))/baseAvg:0.2;
+  const holImpact=(holDays.length>=1&&normDays.length>=1)?Math.abs((holDays.reduce((s,x)=>s+getVal(x),0)/holDays.length)-(normDays.reduce((s,x)=>s+getVal(x),0)/normDays.length))/baseAvg:0.2;
 
   // 날씨 영향도 (최소 3일 이상인 날씨 그룹만)
   const wxGroups={};
-  data.forEach(x=>{ if(x.wx==null) return; if(!wxGroups[x.wx]) wxGroups[x.wx]=[]; wxGroups[x.wx].push(x.total); });
+  data.forEach(x=>{ if(x.wx==null) return; if(!wxGroups[x.wx]) wxGroups[x.wx]=[]; wxGroups[x.wx].push(getVal(x)); });
   let wxVariance=0, wxCount=0;
   Object.values(wxGroups).forEach(arr=>{
-    if(arr.length<3) return; // 최소 3일 이상 (노이즈 방지)
+    if(arr.length<3) return;
     wxVariance+=Math.abs(arr.reduce((a,b)=>a+b,0)/arr.length-baseAvg)/baseAvg;
     wxCount++;
   });
@@ -7070,7 +7158,7 @@ function calcAutoWeights(){
   if(pmValid.length>=5){
     const pmGood=pmValid.filter(x=>x.dayPm25<=15), pmBad=pmValid.filter(x=>x.dayPm25>35);
     if(pmGood.length>=2&&pmBad.length>=2){
-      pmImpact=Math.abs(pmGood.reduce((s,x)=>s+x.total,0)/pmGood.length-pmBad.reduce((s,x)=>s+x.total,0)/pmBad.length)/baseAvg;
+      pmImpact=Math.abs(pmGood.reduce((s,x)=>s+getVal(x),0)/pmGood.length-pmBad.reduce((s,x)=>s+getVal(x),0)/pmBad.length)/baseAvg;
     }
   }
 
@@ -7082,7 +7170,7 @@ function calcAutoWeights(){
     let tVar=0, tCnt=0;
     tBands.forEach(b=>{
       const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
-      if(rows.length>=3){ tVar+=Math.abs(rows.reduce((s,x)=>s+x.total,0)/rows.length-baseAvg)/baseAvg; tCnt++; }
+      if(rows.length>=3){ tVar+=Math.abs(rows.reduce((s,x)=>s+getVal(x),0)/rows.length-baseAvg)/baseAvg; tCnt++; }
     });
     if(tCnt) tempImpact=tVar/tCnt;
   }
@@ -7108,70 +7196,88 @@ const PRED_PM_GRADES=[
 
 function buildPredContext(){
   if(!DASH_DATA.length) return null;
-  const weights = calcAutoWeights();
+  // 홀/배달 각각 가중치 계산
+  const weightsTotal = calcAutoWeights('total');
+  const weightsHall = calcAutoWeights('hall');
+  const weightsDeliv = calcAutoWeights('deliv');
+  const weights = weightsTotal; // 호환성
   const now=new Date();
 
-  // 최근 데이터 가중 함수 (30일 이내=2배, 30~60일=1배, 60일+=0.5배)
+  // 최근 데이터 가중 함수 (최근 30일=3배, 30~60일=1.5배, 60일+=0.1배)
   function getWeight(date){
     const days=Math.floor((now-date)/(86400000));
-    if(days<=30) return 2.0;
-    if(days<=60) return 1.0;
-    return 0.5;
+    if(days<=30) return 3.0;
+    if(days<=60) return 1.5;
+    return 0.1;
   }
 
-  // 가중 요일별 평균
-  const dowAvg={};
-  DASH_DATA.forEach(x=>{
-    const w=getWeight(x.date);
-    if(!dowAvg[x.dow]) dowAvg[x.dow]={sum:0,cnt:0};
-    dowAvg[x.dow].sum+=x.total*w;
-    dowAvg[x.dow].cnt+=w;
-  });
-  // 가중 전체 평균
-  let wSum=0, wCnt=0;
-  DASH_DATA.forEach(x=>{ const w=getWeight(x.date); wSum+=x.total*w; wCnt+=w; });
-  const baseAvg=wCnt?wSum/wCnt:0;
+  const TEMP_BANDS_PRED=[{l:'-10~0',min:-10,max:0},{l:'0~10',min:0,max:10},{l:'10~20',min:10,max:20},{l:'20~30',min:20,max:30},{l:'30~',min:30,max:99}];
 
-  // 가중 미세먼지 등급별
-  const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null&&x.total>0);
-  const pmGradeAvg={};
-  PRED_PM_GRADES.forEach(g=>{
-    const rows=pmValid.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);
-    if(rows.length){
-      let s=0,c=0; rows.forEach(x=>{const w=getWeight(x.date);s+=x.total*w;c+=w;});
-      pmGradeAvg[g.lbl]=s/c;
-    }
-  });
+  // ── 통계 빌드 헬퍼 (target='total'|'hall'|'deliv') ──
+  function buildStats(target){
+    const getVal = x => target==='hall' ? (x.hall||0) : target==='deliv' ? (x.deliv||0) : (x.total||0);
 
-  // 가중 날씨별
-  const wxStats={};
-  DASH_DATA.forEach(x=>{
-    if(x.wx==null) return;
-    const w=getWeight(x.date);
-    if(!wxStats[x.wx]) wxStats[x.wx]={sum:0,cnt:0};
-    wxStats[x.wx].sum+=x.total*w;
-    wxStats[x.wx].cnt+=w;
-  });
+    // 가중 요일별 평균
+    const dowAvg={};
+    DASH_DATA.forEach(x=>{
+      const w=getWeight(x.date);
+      if(!dowAvg[x.dow]) dowAvg[x.dow]={sum:0,cnt:0};
+      dowAvg[x.dow].sum+=getVal(x)*w;
+      dowAvg[x.dow].cnt+=w;
+    });
+    // 가중 전체 평균
+    let wSum=0, wCnt=0;
+    DASH_DATA.forEach(x=>{ const w=getWeight(x.date); wSum+=getVal(x)*w; wCnt+=w; });
+    const baseAvg=wCnt?wSum/wCnt:0;
 
-  // 공휴일 (가중)
-  const holStats={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
-  DASH_DATA.forEach(x=>{
-    const dk2=localDateStr(x.date);const t=getHolType(dk2);
-    if(t&&holStats[t]){const w=getWeight(x.date);holStats[t].sum+=x.total*w;holStats[t].cnt+=w;}
-  });
-  const holAvgFn=t=>holStats[t].cnt?holStats[t].sum/holStats[t].cnt:baseAvg;
+    // 가중 미세먼지 등급별
+    const pmValid=DASH_DATA.filter(x=>x.dayPm25!=null&&x.total>0);
+    const pmGradeAvg={};
+    PRED_PM_GRADES.forEach(g=>{
+      const rows=pmValid.filter(x=>x.dayPm25>=g.min&&x.dayPm25<=g.max);
+      if(rows.length){
+        let s=0,c=0; rows.forEach(x=>{const w=getWeight(x.date);s+=getVal(x)*w;c+=w;});
+        pmGradeAvg[g.lbl]=s/c;
+      }
+    });
 
-  // 가중 온도구간별
-  const TEMP_BANDS=[{l:'-10~0',min:-10,max:0},{l:'0~10',min:0,max:10},{l:'10~20',min:10,max:20},{l:'20~30',min:20,max:30},{l:'30~',min:30,max:99}];
-  const tempBandAvg={};
-  const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
-  TEMP_BANDS.forEach(b=>{
-    const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
-    if(rows.length){
-      let s=0,c=0; rows.forEach(x=>{const w=getWeight(x.date);s+=x.total*w;c+=w;});
-      tempBandAvg[b.l]=s/c;
-    }
-  });
+    // 가중 날씨별
+    const wxStats={};
+    DASH_DATA.forEach(x=>{
+      if(x.wx==null) return;
+      const w=getWeight(x.date);
+      if(!wxStats[x.wx]) wxStats[x.wx]={sum:0,cnt:0};
+      wxStats[x.wx].sum+=getVal(x)*w;
+      wxStats[x.wx].cnt+=w;
+    });
+
+    // 공휴일 (가중)
+    const holStats={holiday:{sum:0,cnt:0},before:{sum:0,cnt:0},normal:{sum:0,cnt:0},after:{sum:0,cnt:0}};
+    DASH_DATA.forEach(x=>{
+      const dk2=localDateStr(x.date);const t=getHolType(dk2);
+      if(t&&holStats[t]){const w=getWeight(x.date);holStats[t].sum+=getVal(x)*w;holStats[t].cnt+=w;}
+    });
+    const holAvgFn=t=>holStats[t].cnt?holStats[t].sum/holStats[t].cnt:baseAvg;
+
+    // 가중 온도구간별
+    const tempBandAvg={};
+    const tempValid=DASH_DATA.filter(x=>x.lunchTemp!=null&&x.total>0);
+    TEMP_BANDS_PRED.forEach(b=>{
+      const rows=tempValid.filter(x=>x.lunchTemp>=b.min&&x.lunchTemp<b.max);
+      if(rows.length){
+        let s=0,c=0; rows.forEach(x=>{const w=getWeight(x.date);s+=getVal(x)*w;c+=w;});
+        tempBandAvg[b.l]=s/c;
+      }
+    });
+    return {dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg};
+  }
+
+  const totalStats = buildStats('total');
+  const hallStats = buildStats('hall');
+  const delivStats = buildStats('deliv');
+  // 호환성: 기존 변수명 유지
+  const {dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg} = totalStats;
+  const TEMP_BANDS = TEMP_BANDS_PRED;
 
   // 계절 평균 (예보 16일 이후 폴백용) - 같은 월 데이터 평균
   const seasonalAvg={};
@@ -7184,8 +7290,16 @@ function buildPredContext(){
     if(x.dayPm25!=null){sa.pm25Sum+=x.dayPm25;sa.pm25Cnt++;}
   });
 
-  const predict=(dt)=>predictSingleDay(dt,dowAvg,baseAvg,holAvgFn,wxStats,pmGradeAvg,tempBandAvg,weights,PRED_PM_GRADES,TEMP_BANDS,seasonalAvg);
-  return {weights, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, seasonalAvg, predict, isAuto:DASH_DATA.length>=5};
+  const predict=(dt)=>{
+    // 총매출 예측 (기존)
+    const r = predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg);
+    // 홀/배달 분리 예측
+    const hr = predictSingleDay(dt, hallStats.dowAvg, hallStats.baseAvg, hallStats.holAvgFn, hallStats.wxStats, hallStats.pmGradeAvg, hallStats.tempBandAvg, weightsHall, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg);
+    const dr = predictSingleDay(dt, delivStats.dowAvg, delivStats.baseAvg, delivStats.holAvgFn, delivStats.wxStats, delivStats.pmGradeAvg, delivStats.tempBandAvg, weightsDeliv, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg);
+    return {...r, predHall:hr.pred, predDeliv:dr.pred, predSplit:hr.pred+dr.pred};
+  };
+
+  return {weights, weightsHall, weightsDeliv, dowAvg, baseAvg, pmGradeAvg, wxStats, holAvgFn, tempBandAvg, seasonalAvg, hallStats, delivStats, predict, isAuto:DASH_DATA.length>=5};
 }
 
 // ── 월간 예측 합산 (팝업·달력 공유) ──
@@ -7195,15 +7309,33 @@ function calcMonthPred(year, month){
   const today=new Date();
   const todayDk=localDateStr(today);
   const lastDay=new Date(year,month+1,0).getDate();
-  let actual=0, pred=0, actDays=0;
+  let actual=0, actHall=0, actDeliv=0;
+  let pred=0, predHall=0, predDeliv=0;
+  let actDays=0, predDays=0;
   for(let d=1;d<=lastDay;d++){
     const dt=new Date(year,month,d);
     const dk=dkStr(year,month,d);
     const raw=firebaseSalesData[dk]||REAL_SALES[dk];
-    if(raw&&raw.total&&dk<=todayDk){ actual+=raw.total; actDays++; }
-    else if(dk>=todayDk){ pred+=ctx.predict(dt).pred; }
+    if(raw&&raw.total&&dk<=todayDk){
+      actual+=raw.total;
+      actHall+=(raw.hall||(raw.total-(raw.baemin||0)-(raw.coupang||0)))||0;
+      actDeliv+=(raw.deliv||((raw.baemin||0)+(raw.coupang||0)))||0;
+      actDays++;
+    } else if(dk>=todayDk){
+      const r=ctx.predict(dt);
+      pred+=r.pred;
+      predHall+=r.predHall||0;
+      predDeliv+=r.predDeliv||0;
+      predDays++;
+    }
   }
-  return {actual, pred, total:actual+pred, actDays, remainDays:lastDay-today.getDate(), ctx};
+  return {
+    actual, pred, total:actual+pred,
+    actHall, predHall, totalHall:actHall+predHall,
+    actDeliv, predDeliv, totalDeliv:actDeliv+predDeliv,
+    actDays, predDays,
+    remainDays:lastDay-today.getDate(), ctx
+  };
 }
 
 // ── 단일 날짜 예측 (날씨+온도+미세먼지 예보 사용) ──
@@ -7485,7 +7617,7 @@ function buildPredContent(){
   const ctx=buildPredContext();
   if(!ctx) return null;
   const DAYS=['일','월','화','수','목','금','토'];
-  const {weights, predict, isAuto} = ctx;
+  const {weights, weightsHall, weightsDeliv, predict, isAuto} = ctx;
 
   // ── 오늘/내일 예측 ──
   const today=new Date(), tomorrow=new Date(today); tomorrow.setDate(today.getDate()+1);
@@ -7496,22 +7628,32 @@ function buildPredContent(){
   const todayDow=today.getDay();
   const monOffset=todayDow===0?-6:1-todayDow;
   const todayDk2=localDateStr(today);
-  let weekActual=0, weekPred=0, weekDays=0;
+  let weekActual=0, weekActHall=0, weekActDeliv=0;
+  let weekPred=0, weekPredHall=0, weekPredDeliv=0, weekDays=0;
   for(let i=0;i<7;i++){
     const d=new Date(today); d.setDate(today.getDate()+monOffset+i);
     const dk=localDateStr(d);
     const actual=firebaseSalesData[dk]||REAL_SALES[dk];
     if(actual && actual.total && dk<=todayDk2){
-      weekActual+=actual.total; weekDays++;
+      weekActual+=actual.total;
+      weekActHall+=(actual.hall||(actual.total-(actual.baemin||0)-(actual.coupang||0)))||0;
+      weekActDeliv+=(actual.deliv||((actual.baemin||0)+(actual.coupang||0)))||0;
+      weekDays++;
     } else if(dk>=todayDk2){
-      weekPred+=predict(d).pred;
+      const r=predict(d);
+      weekPred+=r.pred;
+      weekPredHall+=r.predHall||0;
+      weekPredDeliv+=r.predDeliv||0;
     }
   }
   const weekTotal=weekActual+weekPred;
+  const weekTotalHall=weekActHall+weekPredHall;
+  const weekTotalDeliv=weekActDeliv+weekPredDeliv;
 
   // ── 이번 달 예측 (공유 함수 사용) ──
   const mp=calcMonthPred(today.getFullYear(), today.getMonth());
   const monthActual=mp?mp.actual:0, monthPred=mp?mp.pred:0, monthTotal=mp?mp.total:0, remainDays=mp?mp.remainDays:0;
+  const monthTotalHall=mp?mp.totalHall:0, monthTotalDeliv=mp?mp.totalDeliv:0;
 
   // ── 카드 렌더링 ──
   function dayCard(p,label,isToday){
@@ -7527,6 +7669,16 @@ function buildPredContent(){
         ${holInfo}
       </div>
       <div style="font-size:22px;font-weight:700;color:var(--brown);margin-bottom:4px">~${fmF(p.pred)}</div>
+      <div style="display:flex;gap:8px;margin-bottom:6px;font-size:11px">
+        <div style="flex:1;background:rgba(92,61,30,0.08);border-radius:6px;padding:4px 8px">
+          <div style="color:#5c3d1e;font-weight:700">홀</div>
+          <div style="color:var(--brown);font-weight:700">${fmF(p.predHall||0)}</div>
+        </div>
+        <div style="flex:1;background:rgba(181,129,42,0.1);border-radius:6px;padding:4px 8px">
+          <div style="color:#b5812a;font-weight:700">배달</div>
+          <div style="color:var(--brown);font-weight:700">${fmF(p.predDeliv||0)}</div>
+        </div>
+      </div>
       <div style="font-size:11px;color:var(--tm);display:flex;gap:10px;flex-wrap:wrap">
         <span>${wxIcon} ${wxName}${fwData?' (예보)':''}</span>
         ${pmInfo}
@@ -7534,8 +7686,17 @@ function buildPredContent(){
     </div>`;
   }
 
-  function summaryCard(label,total,actualPart,predPart,extraInfo){
+  function summaryCard(label,total,actualPart,predPart,extraInfo,totalHall,totalDeliv){
     const pct=actualPart&&total?Math.round(actualPart/total*100):0;
+    const splitHtml=(totalHall!=null&&totalDeliv!=null)?`
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <div style="flex:1;background:rgba(92,61,30,0.08);border-radius:6px;padding:4px 8px;font-size:10px">
+          <span style="color:#5c3d1e;font-weight:700">홀</span> <span style="color:var(--brown);font-weight:700">${fmF(totalHall)}</span>
+        </div>
+        <div style="flex:1;background:rgba(181,129,42,0.1);border-radius:6px;padding:4px 8px;font-size:10px">
+          <span style="color:#b5812a;font-weight:700">배달</span> <span style="color:var(--brown);font-weight:700">${fmF(totalDeliv)}</span>
+        </div>
+      </div>`:'';
     return `<div style="background:var(--surface);border-radius:12px;padding:12px 14px;border:1px solid var(--border)">
       <div style="font-size:12px;font-weight:700;color:var(--tm);margin-bottom:6px">${label}</div>
       <div style="font-size:20px;font-weight:700;color:var(--brown);margin-bottom:4px">~${fmF(total)}</div>
@@ -7543,22 +7704,23 @@ function buildPredContent(){
         ${actualPart?`확정 ${fmF(actualPart)} (${pct}%) + 예측 ${fmF(predPart)}`:`전체 예측`}
         ${extraInfo||''}
       </div>
+      ${splitHtml}
     </div>`;
   }
 
   const weightInfo=isAuto
-    ?`<div style="font-size:10px;color:var(--green);margin-top:2px">자동보정 (공휴일${Math.round(weights.hol*100)}% 날씨${Math.round(weights.wx*100)}% 미세먼지${Math.round(weights.pm*100)}% 온도${Math.round(weights.temp*100)}%)</div>`
+    ?`<div style="font-size:10px;color:var(--green);margin-top:2px">총: 공${Math.round(weights.hol*100)} 날${Math.round(weights.wx*100)} 미${Math.round(weights.pm*100)} 온${Math.round(weights.temp*100)}<br>홀: 공${Math.round(weightsHall.hol*100)} 날${Math.round(weightsHall.wx*100)} 미${Math.round(weightsHall.pm*100)} 온${Math.round(weightsHall.temp*100)}<br>배달: 공${Math.round(weightsDeliv.hol*100)} 날${Math.round(weightsDeliv.wx*100)} 미${Math.round(weightsDeliv.pm*100)} 온${Math.round(weightsDeliv.temp*100)}</div>`
     :`<div style="font-size:10px;color:var(--tm);margin-top:2px">데이터 ${DASH_DATA.length}일 — 5일 이상이면 자동보정</div>`;
 
   return `
-    <div style="font-size:11px;color:var(--tm);margin-bottom:10px">공휴일·날씨예보·미세먼지 기반 예측 (과거 ${DASH_DATA.length}일 학습)${weightInfo}</div>
+    <div style="font-size:11px;color:var(--tm);margin-bottom:10px">공휴일·날씨·미세먼지·온도 기반 홀/배달 분리 예측 (${DASH_DATA.length}일 학습)${weightInfo}</div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px">
       ${dayCard(todayP,'오늘',true)}
       ${dayCard(tomorrowP,'내일',false)}
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px">
-      ${summaryCard('이번 주 예상',weekTotal,weekActual,weekPred,'')}
-      ${summaryCard('이번 달 예상',monthTotal,monthActual,monthPred,`<br>남은 ${remainDays}일 예측 반영`)}
+      ${summaryCard('이번 주 예상',weekTotal,weekActual,weekPred,'',weekTotalHall,weekTotalDeliv)}
+      ${summaryCard('이번 달 예상',monthTotal,monthActual,monthPred,`<br>남은 ${remainDays}일 예측 반영`,monthTotalHall,monthTotalDeliv)}
     </div>
     <div style="font-size:10px;color:var(--tm);padding:8px 10px;background:var(--surface);border-radius:8px">⚠️ 예측값은 참고용이며 실제 매출과 다를 수 있어요</div>`;
 }
