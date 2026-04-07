@@ -1078,6 +1078,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="chart-card">
           <div class="chart-hdr"><div class="chart-ttl">월별 매출 비교 (전월대비 증감)</div><div class="chart-meta" id="monMeta">-</div></div>
           <div class="chart-body"><canvas id="monChart"></canvas></div>
+          <div id="monTable" style="padding:8px 12px 12px"></div>
         </div>
         <div class="d-sec">날씨별 매출 상관관계</div>
         <div class="chart-card">
@@ -1488,15 +1489,15 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title">매출 대시보드</div><div class="more-menu-sub">그래프 · 인사이트 · 날씨 분석</div></div>
       <div style="color:var(--tm)">›</div>
     </button>
-    <button class="more-menu-btn" onclick="manualFetchHistoricalWeather()">
+    <button class="more-menu-btn" id="histWeatherBtn" onclick="manualFetchHistoricalWeather()" style="background:var(--rbg);border-color:var(--rborder);display:none">
       <div class="more-menu-ico">🌤️</div>
-      <div class="more-menu-txt"><div class="more-menu-title">과거 날씨 수집</div><div class="more-menu-sub">매출 데이터에 날씨 채우기 (30일씩)</div></div>
-      <div style="color:var(--tm)">›</div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">과거 날씨 수집</div><div class="more-menu-sub">대표 전용 · 매출 데이터에 날씨 일괄 채우기</div></div>
+      <div style="color:var(--red)">›</div>
     </button>
-    <button class="more-menu-btn" onclick="showLastError()">
+    <button class="more-menu-btn" id="debugErrBtn" onclick="showLastError()" style="background:var(--rbg);border-color:var(--rborder);display:none">
       <div class="more-menu-ico">🐛</div>
-      <div class="more-menu-txt"><div class="more-menu-title">마지막 에러 보기</div><div class="more-menu-sub">예보 실패 원인 확인</div></div>
-      <div style="color:var(--tm)">›</div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">마지막 에러 보기</div><div class="more-menu-sub">대표 전용 · 예보/날씨 실패 원인 확인</div></div>
+      <div style="color:var(--red)">›</div>
     </button>
   </div>
 </div>
@@ -1782,6 +1783,10 @@ function applyUser(){
   // 심영근만 보이는 버튼들
   const albaBtn=document.getElementById('albaNameBtn');
   if(albaBtn) albaBtn.style.display=CU.name===ADMIN?'flex':'none';
+  const histBtn=document.getElementById('histWeatherBtn');
+  if(histBtn) histBtn.style.display=CU.name===ADMIN?'flex':'none';
+  const dbgBtn=document.getElementById('debugErrBtn');
+  if(dbgBtn) dbgBtn.style.display=CU.name===ADMIN?'flex':'none';
   // 목표 설정 입력창 - 심영근만
   const tgtRow=document.getElementById('tgtInputRow');
   if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
@@ -4148,10 +4153,45 @@ function renderLD(d){
   CH['ld']=new Chart(ctx,{type:isLine?'line':'bar',data:{labels:dValid.map(x=>x.ds+'('+DAYS[x.dow]+')'),datasets:[{label:'점심',data:dValid.map(x=>x.lunch),backgroundColor:'rgba(181,129,42,0.75)',borderColor:'rgba(181,129,42,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine},{label:'저녁',data:dValid.map(x=>x.dinner),backgroundColor:'rgba(30,74,122,0.65)',borderColor:'rgba(30,74,122,0.9)',borderRadius:isLine?0:3,tension:0.4,pointRadius:isLine?2:0,fill:isLine}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:!isLine,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:!isLine,ticks:{font:{size:10},maxRotation:0},grid:{display:false}}}}});
 }
 function renderDA(d){
-  dc('da');const bt=d.reduce((s,x)=>s+x.baemin,0),ct=d.reduce((s,x)=>s+x.coupang,0);
+  dc('da');
+  const bt=d.reduce((s,x)=>s+x.baemin,0),ct=d.reduce((s,x)=>s+x.coupang,0);
   document.getElementById('daMeta').textContent=`배민 ${Math.round(bt/(bt+ct)*100)}% : 쿠팡 ${Math.round(ct/(bt+ct)*100)}% · ${d.length}일 기준`;
+  // 7일 단위로 그룹화 (주간 합계 - 노이즈 제거, 추이 명확)
+  const buckets=[];
+  for(let i=0;i<d.length;i+=7){
+    const chunk=d.slice(i,i+7);
+    if(!chunk.length) continue;
+    const baeminSum=chunk.reduce((s,x)=>s+x.baemin,0);
+    const coupangSum=chunk.reduce((s,x)=>s+x.coupang,0);
+    const firstDs=chunk[0].ds;
+    const lastDs=chunk[chunk.length-1].ds;
+    buckets.push({label:firstDs+'~'+lastDs.slice(-5), shortLabel:firstDs, baemin:baeminSum, coupang:coupangSum, days:chunk.length});
+  }
   const ctx=document.getElementById('daChart').getContext('2d');
-  CH['da']=new Chart(ctx,{type:'line',data:{labels:d.map(x=>x.ds+'('+DAYS[x.dow]+')'),datasets:[{label:'배민',data:d.map(x=>x.baemin),borderColor:'#e53',backgroundColor:'rgba(229,51,51,0.08)',tension:0.4,pointRadius:2,fill:true},{label:'쿠팡이츠',data:d.map(x=>x.coupang),borderColor:'#c60',backgroundColor:'rgba(204,102,0,0.08)',tension:0.4,pointRadius:2,fill:true}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{ticks:{font:{size:10},maxRotation:0},grid:{display:false}}}}});
+  CH['da']=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:buckets.map(b=>b.shortLabel),
+      datasets:[
+        {label:'배민 (주간)', data:buckets.map(b=>b.baemin), borderColor:'#e53', backgroundColor:'rgba(229,51,51,0.12)', tension:0.3, pointRadius:3, pointHoverRadius:5, fill:true, borderWidth:2.5},
+        {label:'쿠팡이츠 (주간)', data:buckets.map(b=>b.coupang), borderColor:'#c60', backgroundColor:'rgba(204,102,0,0.12)', tension:0.3, pointRadius:3, pointHoverRadius:5, fill:true, borderWidth:2.5}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{
+        legend:{display:true, labels:{font:{size:11}, boxWidth:12}},
+        tooltip:{callbacks:{
+          title:items=>buckets[items[0].dataIndex].label,
+          label:c=>c.dataset.label+': '+fmF(c.raw)
+        }}
+      },
+      scales:{
+        y:{ticks:{callback:v=>fm(v), font:{size:10}}, grid:{color:'rgba(0,0,0,0.05)'}},
+        x:{ticks:{font:{size:9}, maxRotation:0, autoSkip:true, maxTicksLimit:8}, grid:{display:false}}
+      }
+    }
+  });
 }
 function renderDow(d){
   const sums=[0,0,0,0,0,0,0],cnts=[0,0,0,0,0,0,0];
@@ -4236,6 +4276,28 @@ function renderMonthly(d){
       }
     }
   });
+  // 월별 요약 표 생성
+  const tableEl=document.getElementById('monTable');
+  if(tableEl){
+    let html='<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:2px 8px;font-size:11px;padding-top:8px;border-top:1px solid var(--border);margin-top:6px">';
+    html+='<div style="color:var(--tm);font-weight:700">월</div>';
+    html+='<div style="color:var(--tm);font-weight:700;text-align:right">홀</div>';
+    html+='<div style="color:var(--tm);font-weight:700;text-align:right">배달</div>';
+    html+='<div style="color:var(--tm);font-weight:700;text-align:right">총매출</div>';
+    html+='<div style="color:var(--tm);font-weight:700;text-align:right;min-width:45px">전월</div>';
+    sorted.forEach((m,i)=>{
+      const diff=diffs[i];
+      const diffStr=diff!=null?(diff>=0?'+':'')+diff+'%':'-';
+      const diffColor=diff==null?'var(--tm)':(diff>=0?'var(--green)':'var(--red)');
+      html+=`<div style="color:var(--txt);font-weight:700;padding:4px 0">${m.label}</div>`;
+      html+=`<div style="text-align:right;color:#5c3d1e;padding:4px 0">${fm(m.hall)}</div>`;
+      html+=`<div style="text-align:right;color:#b5812a;padding:4px 0">${fm(m.deliv)}</div>`;
+      html+=`<div style="text-align:right;color:var(--brown);font-weight:700;padding:4px 0">${fm(m.total)}</div>`;
+      html+=`<div style="text-align:right;color:${diffColor};font-weight:700;padding:4px 0">${diffStr}</div>`;
+    });
+    html+='</div>';
+    tableEl.innerHTML=html;
+  }
 }
 // ════ 날씨 심화분석기 토글 ════
 let wxDetailOpen=false, reportWxDetailOpen=false;
