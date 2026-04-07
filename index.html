@@ -6547,14 +6547,24 @@ async function fetchWeatherForecast(retryCount=0){
   // ── daily API (하루 날씨 1개 = 간단하고 안정적) ──
   try{
     const startDate = todayDk;
-    const endD = new Date(today); endD.setDate(today.getDate()+15);
+    const endD = new Date(today); endD.setDate(today.getDate()+13);
     const endDate = localDateStr(endD);
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&hourly=weathercode&timezone=Asia%2FSeoul&forecast_days=16`;
-    const res = await fetchWithTimeout(url, 8000);
-    if(!res.ok) throw new Error('API '+res.status);
+    // daily만 사용 (hourly 빼서 응답 크기 축소)
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&hourly=weathercode,temperature_2m&timezone=Asia%2FSeoul&forecast_days=14`;
+    console.log('[예보] 요청:', url);
+    const res = await fetchWithTimeout(url, 10000);
+    console.log('[예보] 응답 상태:', res.status);
+    if(!res.ok){
+      const txt = await res.text().catch(()=>'');
+      throw new Error('HTTP '+res.status+(txt?' - '+txt.slice(0,100):''));
+    }
     const json = await res.json();
     const d = json?.daily;
-    if(!d||!d.weather_code||!d.time) throw new Error('daily 데이터 없음');
+    if(!d||!d.weather_code||!d.time){
+      console.error('[예보] 응답 구조:', json);
+      throw new Error('daily 데이터 없음');
+    }
+    console.log('[예보] daily 일수:', d.time.length);
 
     // hourly 데이터로 점심/저녁/영업시간 분리
     const h = json?.hourly;
@@ -6658,10 +6668,11 @@ async function fetchWeatherForecast(retryCount=0){
       const cached = localStorage.getItem('ws_forecast_cache');
       if(cached){
         const data = JSON.parse(cached);
-        // 캐시가 오늘 거면 사용
-        if(data.todayDk === todayDk && data.forecastWx){
+        // 캐시가 24시간 이내면 사용 (날짜 달라도)
+        const ageMs = Date.now()-data.savedAt;
+        if(data.forecastWx && ageMs < 24*60*60*1000){
           forecastWx = data.forecastWx;
-          const ageMin = Math.round((Date.now()-data.savedAt)/60000);
+          const ageMin = Math.round(ageMs/60000);
           const ageStr = ageMin<60 ? ageMin+'분 전' : Math.round(ageMin/60)+'시간 전';
           showToast('💾 예보 캐시 사용중 ('+ageStr+' 데이터)');
           renderDashCal();
@@ -6674,7 +6685,7 @@ async function fetchWeatherForecast(retryCount=0){
         if(adata.forecastAq) forecastAq = adata.forecastAq;
       }
     }catch(_){}
-    showToast('⚠️ 예보 로드 실패 - 잠시 후 자동 재시도');
+    showToast('⚠️ 예보 로드 실패: '+(e.message||'알 수 없음'));
     renderDashCal();
   }
 }
