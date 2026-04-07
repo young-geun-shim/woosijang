@@ -6571,7 +6571,7 @@ async function autoFillRecentWeather(){
 // forecastWx, forecastAq, localDateStr → 상단(2900줄 부근)에서 선언됨
 
 // fetch with timeout helper
-async function fetchWithTimeout(url, ms=8000){
+async function fetchWithTimeout(url, ms=15000){
   const controller = new AbortController();
   const tid = setTimeout(()=>controller.abort(), ms);
   try{
@@ -6593,7 +6593,7 @@ async function fetchWeatherForecast(retryCount=0){
     // daily만 사용 (hourly 빼서 응답 크기 축소)
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&hourly=weathercode,temperature_2m&timezone=Asia%2FSeoul&forecast_days=14`;
     console.log('[예보] 요청:', url);
-    const res = await fetchWithTimeout(url, 10000);
+    const res = await fetchWithTimeout(url, 15000);
     console.log('[예보] 응답 상태:', res.status);
     if(!res.ok){
       const txt = await res.text().catch(()=>'');
@@ -6701,7 +6701,7 @@ async function fetchWeatherForecast(retryCount=0){
     // 재시도
     if(retryCount < MAX_RETRY){
       console.log(`예보 재시도 ${retryCount+1}/${MAX_RETRY}`);
-      setTimeout(()=>fetchWeatherForecast(retryCount+1), 3000*(retryCount+1));
+      setTimeout(()=>fetchWeatherForecast(retryCount+1), 5000*(retryCount+1));
       return;
     }
     // 재시도 다 실패 → 캐시 폴백
