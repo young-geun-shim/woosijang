@@ -2860,18 +2860,30 @@ let todayWx=1;
 async function loadTodayWeather(){
   const today=new Date();
   const dk=dkStr(today.getFullYear(),today.getMonth(),today.getDate());
-  const dateStr=dk;
-  const wx=await fetchWeatherByDate(dateStr);
-  todayWx=wx;
-  // 미세먼지도 함께
-  fetchAirQuality(dk).then(aq=>{
-    const pm=aq&&aq.dayPm25!=null?` · PM2.5 ${aq.dayPm25}(${pm25Grade(aq.dayPm25)})`:'';
-    document.getElementById('hdrSub').textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨'+pm;
-    if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); }
-  }).catch(()=>{
-    document.getElementById('hdrSub').textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨';
-  });
-  showToast('오늘 날씨: '+WX_ICONS[wx]+' '+WX_NAMES[wx]);
+  // forecastWx에 이미 있으면 그거 쓰기 (중복 호출 방지)
+  if(forecastWx[dk] && forecastWx[dk].wx!=null){
+    const wx=forecastWx[dk].wx;
+    todayWx=wx;
+    fetchAirQuality(dk).then(aq=>{
+      const pm=aq&&aq.dayPm25!=null?` · PM2.5 ${aq.dayPm25}(${pm25Grade(aq.dayPm25)})`:'';
+      const el=document.getElementById('hdrSub');
+      if(el) el.textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨'+pm;
+      if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); }
+    }).catch(()=>{
+      const el=document.getElementById('hdrSub');
+      if(el) el.textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨';
+    });
+    return;
+  }
+  // forecastWx 없으면 5초 후 재시도 (fetchWeatherForecast 완료 대기)
+  setTimeout(()=>{
+    if(forecastWx[dk]){
+      const wx=forecastWx[dk].wx;
+      todayWx=wx;
+      const el=document.getElementById('hdrSub');
+      if(el) el.textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨';
+    }
+  }, 5000);
 }
 
 // Firebase 날씨 캐시 조회 또는 API 호출
@@ -6490,18 +6502,14 @@ loadTodayWeather();
 fetchWeatherForecast();
 // 2. 3초 뒤: 공휴일
 setTimeout(loadHolidays, 3000);
-// 3. 10초 뒤: 최근 7일 날씨 자동 보충
-setTimeout(autoFillRecentWeather, 10000);
-// 4. 20초 뒤: 과거 날씨 수집 (30일씩 배치, rate limit 방지)
-setTimeout(fetchHistoricalWeather, 20000);
-// 5. 60초 뒤: 과거 미세먼지 수집
-setTimeout(fetchHistoricalAirQuality, 60000);
+// 3. 과거 날씨 수집 - rate limit 풀릴 때까지 비활성화
+// setTimeout(autoFillRecentWeather, 10000);
+// setTimeout(fetchHistoricalWeather, 20000);
+// setTimeout(fetchHistoricalAirQuality, 60000);
 // 6시간마다 예보 자동 갱신
 setInterval(()=>{
   fetchWeatherForecast();
-  showToast('예보 자동 갱신 완료');
 }, 6*60*60*1000);
-setTimeout(replaceForecastWithActual, 15000);
 // 예측 팝업 (7초 뒤 - 데이터 로딩 후)
 setTimeout(showPredPopup, 7000);
 
@@ -6585,8 +6593,58 @@ async function fetchWeatherForecast(retryCount=0){
   const todayDk = localDateStr(today);
   const MAX_RETRY = 2;
 
+  // 이미 오늘 예보 로드돼있고 14일치면 스킵 (중복 호출 방지)
+  if(retryCount===0 && forecastWx[todayDk] && Object.keys(forecastWx).length>=10){
+    console.log('[예보] 이미 로드됨, 스킵');
+    return;
+  }
+
+  // 최근 호출 시각 체크 (10분 내 재호출 방지)
+  if(retryCount===0){
+    try{
+      const lastCall = parseInt(localStorage.getItem('ws_forecast_lastcall')||'0');
+      if(lastCall && (Date.now()-lastCall) < 10*60*1000){
+        console.log('[예보] 최근 호출됨, 캐시 사용');
+        // 캐시 복원
+        const cached = localStorage.getItem('ws_forecast_cache');
+        if(cached){
+          try{
+            const data = JSON.parse(cached);
+            if(data.forecastWx){
+              forecastWx = data.forecastWx;
+              renderDashCal();
+              return;
+            }
+          }catch(_){}
+        }
+      }
+    }catch(_){}
+  }
+
+  // 0) Firebase에 이미 저장된 weather 데이터 먼저 불러오기 (오늘 날짜)
+  if(retryCount===0){
+    try{
+      const snap = await db.ref('weather/'+todayDk).get();
+      if(snap.exists()){
+        const val = snap.val();
+        if(val && typeof val==='object' && val.wx!=null){
+          forecastWx[todayDk] = {
+            lunchWx:val.lunchWx, dinnerWx:val.dinnerWx, wx:val.wx,
+            lunchTemp:val.lunchTemp, dinnerTemp:val.dinnerTemp,
+            tempMax:val.lunchTemp, tempMin:val.dinnerTemp,
+            isForecast:false, isToday:true
+          };
+          const el=document.getElementById('hdrSub');
+          if(el) el.textContent=WX_ICONS[val.wx]+' '+WX_NAMES[val.wx]+'  ·  날씨 연동됨';
+          renderDashCal();
+        }
+      }
+    }catch(_){}
+  }
+
   // ── daily API (하루 날씨 1개 = 간단하고 안정적) ──
   try{
+    localStorage.setItem('ws_forecast_lastcall', String(Date.now()));
     const startDate = todayDk;
     const endD = new Date(today); endD.setDate(today.getDate()+13);
     const endDate = localDateStr(endD);
@@ -6756,7 +6814,7 @@ async function replaceForecastWithActual(){
         delete forecastWx[dk];
       }
     }catch(e){}
-    await new Promise(r=>setTimeout(r,300));
+    await new Promise(r=>setTimeout(r,1000));
   }
   rebuildDashData();
 }
