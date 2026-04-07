@@ -3974,6 +3974,7 @@ db.ref('sales').on('value',snap=>{
 db.ref('airquality').on('value',snap=>{
   firebaseAqData=snap.val()||{};
   rebuildDashData();
+  if(document.getElementById('dashCalGrid')) renderDashCal();
 });
 
 // Firebase 날씨 구독 - REAL_SALES에 자동 병합 (영구 저장 활용)
@@ -3994,6 +3995,8 @@ db.ref('weather').on('value',snap=>{
     }
   });
   rebuildDashData();
+  // 달력 갱신 (매출 없는 날 날씨 표시용)
+  if(document.getElementById('dashCalGrid')) renderDashCal();
 });
 
 function rebuildDashData(){
@@ -5798,6 +5801,8 @@ function goTab(tab){
     if(bMore) bMore.classList.add('on');
   }
   curTab=tab;
+  // 현재 탭 저장 (새로고침 시 복구용)
+  try{ localStorage.setItem('ws_last_tab', tab); }catch(e){}
   if(tab==='attend') initAttend();
   if(tab==='board'){ renderOrderDateLbl(); renderOrderCal(); }
   if(tab==='dash'){ renderDash(); renderDashCal(); }
@@ -6693,6 +6698,13 @@ setInterval(()=>{
 setTimeout(showPredPopup, 7000);
 // 하루 1번 자동 가중치 갱신 (데이터 로딩 후 10초)
 setTimeout(autoRefreshWeightsDaily, 10000);
+// 마지막 탭 복구 (새로고침 시 현재 페이지 유지)
+try{
+  const lastTab=localStorage.getItem('ws_last_tab');
+  if(lastTab && lastTab!=='attend'){
+    setTimeout(()=>goTab(lastTab), 100);
+  }
+}catch(e){}
 
 // ════ 최근 7일 날씨/미세먼지 누락분 자동 보충 ════
 async function autoFillRecentWeather(){
