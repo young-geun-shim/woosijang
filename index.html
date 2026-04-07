@@ -932,7 +932,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   <div class="bc" id="sc-dash" style="padding:0">
 
     <!-- 매출 달력 -->
-    <div style="background:var(--brown);padding:12px 12px 14px">
+    <div style="background:var(--brown);padding:12px 8px 14px">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <button class="cal-arrow" onclick="changeDashCal(-1)" style="background:rgba(255,255,255,.15);border:none;color:#fff">‹</button>
         <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:#fff" id="dashCalLbl"></div>
@@ -3119,15 +3119,25 @@ function renderDashCal(){
   const nextM=dashCalM===11?0:dashCalM+1;
   const nextY=dashCalM===11?dashCalY+1:dashCalY;
 
-  // 요일 헤더 - 7컬럼 (합계 컬럼 제거)
+  // 요일 헤더 - 8컬럼 균등
   const dowHeader=grid.previousElementSibling;
   if(dowHeader){
-    dowHeader.style.gridTemplateColumns='repeat(7,1fr)';
-    // 이전에 추가된 합계 헤더 제거
-    while(dowHeader.children.length>7){ dowHeader.removeChild(dowHeader.lastChild); }
+    dowHeader.style.gridTemplateColumns='repeat(8,1fr)';
+    dowHeader.style.gap='2px';
+    if(dowHeader.children.length===7){
+      const wk=document.createElement('div');
+      wk.style.cssText='text-align:center;font-size:10px;font-weight:700;color:rgba(181,131,42,.9)';
+      wk.textContent='합계';
+      dowHeader.appendChild(wk);
+    }
+    // 헤더 모든 자식 가운데 정렬
+    Array.from(dowHeader.children).forEach(ch=>{
+      ch.style.textAlign='center';
+    });
   }
 
-  grid.style.gridTemplateColumns='repeat(7,1fr)';
+  grid.style.gridTemplateColumns='repeat(8,1fr)';
+  grid.style.gap='2px';
   grid.innerHTML='';
 
   let weekTotal=0, weekDays=0;
@@ -3152,7 +3162,10 @@ function renderDashCal(){
     weekTotal+=total;
     if(total>0) weekDays++;
     grid.appendChild(makeCalCell(d,dk,total,dow,todayK,false));
-    if(dow===6){ weekTotal=0; weekDays=0; }
+    if(dow===6){
+      grid.appendChild(makeWeekCell(weekTotal,true,weekDays));
+      weekTotal=0; weekDays=0;
+    }
   }
 
   // 다음달 날짜 (마지막 주 채우기)
@@ -3162,8 +3175,11 @@ function renderDashCal(){
       const dk=dkStr(nextY,nextM,nd);
       const raw=firebaseSalesData[dk]||REAL_SALES[dk];
       const total=raw?raw.total:0;
+      weekTotal+=total;
+      if(total>0) weekDays++;
       grid.appendChild(makeCalCell(nd,dk,total,lastDow+nd,todayK,true));
     }
+    grid.appendChild(makeWeekCell(weekTotal,false,weekDays));
   }
 
   // 월 총매출 · 일평균 · 이달 예상 업데이트
@@ -3201,8 +3217,8 @@ function renderDashCal(){
 function makeWeekCell(total, isFullWeek, dayCount){
   const wCell=document.createElement('div');
   const avg=dayCount>0?Math.floor(total/dayCount):0;
-  wCell.style.cssText=`min-height:54px;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(181,131,42,${isFullWeek?0.15:0.08});border:1px solid rgba(181,131,42,${isFullWeek?0.35:0.2});padding:2px`;
-  wCell.innerHTML=`<div style="font-size:7px;font-weight:700;color:rgba(181,131,42,${isFullWeek?0.9:0.6});line-height:1">주</div><div style="font-size:9px;color:${isFullWeek?'#FFD080':'rgba(255,208,128,0.6)'};font-weight:700;margin-top:2px">${total>0?fm(total):'-'}</div>${avg>0?`<div style="font-size:7px;color:rgba(181,131,42,0.7);margin-top:1px">${fm(avg)}</div>`:''}`;
+  wCell.style.cssText=`aspect-ratio:1;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(181,131,42,${isFullWeek?0.18:0.08});border:1px solid rgba(181,131,42,${isFullWeek?0.4:0.2});padding:2px;gap:1px`;
+  wCell.innerHTML=`<div style="font-size:7px;font-weight:700;color:rgba(181,131,42,${isFullWeek?0.85:0.55});line-height:1">주</div><div style="font-size:8px;color:${isFullWeek?'#FFD080':'rgba(255,208,128,0.6)'};font-weight:700;line-height:1.1;text-align:center">${total>0?fm(total):'-'}</div>${avg>0?`<div style="font-size:7px;color:rgba(181,131,42,0.65);line-height:1">${fm(avg)}</div>`:''}`;
   return wCell;
 }
 
@@ -3294,7 +3310,7 @@ function makeCalCell(d,dk,total,dow,todayK,isOtherMonth){
       pmDot=`<div style="width:4px;height:4px;border-radius:50%;background:${pc};margin:1px auto 0"></div>`;
     }
   }
-  cell.innerHTML=`<div style="font-size:11px;font-weight:700;color:${dowColor}">${d}</div>${total>0?`<div style="font-size:8px;color:${textColor};margin-top:1px">${fm(total)}</div>`:''}${wxEmoji}${tempHtml}${pmDot}${holidayDot}`;
+  cell.innerHTML=`<div style="font-size:10px;font-weight:700;color:${dowColor};line-height:1">${d}</div>${total>0?`<div style="font-size:7px;color:${textColor};margin-top:1px;line-height:1">${fm(total)}</div>`:''}${wxEmoji}${tempHtml}${pmDot}${holidayDot}`;
   if(total>0){
     const [y,m,day]=[parseInt(dk.split('-')[0]),parseInt(dk.split('-')[1])-1,parseInt(dk.split('-')[2])];
     cell.onclick=()=>{setPeriod('day',document.querySelector('.ptab'));dayViewDate=new Date(y,m,day);renderDayView();};
