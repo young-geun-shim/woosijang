@@ -1488,10 +1488,13 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title">매출 대시보드</div><div class="more-menu-sub">그래프 · 인사이트 · 날씨 분석</div></div>
       <div style="color:var(--tm)">›</div>
     </button>
+    <button class="more-menu-btn" onclick="showLastError()">
+      <div class="more-menu-ico">🐛</div>
+      <div class="more-menu-txt"><div class="more-menu-title">마지막 에러 보기</div><div class="more-menu-sub">예보 실패 원인 확인</div></div>
+      <div style="color:var(--tm)">›</div>
+    </button>
   </div>
 </div>
-
-<!-- ═══ 예측 계산 분석 (대표 전용) ═══ -->
 <div class="view" id="vPredDebug">
   <div class="d-hdr">
     <button class="d-back" onclick="goTab('more')">‹</button>
@@ -6492,6 +6495,16 @@ async function initNotifications(){ /* 비활성화 */ }
 async function autoInitNotifications(){ /* 비활성화 */ }
 function updateNotifyBanner(on){ /* 비활성화 */ }
 
+// 마지막 에러 확인 (디버그용)
+function showLastError(){
+  const raw = localStorage.getItem('ws_last_error');
+  if(!raw){ alert('저장된 에러 없음 - API 정상 작동 중'); return; }
+  try{
+    const e = JSON.parse(raw);
+    alert('[마지막 에러]\n\n시간: '+e.time+'\n\n메시지: '+e.msg+'\n\n이름: '+e.name+'\n\n스택: '+e.stack);
+  }catch(_){ alert('에러 파싱 실패: '+raw); }
+}
+
 // ════ INIT ════
 loadUser();
 subscribeCalMonth();
@@ -6578,14 +6591,12 @@ async function autoFillRecentWeather(){
 // ════ 예보 날씨 캐시 (미래 달력 이모지용) ════
 // forecastWx, forecastAq, localDateStr → 상단(2900줄 부근)에서 선언됨
 
-// fetch with timeout helper
+// iOS Safari AbortController 버그 회피 - Promise.race로 구현
 async function fetchWithTimeout(url, ms=15000){
-  const controller = new AbortController();
-  const tid = setTimeout(()=>controller.abort(), ms);
-  try{
-    const res = await fetch(url, {signal:controller.signal});
-    return res;
-  } finally { clearTimeout(tid); }
+  return Promise.race([
+    fetch(url),
+    new Promise((_, rej)=>setTimeout(()=>rej(new Error('timeout '+ms+'ms')), ms))
+  ]);
 }
 
 async function fetchWeatherForecast(retryCount=0){
@@ -6787,6 +6798,15 @@ async function fetchWeatherForecast(retryCount=0){
     const errMsg = e && (e.message || e.name || String(e)) || '알 수 없음';
     showToast('⚠️ 예보 실패: '+errMsg, 8000);
     console.error('[예보] 최종 실패:', e);
+    // 개발자 도구 없이 에러 보기 - localStorage에 저장
+    try{
+      localStorage.setItem('ws_last_error', JSON.stringify({
+        msg: errMsg,
+        name: e?.name||'',
+        stack: (e?.stack||'').slice(0,300),
+        time: new Date().toLocaleString()
+      }));
+    }catch(_){}
     renderDashCal();
   }
 }
