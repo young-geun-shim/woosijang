@@ -535,7 +535,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <!-- GPS·알림 상태 아이콘 -->
     <div style="display:flex;gap:4px;align-items:center">
       <div id="gpsStatusIcon" onclick="handleGpsIconTap()" title="GPS 상태" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer">📍</div>
-      <div id="notifyStatusIcon" onclick="handleNotifyIconTap()" title="알림 상태" style="width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer">🔔</div>
       <div onclick="showPredPopupForce()" title="매출 예측" style="width:26px;height:26px;border-radius:50%;background:rgba(181,131,42,.3);display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer">🔮</div>
     </div>
     <div class="user-badge" onclick="showNameOv()" id="userBadge">
@@ -1075,6 +1074,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
           <div class="chart-hdr"><div class="chart-ttl">주차별 매출 비교</div><div class="chart-meta" id="wkMeta">-</div></div>
           <div class="chart-body"><canvas id="wkChart"></canvas></div>
         </div>
+        <div class="d-sec">월별 총매출</div>
+        <div class="chart-card">
+          <div class="chart-hdr"><div class="chart-ttl">월별 매출 비교 (전월대비 증감)</div><div class="chart-meta" id="monMeta">-</div></div>
+          <div class="chart-body"><canvas id="monChart"></canvas></div>
+        </div>
         <div class="d-sec">날씨별 매출 상관관계</div>
         <div class="chart-card">
           <div class="chart-hdr"><div class="chart-ttl">날씨별 평균 매출 (합계 · 홀 · 배달 · 비율)</div><div class="chart-meta" id="wGridMeta">-</div></div>
@@ -1215,20 +1219,21 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
   <!-- 예약 탭 -->
   <div class="bc on" id="rc-res">
-    <!-- 알림 상태 배너 -->
-    <div id="notifyBanner" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--rbg);border:1px solid var(--rborder);border-radius:10px;margin-bottom:10px">
-      <div style="font-size:12px;color:var(--red)">🔔 예약 알림이 꺼져있어요</div>
-      <button onclick="initNotifications()" style="padding:5px 12px;background:var(--brown);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer">알림 켜기</button>
-    </div>
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 8px">
       <button class="cal-arrow" onclick="changeResMonth(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--brown)">‹</button>
       <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)" id="resMonthLbl"></div>
       <button class="cal-arrow" onclick="changeResMonth(1)" style="background:var(--surface);border:1px solid var(--border);color:var(--brown)">›</button>
     </div>
     <div class="dow-row" style="margin-bottom:5px">
-      <div class="dow" style="color:var(--red)">일</div><div class="dow">월</div><div class="dow">화</div><div class="dow">수</div><div class="dow">목</div><div class="dow">금</div><div class="dow" style="color:var(--blue)">토</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--red)">일</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tm)">월</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tm)">화</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tm)">수</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tm)">목</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--tm)">금</div>
+      <div style="text-align:center;font-size:10px;font-weight:700;color:var(--blue)">토</div>
     </div>
-    <div id="resCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:10px"></div>
+<div id="resCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:10px"></div>
     <!-- 예약 폼 -->
     <div id="resForm" style="display:none">
       <div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.8px;padding:8px 2px 6px;border-bottom:1px solid var(--border);margin-bottom:8px" id="resFormDate"></div>
@@ -1868,12 +1873,12 @@ async function checkAndShowPermPopup(){
       });
     }catch(e2){ gpsGranted=false; }
   }
-  if(!notifyGranted || !gpsGranted){
-    permStep = !notifyGranted ? 0 : 1;
+  // 알림 기능 비활성화 - GPS만 체크
+  if(!gpsGranted){
+    permStep = 1; // GPS 단계로 바로
     renderPermStep();
     document.getElementById('permOv').classList.remove('hidden');
   } else {
-    autoInitNotifications();
     checkGPS();
   }
 }
@@ -3935,7 +3940,7 @@ function setMT(t,btn){curMT=t;document.querySelectorAll('.tg[onclick*="setMT"]')
 function setDT(t,btn){curDT=t;document.querySelectorAll('.tg[onclick*="setDT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderDow(gd(curP));}
 function setWT(t,btn){curWT=t;document.querySelectorAll('.tg[onclick*="setWT"]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');renderWeather(gd(curP));}
 function setGoal(){const v=parseInt(document.getElementById('tgtInp').value.replace(/,/g,''));if(v>0){goalAmt=v;localStorage.setItem('ws_goal',v);renderTarget(gd(curP));showToast('목표 금액이 설정됐어요!');}}
-function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(DASH_DATA);renderDA(d);renderDow(d);renderWeekly(d);renderWeather(d);renderPay(d);if(wxDetailOpen){renderHeatmapWx(d);renderBubble(d);renderWxCardsInto(d,document.getElementById('wxCards3'));renderTempBand4Into(d,'tempBand4Chart2');renderRainBand(d,'rainBandChart2');renderPM(d);}}
+function renderDash(){const d=gd(curP);renderSummary(d);renderTarget(d);renderInsights(d);renderMain(d);renderHD(d);renderLD(d);renderTempBand4(d);renderWeatherCorr(d);renderHoliday(DASH_DATA);renderDA(d);renderDow(d);renderWeekly(d);renderMonthly(d);renderWeather(d);renderPay(d);if(wxDetailOpen){renderHeatmapWx(d);renderBubble(d);renderWxCardsInto(d,document.getElementById('wxCards3'));renderTempBand4Into(d,'tempBand4Chart2');renderRainBand(d,'rainBandChart2');renderPM(d);}}
 function renderSummary(d){
   if(!d.length)return;
   const tot=d.reduce((s,x)=>s+x.total,0),avg=Math.floor(tot/d.length),best=[...d].sort((a,b)=>b.total-a.total)[0];
@@ -4088,6 +4093,75 @@ function renderWeekly(d){
   if(weeks.length>1){const l=weeks[weeks.length-1],p=weeks[weeks.length-2],diff=Math.round((l.total-p.total)/p.total*100);document.getElementById('wkMeta').textContent=(diff>=0?'↑ +':'↓ ')+diff+'% · '+d.length+'일 기준';}
   const ctx=document.getElementById('wkChart').getContext('2d');
   CH['wk']=new Chart(ctx,{type:'bar',data:{labels:weeks.map(w=>w.label),datasets:[{label:'홀',data:weeks.map(w=>w.hall),backgroundColor:'rgba(92,61,30,0.8)',borderRadius:4},{label:'배달',data:weeks.map(w=>w.deliv),backgroundColor:'rgba(181,129,42,0.7)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmF(c.raw)}}},scales:{y:{stacked:true,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}}}}});
+}
+
+function renderMonthly(d){
+  dc('mon');
+  // 전체 DASH_DATA 기준 (기간 필터 무시, 월별은 항상 전체)
+  const months={};
+  DASH_DATA.forEach(x=>{
+    const y=x.date.getFullYear(), m=x.date.getMonth();
+    const key=y+'-'+String(m+1).padStart(2,'0');
+    if(!months[key]) months[key]={label:(y%100)+'.'+(m+1)+'월', total:0, hall:0, deliv:0, days:0};
+    months[key].total+=x.total||0;
+    months[key].hall+=x.hall||0;
+    months[key].deliv+=x.deliv||0;
+    if(x.total>0) months[key].days++;
+  });
+  const sorted=Object.entries(months).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>v);
+  if(!sorted.length){
+    const el=document.getElementById('monChart');
+    if(el){const ctx=el.getContext('2d');ctx.clearRect(0,0,el.width,el.height);ctx.fillStyle='#aaa';ctx.font='13px sans-serif';ctx.textAlign='center';ctx.fillText('데이터 없음',el.width/2,60);}
+    return;
+  }
+  // 전월대비 증감
+  const diffs=sorted.map((m,i)=>{
+    if(i===0||sorted[i-1].total===0) return null;
+    return Math.round((m.total-sorted[i-1].total)/sorted[i-1].total*100);
+  });
+  // meta: 최근 월 증감
+  const lastDiff=diffs[diffs.length-1];
+  const metaEl=document.getElementById('monMeta');
+  if(metaEl){
+    if(lastDiff!=null){
+      metaEl.textContent=(lastDiff>=0?'↑ +':'↓ ')+lastDiff+'% · '+sorted.length+'개월';
+      metaEl.style.color=lastDiff>=0?'var(--green)':'var(--red)';
+    } else {
+      metaEl.textContent=sorted.length+'개월 데이터';
+      metaEl.style.color='';
+    }
+  }
+  const ctx=document.getElementById('monChart').getContext('2d');
+  CH['mon']=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:sorted.map(m=>m.label),
+      datasets:[
+        {label:'홀',data:sorted.map(m=>m.hall),backgroundColor:'rgba(92,61,30,0.8)',borderRadius:4},
+        {label:'배달',data:sorted.map(m=>m.deliv),backgroundColor:'rgba(181,129,42,0.7)',borderRadius:4}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:true,
+      plugins:{
+        legend:{display:true,labels:{font:{size:11},boxWidth:12}},
+        tooltip:{callbacks:{
+          label:c=>c.dataset.label+': '+fmF(c.raw),
+          afterBody:items=>{
+            const i=items[0].dataIndex;
+            const m=sorted[i];
+            const lines=['총매출: '+fmF(m.total), m.days+'일 영업'];
+            if(diffs[i]!=null) lines.push('전월대비 '+(diffs[i]>=0?'+':'')+diffs[i]+'%');
+            return lines;
+          }
+        }}
+      },
+      scales:{
+        y:{stacked:true,ticks:{callback:v=>fm(v),font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}},
+        x:{stacked:true,ticks:{font:{size:10}},grid:{display:false}}
+      }
+    }
+  });
 }
 // ════ 날씨 심화분석기 토글 ════
 let wxDetailOpen=false, reportWxDetailOpen=false;
@@ -5665,7 +5739,7 @@ db.ref('reservations').on('value',snap=>{
   renderResCal();
   if(selectedResDate) renderResDayList(selectedResDate);
   // 예약 변경 시 알림 루프 재시작
-  if(notifyPermission) startAlertLoop();
+  // 알림 비활성화
 });
 
 // ── 단골 관리 ──
@@ -6144,85 +6218,15 @@ function renderComplainList(){
 // 알림 시점: -180분, -150분, -120분, -90분, -60분, -30분
 const NOTIFY_INTERVALS = [180, 150, 120, 90, 60, 30]; // 분 단위
 let notifyPermission = false;
-let notifiedKeys = new Set(); // 이미 알림 보낸 것 (세션 내 중복 방지)
+let notifiedKeys = new Set();
 
-// 브라우저 알림 권한 요청
-async function requestNotifyPermission(){
-  if(!('Notification' in window)){
-    console.warn('이 브라우저는 알림을 지원하지 않아요');
-    return false;
-  }
-  if(Notification.permission === 'granted'){
-    notifyPermission = true;
-    return true;
-  }
-  if(Notification.permission !== 'denied'){
-    const perm = await Notification.requestPermission();
-    notifyPermission = perm === 'granted';
-    return notifyPermission;
-  }
-  return false;
-}
-
-// 알림 전송
-function sendNotification(title, body, tag){
-  if(!notifyPermission) return;
-  try{
-    const n = new Notification(title, {
-      body,
-      tag, // 같은 tag는 덮어씀 (중복 방지)
-      icon: 'https://woosijangopenclose.netlify.app/thumb.png',
-      badge: 'https://woosijangopenclose.netlify.app/thumb.png',
-      requireInteraction: true, // 사용자가 닫을 때까지 유지
-    });
-    // 5초 후 자동 닫기 (requireInteraction 미지원 브라우저 대비)
-    setTimeout(()=>n.close(), 5000);
-  }catch(e){ console.warn('알림 전송 실패:', e); }
-}
-
-// 오늘 예약 중 알림 대상 체크
-function checkReservationAlerts(){
-  const now = new Date();
-  const todayKey = dkStr(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayRes = resData[todayKey];
-  if(!todayRes) return;
-
-  const nowMins = now.getHours()*60 + now.getMinutes();
-
-  Object.entries(todayRes).forEach(([key, res])=>{
-    if(!res.time) return;
-    const [rh, rm] = res.time.split(':').map(Number);
-    const resMins = rh*60 + rm;
-    const diffMins = resMins - nowMins; // 예약까지 남은 분
-
-    NOTIFY_INTERVALS.forEach(interval=>{
-      // 해당 알림 시점에 ±1분 범위 안에 있으면 알림
-      if(diffMins > (interval-1) && diffMins <= interval){
-        const notifyId = `${todayKey}_${key}_${interval}`;
-        if(notifiedKeys.has(notifyId)) return; // 이미 알림 보냄
-        notifiedKeys.add(notifyId);
-
-        const label = interval >= 60
-          ? `${Math.floor(interval/60)}시간${interval%60>0?' '+interval%60+'분':''}`
-          : `${interval}분`;
-
-        sendNotification(
-          `📅 ${interval===30?'⚠️ ':''} 예약 ${label} 전`,
-          `${res.name}님 (${res.people||'?'}명) · ${res.time}${res.menu?' · '+res.menu:''}`,
-          notifyId
-        );
-      }
-    });
-  });
-}
-
-// 알림 루프 시작 (1분마다 체크)
+// 알림 기능 비활성화 - 모두 빈 함수
+async function requestNotifyPermission(){ return false; }
+function sendNotification(title, body, tag){ /* 비활성화 */ }
+function checkReservationAlerts(){ /* 비활성화 */ }
 let alertLoopId = null;
-function startAlertLoop(){
-  if(alertLoopId) clearInterval(alertLoopId);
-  checkReservationAlerts(); // 즉시 1회 실행
-  alertLoopId = setInterval(checkReservationAlerts, 60000); // 1분마다
-}
+function startAlertLoop(){ /* 비활성화 */ }
+function handleNotifyIconTap(){ /* 비활성화 */ }
 
 // ════ 권한 상태 아이콘 ════
 let gpsPermGranted = false; // GPS 권한 허용 여부 (위치 무관)
@@ -6251,22 +6255,7 @@ function updatePermIcons(){
       gpsIcon.title = 'GPS 미허용 - 탭하여 허용';
     }
   }
-  // 알림 아이콘
-  const notifyIcon = document.getElementById('notifyStatusIcon');
-  if(notifyIcon){
-    const granted = 'Notification' in window && Notification.permission === 'granted';
-    if(granted){
-      notifyIcon.textContent = '🔔';
-      notifyIcon.style.background = 'rgba(42,96,64,.5)';
-      notifyIcon.style.border = '2px solid rgba(42,200,100,.6)';
-      notifyIcon.title = '알림 허용됨';
-    } else {
-      notifyIcon.textContent = '🔕';
-      notifyIcon.style.background = 'rgba(163,48,48,.4)';
-      notifyIcon.style.border = '2px solid rgba(220,80,80,.5)';
-      notifyIcon.title = '알림 미허용 - 탭하여 허용';
-    }
-  }
+  // 알림 아이콘 - 기능 비활성화
 }
 
 // GPS 아이콘 탭 시
@@ -6282,16 +6271,6 @@ function handleGpsIconTap(){
 }
 
 // 알림 아이콘 탭 시
-function handleNotifyIconTap(){
-  const granted = 'Notification' in window && Notification.permission === 'granted';
-  if(granted){
-    showToast('🔔 알림 허용됨 · 예약 알림 활성화됨');
-  } else {
-    permStep = 0;
-    renderPermStep();
-    document.getElementById('permOv').classList.remove('hidden');
-  }
-}
 let permStep = 0; // 0=알림, 1=GPS
 
 // iOS/Android 감지
@@ -6455,44 +6434,10 @@ function closePermPopup(){
   hidePermGuide();
 }
 
-// 권한 요청 + 루프 시작
-async function initNotifications(){
-  const granted = await requestNotifyPermission();
-  if(granted){
-    startAlertLoop();
-    updateNotifyBanner(true);
-    showToast('✅ 예약 알림이 활성화됐어요!');
-  } else {
-    updateNotifyBanner(false);
-    showToast('⚠️ 브라우저 설정에서 알림 권한을 허용해주세요');
-  }
-}
-
-// 앱 시작 시 기존 권한 확인 후 자동 활성화
-async function autoInitNotifications(){
-  if('Notification' in window && Notification.permission === 'granted'){
-    notifyPermission = true;
-    startAlertLoop();
-    updateNotifyBanner(true);
-  } else {
-    updateNotifyBanner(false);
-  }
-  updatePermIcons();
-}
-
-function updateNotifyBanner(on){
-  const banner = document.getElementById('notifyBanner');
-  if(!banner) return;
-  if(on){
-    banner.style.background = 'var(--grbg)';
-    banner.style.borderColor = 'var(--grborder)';
-    banner.innerHTML = `<div style="font-size:12px;color:var(--green)">🔔 예약 알림 켜짐 · 3시간 전부터 30분마다</div><button onclick="initNotifications()" style="padding:5px 12px;background:var(--green);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer">✓ 활성화됨</button>`;
-  } else {
-    banner.style.background = 'var(--rbg)';
-    banner.style.borderColor = 'var(--rborder)';
-    banner.innerHTML = `<div style="font-size:12px;color:var(--red)">🔔 예약 알림이 꺼져있어요</div><button onclick="initNotifications()" style="padding:5px 12px;background:var(--brown);border:none;border-radius:6px;color:#fff;font-size:11px;font-weight:700;cursor:pointer">알림 켜기</button>`;
-  }
-}
+// 알림 기능 비활성화
+async function initNotifications(){ /* 비활성화 */ }
+async function autoInitNotifications(){ /* 비활성화 */ }
+function updateNotifyBanner(on){ /* 비활성화 */ }
 
 // ════ INIT ════
 loadUser();
@@ -6584,13 +6529,20 @@ async function autoFillRecentWeather(){
 // ════ 예보 날씨 캐시 (미래 달력 이모지용) ════
 // forecastWx, forecastAq, localDateStr → 상단(2900줄 부근)에서 선언됨
 
-async function fetchWeatherForecast(){
+// fetch with timeout helper
+async function fetchWithTimeout(url, ms=8000){
+  const controller = new AbortController();
+  const tid = setTimeout(()=>controller.abort(), ms);
+  try{
+    const res = await fetch(url, {signal:controller.signal});
+    return res;
+  } finally { clearTimeout(tid); }
+}
+
+async function fetchWeatherForecast(retryCount=0){
   const today = new Date();
   const todayDk = localDateStr(today);
-  // 이전 캐시 전부 정리
-  try{ for(let i=localStorage.length-1;i>=0;i--){ const k=localStorage.key(i); if(k&&k.startsWith('ws_forecast_')) localStorage.removeItem(k); } }catch(e){}
-
-  // 매번 API 새로 호출 (캐시 없음)
+  const MAX_RETRY = 2;
 
   // ── daily API (하루 날씨 1개 = 간단하고 안정적) ──
   try{
@@ -6598,7 +6550,7 @@ async function fetchWeatherForecast(){
     const endD = new Date(today); endD.setDate(today.getDate()+15);
     const endDate = localDateStr(endD);
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${WX_LAT}&longitude=${WX_LNG}&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum&hourly=weathercode&timezone=Asia%2FSeoul&forecast_days=16`;
-    const res = await fetch(url);
+    const res = await fetchWithTimeout(url, 8000);
     if(!res.ok) throw new Error('API '+res.status);
     const json = await res.json();
     const d = json?.daily;
@@ -6661,13 +6613,15 @@ async function fetchWeatherForecast(){
         };
       }
     }
-    showToast('예보 '+Object.keys(forecastWx).length+'일 로드 완료');
+    // 성공 시 캐시 저장 (백업용)
+    try{ localStorage.setItem('ws_forecast_cache', JSON.stringify({forecastWx, savedAt:Date.now(), todayDk})); }catch(e){}
+    showToast('✅ 예보 실시간 로드 ('+Object.keys(forecastWx).length+'일)');
 
     // 미세먼지 예보
     try{
       const aqEnd = new Date(today); aqEnd.setDate(today.getDate()+5);
       const aqUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${DATA_LAT}&longitude=${DATA_LNG}&hourly=pm2_5&timezone=Asia%2FSeoul&start_date=${startDate}&end_date=${localDateStr(aqEnd)}`;
-      const aqRes = await fetch(aqUrl);
+      const aqRes = await fetchWithTimeout(aqUrl, 6000);
       if(aqRes.ok){
         const aqJson = await aqRes.json();
         const ah = aqJson?.hourly;
@@ -6684,6 +6638,7 @@ async function fetchWeatherForecast(){
             const vals=indices.map(i2=>ah.pm2_5[i2]).filter(v=>v!=null);
             if(vals.length) forecastAq[dk2]={dayPm25:Math.round(vals.reduce((a,b)=>a+b,0)/vals.length)};
           });
+          try{ localStorage.setItem('ws_forecastaq_cache', JSON.stringify({forecastAq, savedAt:Date.now()})); }catch(e){}
         }
       }
     }catch(e){}
@@ -6692,8 +6647,34 @@ async function fetchWeatherForecast(){
     console.log('예보 로드 완료:', Object.keys(forecastWx).length, '일');
   } catch(e){
     console.error('예보 오류:', e);
-    showToast('⚠️ 예보 로드 실패: '+e.message);
-    // 실패해도 달력은 갱신
+    // 재시도
+    if(retryCount < MAX_RETRY){
+      console.log(`예보 재시도 ${retryCount+1}/${MAX_RETRY}`);
+      setTimeout(()=>fetchWeatherForecast(retryCount+1), 3000*(retryCount+1));
+      return;
+    }
+    // 재시도 다 실패 → 캐시 폴백
+    try{
+      const cached = localStorage.getItem('ws_forecast_cache');
+      if(cached){
+        const data = JSON.parse(cached);
+        // 캐시가 오늘 거면 사용
+        if(data.todayDk === todayDk && data.forecastWx){
+          forecastWx = data.forecastWx;
+          const ageMin = Math.round((Date.now()-data.savedAt)/60000);
+          const ageStr = ageMin<60 ? ageMin+'분 전' : Math.round(ageMin/60)+'시간 전';
+          showToast('💾 예보 캐시 사용중 ('+ageStr+' 데이터)');
+          renderDashCal();
+          return;
+        }
+      }
+      const cachedAq = localStorage.getItem('ws_forecastaq_cache');
+      if(cachedAq){
+        const adata = JSON.parse(cachedAq);
+        if(adata.forecastAq) forecastAq = adata.forecastAq;
+      }
+    }catch(_){}
+    showToast('⚠️ 예보 로드 실패 - 잠시 후 자동 재시도');
     renderDashCal();
   }
 }
