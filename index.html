@@ -479,9 +479,12 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="nm-lbl">이름 선택</div>
         <div class="nm-grid">
           <button class="nm-chip" onclick="selName('심영근','staff',this)">심영근</button>
+          <button class="nm-chip" onclick="selName('김성훈','staff',this)">김성훈</button>
           <button class="nm-chip" onclick="selName('곽진수','staff',this)">곽진수</button>
           <button class="nm-chip" onclick="selName('김성연','staff',this)">김성연</button>
           <button class="nm-chip" onclick="selName('최은란','staff',this)">최은란</button>
+          <button class="nm-chip" onclick="selName('이동수','staff',this)">이동수</button>
+          <button class="nm-chip" onclick="selName('허성림','staff',this)">허성림</button>
           <button class="nm-chip alba" data-key="알바1" onclick="selName('알바1','part',this)">알바1</button>
           <button class="nm-chip alba" data-key="알바2" onclick="selName('알바2','part',this)">알바2</button>
           <button class="nm-chip alba" data-key="알바3" onclick="selName('알바3','part',this)">알바3</button>
@@ -870,7 +873,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   <!-- 매출 입력 탭 -->
   <div class="bc" id="sc-input">
     <div id="salesLocked" class="locked-msg" style="display:none">
-      매출 입력은<br><strong>심영근 · 최은란 · 곽진수</strong>만<br>접근할 수 있어요.<br><br>
+      매출 입력은<br><strong>심영근 · 김성훈 · 최은란 · 곽진수</strong>만<br>접근할 수 있어요.<br><br>
       <button onclick="showNameOv()" style="padding:10px 20px;background:var(--brown);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">이름 변경하기</button>
     </div>
     <div id="salesForm">
@@ -1339,7 +1342,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
           <select class="log-sel" id="staff-name" style="width:100%">
             <option value="">이름 선택</option>
-            <option>심영근</option><option>곽진수</option><option>김성연</option><option>최은란</option>
+            <option>심영근</option><option>김성훈</option><option>곽진수</option><option>김성연</option><option>최은란</option><option>이동수</option><option>허성림</option>
             <option>알바1</option><option>알바2</option><option>알바3</option><option>알바4</option><option>알바5</option>
           </select>
           <select class="log-sel" id="staff-type" style="width:100%" onchange="togglePayType()">
@@ -1385,7 +1388,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <div style="display:flex;flex-direction:column;gap:6px">
       <select class="log-sel" id="sched-name" style="width:100%">
         <option value="">직원 선택</option>
-        <option>심영근</option><option>곽진수</option><option>김성연</option><option>최은란</option>
+        <option>심영근</option><option>김성훈</option><option>곽진수</option><option>김성연</option><option>최은란</option><option>이동수</option><option>허성림</option>
         <option>알바1</option><option>알바2</option><option>알바3</option><option>알바4</option><option>알바5</option>
       </select>
       <div style="display:flex;gap:6px">
@@ -1509,11 +1512,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-ico">🐛</div>
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">마지막 에러 보기</div><div class="more-menu-sub">대표 전용 · 예보/날씨 실패 원인 확인</div></div>
       <div style="color:var(--red)">›</div>
-    </button>
-    <button class="more-menu-btn" id="bulkXhsBtn" onclick="bulkAddXiaohongshu()" style="background:#FFF8E8;border-color:var(--gold);display:none">
-      <div class="more-menu-ico">📋</div>
-      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--brown)">샤오홍수 체험단 일괄 등록</div><div class="more-menu-sub">대표 전용 · 15명 한 번에 예약 등록 (1회용)</div></div>
-      <div style="color:var(--brown)">›</div>
     </button>
   </div>
 </div>
@@ -1800,10 +1798,12 @@ function fbSet(path,val){setSyncDot('ing');db.ref(path).set(val).then(()=>setSyn
 
 // ════ 이름 시스템 ════
 const ADMIN = '심영근';
-const STAFF_ALLOWED = ['심영근','최은란','곽진수']; // 당일+전날 입력 가능
-const SALES_ALLOWED = ['심영근','최은란','곽진수']; // 매출 접근 가능
-// PIN: 심영근=1234, 곽진수=1111, 김성연=2222, 최은란=3333, 알바1~5=0000
-const NAME_PINS={'심영근':'1234','곽진수':'1111','김성연':'2222','최은란':'3333','알바1':'0000','알바2':'0000','알바3':'0000','알바4':'0000','알바5':'0000'};
+const ADMIN_NAMES = ['심영근','김성훈']; // 공동대표 (관리자 권한)
+function isAdmin(name){ return ADMIN_NAMES.includes(name); }
+const STAFF_ALLOWED = ['심영근','김성훈','최은란','곽진수']; // 당일+전날 입력 가능
+const SALES_ALLOWED = ['심영근','김성훈','최은란','곽진수']; // 매출 접근 가능
+// PIN: 심영근=1234, 김성훈=0001, 곽진수=1111, 김성연=2222, 최은란=3333, 이동수=3282, 허성림=0000, 알바1~5=0000
+const NAME_PINS={'심영근':'1234','김성훈':'0001','곽진수':'1111','김성연':'2222','최은란':'3333','이동수':'3282','허성림':'0000','알바1':'0000','알바2':'0000','알바3':'0000','알바4':'0000','알바5':'0000'};
 
 // 알바 이름 (심영근만 설정 가능, localStorage 저장)
 function loadAlbaNames(){
@@ -1838,16 +1838,14 @@ function applyUser(){
   document.getElementById('attendRole').textContent=CU.role==='staff'?'정직원':'알바';
   // 심영근만 보이는 버튼들
   const albaBtn=document.getElementById('albaNameBtn');
-  if(albaBtn) albaBtn.style.display=CU.name===ADMIN?'flex':'none';
+  if(albaBtn) albaBtn.style.display=isAdmin(CU.name)?'flex':'none';
   const histBtn=document.getElementById('histWeatherBtn');
-  if(histBtn) histBtn.style.display=CU.name===ADMIN?'flex':'none';
+  if(histBtn) histBtn.style.display=isAdmin(CU.name)?'flex':'none';
   const dbgBtn=document.getElementById('debugErrBtn');
-  if(dbgBtn) dbgBtn.style.display=CU.name===ADMIN?'flex':'none';
-  const xhsBtn=document.getElementById('bulkXhsBtn');
-  if(xhsBtn) xhsBtn.style.display=CU.name===ADMIN?'flex':'none';
+  if(dbgBtn) dbgBtn.style.display=isAdmin(CU.name)?'flex':'none';
   // 목표 설정 입력창 - 심영근만
   const tgtRow=document.getElementById('tgtInputRow');
-  if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
+  if(tgtRow) tgtRow.style.display=isAdmin(CU.name)?'flex':'none';
   checkSalesAccess();
   renderAlbaChips();
 }
@@ -1969,7 +1967,7 @@ function closeNameOv(){
 }
 function checkSalesAccess(){
   const isAlba = CU.role==='part';
-  const isAdmin = CU.name===ADMIN;
+  const isAdminUser = isAdmin(CU.name);
   const isStaff = STAFF_ALLOWED.includes(CU.name);
 
   if(isAlba || !isStaff){
@@ -1984,16 +1982,16 @@ function checkSalesAccess(){
   const todayK=dkStr(today.getFullYear(),today.getMonth(),today.getDate());
   const yestK=dkStr(yesterday.getFullYear(),yesterday.getMonth(),yesterday.getDate());
   const isTodayOrYest=dk===todayK||dk===yestK;
-  const canDon=isAdmin||isTodayOrYest;
+  const canDon=isAdminUser||isTodayOrYest;
 
-  if(isAdmin){
+  if(isAdminUser){
     document.getElementById('salesLocked').style.display='none';
     document.getElementById('salesForm').style.display='block';
   } else if(isTodayOrYest){
     document.getElementById('salesLocked').style.display='none';
     document.getElementById('salesForm').style.display='block';
   } else {
-    document.getElementById('salesLocked').innerHTML=`매출 입력은 <strong>당일·전날</strong>만 가능해요.<br><small style="color:var(--tm)">전체 수정은 심영근만 가능해요.</small>`;
+    document.getElementById('salesLocked').innerHTML=`매출 입력은 <strong>당일·전날</strong>만 가능해요.<br><small style="color:var(--tm)">전체 수정은 대표(심영근·김성훈)만 가능해요.</small>`;
     document.getElementById('salesLocked').style.display='block';
     document.getElementById('salesForm').style.display='none';
   }
@@ -2007,7 +2005,7 @@ function checkSalesAccess(){
 
 // ════ 알바 이름 설정 ════
 function showAlbaNameModal(){
-  if(CU.name!==ADMIN){ showToast('대표만 설정할 수 있어요'); return; }
+  if(!isAdmin(CU.name)){ showToast('대표만 설정할 수 있어요'); return; }
   const list=document.getElementById('albaNameList');
   if(!list) return;
   list.innerHTML=['알바1','알바2','알바3','알바4','알바5'].map(key=>`
@@ -2731,7 +2729,7 @@ function renderOrderCal(){
       const order=orderData[dk];
       const hasOrder=!!order;
       const isToday=dk===todayK;
-      const byName=order&&order.by?order.by.replace('심영근','심').replace('곽진수','곽').replace('김성연','김').replace('최은란','최'):'';
+      const byName=order&&order.by?order.by.replace('심영근','심').replace('김성훈','훈').replace('곽진수','곽').replace('김성연','연').replace('최은란','은').replace('이동수','동').replace('허성림','허'):'';
       const cell=document.createElement('div');
       cell.className='order-cal-cell';
       cell.style.cssText=`background:${isToday?'var(--gbg)':hasOrder?'var(--white)':'var(--surface)'};border:1px solid ${isToday?'var(--gold)':hasOrder?'var(--border)':'transparent'};border-radius:8px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${hasOrder?'pointer':'default'};gap:2px;`;
@@ -3197,8 +3195,11 @@ function saveSalesPartial(){
   fbSet('sales/'+dk, {...(firebaseSalesData[dk]||{}), ...record}).then(()=>{
     setSyncDot('ok');
     firebaseSalesData[dk]={...(firebaseSalesData[dk]||{}), ...record};
-    showToast('💾 점심 매출 중간 저장 완료!');
-  }).catch(()=>setSyncDot('err'));
+    showToast('✅ 점심 매출 저장이 완료되었습니다!', 3500);
+  }).catch(()=>{
+    setSyncDot('err');
+    showToast('❌ 저장 실패! 다시 시도해주세요', 3500);
+  });
 }
 
 function saveSales(){
@@ -3211,7 +3212,7 @@ function saveSales(){
   const yestK=dkStr(yest.getFullYear(),yest.getMonth(),yest.getDate());
   const isToday=dk===todayK;
   const isTodayOrYest=dk===todayK||dk===yestK;
-  const isAdmin=CU.name===ADMIN;
+  const isAdminUser=isAdmin(CU.name);
 
   // ① 버튼 클릭 직후(유저 제스처 컨텍스트 살아있을 때) 복사 먼저
   calcSales();
@@ -3229,7 +3230,7 @@ function saveSales(){
     const lunchDeliv=nvFmt('f-lunchDeliv');
     const dinnerHall=Math.max(0,hallTotal-lunchHall);
     const dinnerDeliv=Math.max(0,delivTotal-lunchDeliv);
-    const canDon=isAdmin||isTodayOrYest;
+    const canDon=isAdminUser||isTodayOrYest;
     const record={
       total, cash:nvFmt('f-cash'), card:nvFmt('f-card'), zero:nvFmt('f-zero'),
       seoul:nvFmt('f-seoul'), trans:nvFmt('f-trans'), ticket:nvFmt('f-ticket'),
@@ -4254,7 +4255,7 @@ function renderTarget(d){
   document.getElementById('tgtInp').placeholder=goalAmt.toLocaleString();
   // 심영근만 목표 설정 가능
   const tgtRow=document.getElementById('tgtInputRow');
-  if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
+  if(tgtRow) tgtRow.style.display=isAdmin(CU.name)?'flex':'none';
   const n=new Date();
   const md=DASH_DATA.filter(x=>x.date.getMonth()===n.getMonth()&&x.date.getFullYear()===n.getFullYear());
   const cur=md.reduce((s,x)=>s+x.total,0),pct=Math.min(100,Math.round(cur/goalAmt*100)),remain=Math.max(0,goalAmt-cur);
@@ -5168,15 +5169,14 @@ function renderHeatmap(d){
 function renderTable(){}
 
 // ════ 원가 · 순이익 분석 (대표 전용) ════
-const PROFIT_ADMIN = '심영근';
-// profitUnlocked는 상단에서 선언됨
+// PROFIT_ADMIN: 김성훈도 공동대표라 isAdmin() 사용
 let profitY = new Date().getFullYear(), profitM = new Date().getMonth();
 let costSettings = {fixed:[], var:[]};
 let addingCostType = 'fixed';
 
 function goTabAdmin(tab){
   // 대표 PIN 확인
-  if(CU.name !== PROFIT_ADMIN){
+  if(!isAdmin(CU.name)){
     showToast('⚠️ 대표만 접근할 수 있어요');
     return;
   }
@@ -5185,7 +5185,7 @@ function goTabAdmin(tab){
 
 function initProfit(){
   // 대표 본인이면 PIN 없이 바로 진입
-  if(CU.name === PROFIT_ADMIN){
+  if(isAdmin(CU.name)){
     profitUnlocked = true;
     document.getElementById('profitLock').style.display='none';
     document.getElementById('profitContent').style.display='block';
@@ -5201,7 +5201,9 @@ function initProfit(){
 function checkProfitPin(){
   const val = document.getElementById('profitPinInp').value;
   if(val.length < 4) return;
-  if(val !== NAME_PINS[PROFIT_ADMIN]){
+  // 두 대표 중 누구의 PIN인지 확인
+  const matched = ADMIN_NAMES.find(n => NAME_PINS[n] === val);
+  if(!matched){
     document.getElementById('profitPinErr').style.display='block';
     document.getElementById('profitPinInp').value='';
     return;
@@ -6240,50 +6242,6 @@ function saveReservation(){
   }).catch(()=>setSyncDot('err'));
 }
 
-// ════ 샤오홍수 체험단 15명 일괄 등록 (1회용) ════
-function bulkAddXiaohongshu(){
-  const list=[
-    {name:'장자추',  date:'2026-04-10', time:'18:20'},
-    {name:'장유한',  date:'2026-04-10', time:'19:20'},
-    {name:'남궁헌',  date:'2026-04-10', time:'19:50'},
-    {name:'시오',    date:'2026-04-11', time:'17:20'},
-    {name:'자오위자오',date:'2026-04-14', time:'17:20'},
-    {name:'쑤문',    date:'2026-04-14', time:'18:20'},
-    {name:'후연이',  date:'2026-04-15', time:'17:50'},
-    {name:'천뤄시',  date:'2026-04-17', time:'19:20'},
-    {name:'왕양',    date:'2026-04-18', time:'17:20'},
-    {name:'주영',    date:'2026-04-20', time:'17:20'},
-    {name:'왕자염',  date:'2026-04-23', time:'18:20'},
-    {name:'듀듀',    date:'2026-04-23', time:'20:20'},
-    {name:'장예몽',  date:'2026-04-24', time:'17:20'},
-    {name:'Faye',    date:'2026-04-25', time:'18:20'},
-    {name:'즈위',    date:'2026-04-25', time:'18:20'},
-  ];
-  if(!confirm('샤오홍수 체험단 '+list.length+'명을 예약 목록에 일괄 등록할까요?\n\n날짜: 4월 10일~25일\n이름 뒤에 (샤오홍수 체험단) 자동 추가됨')){return;}
-  setSyncDot('ing');
-  let saved=0, errors=0;
-  const promises=list.map(item=>{
-    const key=db.ref('reservations/'+item.date).push().key;
-    const record={
-      name: item.name+'(샤오홍수 체험단)',
-      phone:'',
-      time: item.time,
-      people:'',
-      menu:'샤오홍수 체험단',
-      by: CU.name||'시스템',
-      savedAt: new Date().toISOString()
-    };
-    return db.ref('reservations/'+item.date+'/'+key).set(record)
-      .then(()=>saved++)
-      .catch(()=>errors++);
-  });
-  Promise.all(promises).then(()=>{
-    setSyncDot('ok');
-    alert('✅ 일괄 등록 완료!\n\n성공: '+saved+'명\n실패: '+errors+'명\n\n예약 탭에서 4월 10일~25일 확인해주세요.');
-    if(typeof renderResCal==='function') renderResCal();
-  });
-}
-
 // 전화번호로 기존 고객 자동 검색
 function autoFillCustomer(phone){
   const matchEl=document.getElementById('resCustMatch');
@@ -6445,7 +6403,7 @@ function showRTab(id,btn){
 let payY=new Date().getFullYear(), payM=new Date().getMonth();
 let staffSettings={};
 
-const PAYROLL_ADMIN = '심영근';
+// PAYROLL_ADMIN: 김성훈도 공동대표라 isAdmin() 사용 (둘 다 전체 급여 조회)
 // payrollUnlocked, payrollViewName은 상단에서 선언됨
 
 function initPayroll(){
@@ -6457,7 +6415,7 @@ function initPayroll(){
     if(matched){
       const [matchedName] = matched;
       payrollUnlocked = true;
-      payrollViewName = matchedName === PAYROLL_ADMIN ? '' : matchedName;
+      payrollViewName = isAdmin(matchedName) ? '' : matchedName;
       document.getElementById('payrollLock').style.display='none';
       document.getElementById('pc-calc').style.display='block';
       renderPayroll();
@@ -6492,7 +6450,7 @@ function checkPayrollPin(){
   const [matchedName] = matched;
   document.getElementById('payrollPinErr').style.display='none';
   payrollUnlocked = true;
-  payrollViewName = matchedName === PAYROLL_ADMIN ? '' : matchedName;
+  payrollViewName = isAdmin(matchedName) ? '' : matchedName;
 
   // localStorage에 PIN 저장 → 다음부터 자동 로그인
   localStorage.setItem('ws_payroll_pin', val);
@@ -6500,7 +6458,7 @@ function checkPayrollPin(){
   document.getElementById('payrollLock').style.display='none';
   document.getElementById('pc-calc').style.display='block';
   renderPayroll();
-  showToast(matchedName === PAYROLL_ADMIN ? '✅ 전체 급여 조회' : `✅ ${matchedName}님 급여 조회`);
+  showToast(isAdmin(matchedName) ? '✅ 전체 급여 조회' : `✅ ${matchedName}님 급여 조회`);
 }
 function changePayMonth(dir){
   payM+=dir; if(payM<0){payM=11;payY--;} if(payM>11){payM=0;payY++;}
@@ -6664,8 +6622,9 @@ function saveStaffSetting(){
 function delStaff(name){if(confirm(name+' 직원 설정을 삭제할까요?')) db.ref('staffSettings/'+name).remove();}
 function closeStaffModal(){document.getElementById('staffModal').style.display='none';}
 function showPTab(id,btn){
-  // 직원 설정 탭은 대표(심영근)만 접근 가능
-  if(id==='staff' && payrollViewName !== '' && payrollViewName !== PAYROLL_ADMIN){
+  // 직원 설정 탭은 대표(공동대표 포함)만 접근 가능
+  // payrollViewName이 '' 이면 대표 (initPayroll에서 isAdmin인 경우 ''로 설정)
+  if(id==='staff' && payrollViewName !== ''){
     showToast('⚠️ 직원 설정은 대표만 접근할 수 있어요');
     return;
   }
@@ -6679,7 +6638,7 @@ function showPTab(id,btn){
 // ════ 알바 스케줄표 ════
 let schedY=new Date().getFullYear(), schedM=new Date().getMonth();
 let schedData={}, schedFilter='', selectedSchedDate='';
-const STAFF_NAMES=['심영근','곽진수','김성연','최은란','알바1','알바2','알바3','알바4','알바5'];
+const STAFF_NAMES=['심영근','김성훈','곽진수','김성연','최은란','이동수','허성림','알바1','알바2','알바3','알바4','알바5'];
 
 function initSchedule(){renderSchedGrid();}
 function changeSchedMonth(dir){
