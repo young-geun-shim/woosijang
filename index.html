@@ -1254,7 +1254,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div id="resCustMatch" style="display:none;font-size:11px;padding:4px 8px;background:var(--gbg);border:1px solid var(--gborder);border-radius:6px;color:var(--green)"></div>
         <input class="order-inp" id="res-name" placeholder="예약자 이름" style="width:100%">
         <div style="display:flex;gap:6px">
-          <input class="order-inp" id="res-time" placeholder="예약 시간 (예: 18:30)" style="flex:1">
+          <input class="order-inp" id="res-time" placeholder="예약 시간 (탭해서 선택)" style="flex:1;cursor:pointer;background:#FFF8E8" readonly onclick="openTimePicker()">
           <input class="order-inp" id="res-people" placeholder="인원" type="number" style="width:70px">
         </div>
         <input class="order-inp" id="res-menu" placeholder="요청사항 (선택)" style="width:100%">
@@ -1554,6 +1554,35 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     </div>
   </div>
 </div>
+
+<!-- ═══ 시간 휠 피커 모달 ═══ -->
+<div id="timePickerModal" style="display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:18px 18px 0 0;width:100%;max-width:440px;padding:14px 20px 24px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div style="font-size:16px;font-weight:700;color:var(--brown)">⏰ 예약 시간 선택</div>
+      <button onclick="closeTimePicker()" style="background:none;border:none;font-size:22px;color:var(--tm);cursor:pointer;padding:0 4px;line-height:1">×</button>
+    </div>
+    <!-- 휠 영역 -->
+    <div style="position:relative;display:flex;gap:8px;justify-content:center;align-items:center;background:var(--surface);border-radius:14px;padding:8px;margin-bottom:14px">
+      <!-- 가운데 강조선 -->
+      <div style="position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:42px;background:rgba(186,117,23,0.10);border-top:1px solid rgba(186,117,23,0.25);border-bottom:1px solid rgba(186,117,23,0.25);pointer-events:none;border-radius:8px"></div>
+      <!-- 시간 휠 -->
+      <div id="hourWheel" style="height:168px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;flex:1;text-align:center;scrollbar-width:none;mask-image:linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%)"></div>
+      <div style="font-size:18px;font-weight:700;color:var(--brown);padding:0 4px">:</div>
+      <!-- 분 휠 -->
+      <div id="minuteWheel" style="height:168px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;flex:1;text-align:center;scrollbar-width:none;mask-image:linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%)"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="closeTimePicker()" style="flex:1;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:13px;color:var(--tm);cursor:pointer">취소</button>
+      <button onclick="confirmTimePicker()" style="flex:2;padding:12px;background:var(--brown);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer">선택 완료</button>
+    </div>
+  </div>
+</div>
+<style>
+#hourWheel::-webkit-scrollbar, #minuteWheel::-webkit-scrollbar { display:none }
+.wheel-item { height:42px; line-height:42px; font-size:20px; color:#bbb; scroll-snap-align:center; transition:color 0.15s, font-weight 0.15s }
+.wheel-item.selected { color:var(--brown); font-weight:700; font-size:24px }
+</style>
 
 <!-- ═══ 원가 · 순이익 분석 (대표 전용) ═══ -->
 <div class="view" id="vProfit">
@@ -6082,6 +6111,103 @@ function renderResDayList(dk){
       <button class="res-del" onclick="delReservation('${dk}','${key}')">✕</button>
     </div>`).join('');
 }
+// ════ 시간 휠 피커 ════
+function openTimePicker(){
+  // 휠 채우기
+  const hourWheel = document.getElementById('hourWheel');
+  const minuteWheel = document.getElementById('minuteWheel');
+  // 시간: 9~23
+  let hourHtml = '<div style="height:63px"></div>'; // 위 패딩 (3 items)
+  for(let h=9; h<=23; h++){
+    hourHtml += `<div class="wheel-item" data-val="${h}">${String(h).padStart(2,'0')}</div>`;
+  }
+  hourHtml += '<div style="height:63px"></div>'; // 아래 패딩
+  hourWheel.innerHTML = hourHtml;
+  // 분: 0, 5, 10, ..., 55
+  let minHtml = '<div style="height:63px"></div>';
+  for(let m=0; m<60; m+=5){
+    minHtml += `<div class="wheel-item" data-val="${m}">${String(m).padStart(2,'0')}</div>`;
+  }
+  minHtml += '<div style="height:63px"></div>';
+  minuteWheel.innerHTML = minHtml;
+
+  // 기존 값 있으면 그 시간으로, 없으면 18:30
+  const cur = document.getElementById('res-time').value.trim();
+  let initH = 18, initM = 30;
+  const match = cur.match(/^(\d{1,2}):(\d{2})$/);
+  if(match){
+    initH = parseInt(match[1]);
+    initM = parseInt(match[2]);
+    initM = Math.round(initM/5)*5; // 5분 단위로 반올림
+    if(initM>=60) initM=55;
+  }
+
+  document.getElementById('timePickerModal').style.display = 'flex';
+
+  // 스크롤 위치 맞추기 (item 높이 42px, 시작 인덱스 * 42)
+  setTimeout(()=>{
+    const hourIdx = initH - 9;
+    hourWheel.scrollTop = hourIdx * 42;
+    const minIdx = Math.floor(initM/5);
+    minuteWheel.scrollTop = minIdx * 42;
+    updateWheelSelected(hourWheel);
+    updateWheelSelected(minuteWheel);
+  }, 50);
+
+  // 스크롤 시 가운데 항목 강조
+  hourWheel.onscroll = ()=>{
+    clearTimeout(hourWheel._t);
+    hourWheel._t = setTimeout(()=>{
+      // 가장 가까운 item으로 스냅
+      const idx = Math.round(hourWheel.scrollTop / 42);
+      hourWheel.scrollTop = idx * 42;
+      updateWheelSelected(hourWheel);
+    }, 80);
+    updateWheelSelected(hourWheel);
+  };
+  minuteWheel.onscroll = ()=>{
+    clearTimeout(minuteWheel._t);
+    minuteWheel._t = setTimeout(()=>{
+      const idx = Math.round(minuteWheel.scrollTop / 42);
+      minuteWheel.scrollTop = idx * 42;
+      updateWheelSelected(minuteWheel);
+    }, 80);
+    updateWheelSelected(minuteWheel);
+  };
+}
+
+function updateWheelSelected(wheel){
+  const items = wheel.querySelectorAll('.wheel-item');
+  const centerY = wheel.scrollTop + 84; // height/2
+  items.forEach(it=>{
+    const itTop = it.offsetTop + 21;
+    if(Math.abs(itTop - centerY) < 21){
+      it.classList.add('selected');
+    } else {
+      it.classList.remove('selected');
+    }
+  });
+}
+
+function confirmTimePicker(){
+  const hourWheel = document.getElementById('hourWheel');
+  const minuteWheel = document.getElementById('minuteWheel');
+  const hSel = hourWheel.querySelector('.wheel-item.selected');
+  const mSel = minuteWheel.querySelector('.wheel-item.selected');
+  if(!hSel || !mSel){
+    alert('시간을 선택해주세요');
+    return;
+  }
+  const h = hSel.dataset.val;
+  const m = mSel.dataset.val;
+  document.getElementById('res-time').value = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  closeTimePicker();
+}
+
+function closeTimePicker(){
+  document.getElementById('timePickerModal').style.display = 'none';
+}
+
 function saveReservation(){
   const name=document.getElementById('res-name').value.trim();
   const phone=document.getElementById('res-phone').value.trim();
@@ -6872,7 +6998,7 @@ async function manualFetchHistoricalWeather(){
     // 팝업/모달 안에서는 스크롤 막지 않음 (자식 스크롤 가능)
     let target = e.target;
     while(target && target !== document.body){
-      if(target.id==='predPopup' || target.id==='predPopupContent' || target.id==='albaNameModal'){
+      if(target.id==='predPopup' || target.id==='predPopupContent' || target.id==='albaNameModal' || target.id==='timePickerModal' || target.id==='hourWheel' || target.id==='minuteWheel'){
         return; // 팝업 안 → 통과
       }
       // 스크롤 가능한 요소 안이면 통과 (overflow auto/scroll)
@@ -7774,21 +7900,63 @@ function renderPredDebug(){
   const tempData = DASH_DATA.filter(x=>x.lunchTemp!=null && x.total>0);
   if(tempData.length>=3){
     const r = pearson(tempData.map(x=>x.lunchTemp), tempData.map(x=>x.total));
-    corrItems.push({label:'🌡️ 점심 온도', icon:'🌡️', r, n:tempData.length, hint:'온도가 높을수록 매출 변화'});
+    corrItems.push({label:'🌡️ 점심 온도', icon:'🌡️', r, n:tempData.length, hint:'점심 시간대 온도가 높을수록 매출 변화'});
+  }
+
+  // 저녁 온도 vs 매출
+  const dTempData = DASH_DATA.filter(x=>x.dinnerTemp!=null && x.total>0);
+  if(dTempData.length>=3){
+    const r = pearson(dTempData.map(x=>x.dinnerTemp), dTempData.map(x=>x.total));
+    corrItems.push({label:'🌡️ 저녁 온도', icon:'🌡️', r, n:dTempData.length, hint:'저녁 시간대 온도가 높을수록 매출 변화'});
   }
 
   // 점심 강수량 vs 매출
   const rainData = DASH_DATA.filter(x=>x.lunchRain!=null && x.total>0);
   if(rainData.length>=3){
     const r = pearson(rainData.map(x=>x.lunchRain), rainData.map(x=>x.total));
-    corrItems.push({label:'🌧️ 점심 강수량', icon:'🌧️', r, n:rainData.length, hint:'비가 많을수록 매출 변화'});
+    corrItems.push({label:'🌧️ 점심 강수량', icon:'🌧️', r, n:rainData.length, hint:'점심 시간 비가 많을수록 매출 변화'});
   }
 
-  // 미세먼지 vs 매출
+  // 저녁 강수량 vs 매출
+  const dRainData = DASH_DATA.filter(x=>x.dinnerRain!=null && x.total>0);
+  if(dRainData.length>=3){
+    const r = pearson(dRainData.map(x=>x.dinnerRain), dRainData.map(x=>x.total));
+    corrItems.push({label:'🌧️ 저녁 강수량', icon:'🌧️', r, n:dRainData.length, hint:'저녁 시간 비가 많을수록 매출 변화'});
+  }
+
+  // 점심 날씨 코드 vs 매출
+  const lunchWxData = DASH_DATA.filter(x=>x.lunchWx!=null && x.total>0);
+  if(lunchWxData.length>=3){
+    const r = pearson(lunchWxData.map(x=>x.lunchWx), lunchWxData.map(x=>x.total));
+    corrItems.push({label:'☁️ 점심 날씨', icon:'☁️', r, n:lunchWxData.length, hint:'점심 0=맑음 → 4=눈 (높을수록 안 좋음)'});
+  }
+
+  // 저녁 날씨 코드 vs 매출
+  const dinnerWxData = DASH_DATA.filter(x=>x.dinnerWx!=null && x.total>0);
+  if(dinnerWxData.length>=3){
+    const r = pearson(dinnerWxData.map(x=>x.dinnerWx), dinnerWxData.map(x=>x.total));
+    corrItems.push({label:'☁️ 저녁 날씨', icon:'☁️', r, n:dinnerWxData.length, hint:'저녁 0=맑음 → 4=눈 (높을수록 안 좋음)'});
+  }
+
+  // 점심 미세먼지 vs 매출
+  const lunchPmData = DASH_DATA.filter(x=>x.lunchPm25!=null && x.total>0);
+  if(lunchPmData.length>=3){
+    const r = pearson(lunchPmData.map(x=>x.lunchPm25), lunchPmData.map(x=>x.total));
+    corrItems.push({label:'😷 점심 미세먼지', icon:'😷', r, n:lunchPmData.length, hint:'점심시간 PM2.5 농도'});
+  }
+
+  // 저녁 미세먼지 vs 매출
+  const dinnerPmData = DASH_DATA.filter(x=>x.dinnerPm25!=null && x.total>0);
+  if(dinnerPmData.length>=3){
+    const r = pearson(dinnerPmData.map(x=>x.dinnerPm25), dinnerPmData.map(x=>x.total));
+    corrItems.push({label:'😷 저녁 미세먼지', icon:'😷', r, n:dinnerPmData.length, hint:'저녁시간 PM2.5 농도'});
+  }
+
+  // 미세먼지 vs 매출 (일평균)
   const pmData = DASH_DATA.filter(x=>x.dayPm25!=null && x.total>0);
   if(pmData.length>=3){
     const r = pearson(pmData.map(x=>x.dayPm25), pmData.map(x=>x.total));
-    corrItems.push({label:'😷 미세먼지(PM2.5)', icon:'😷', r, n:pmData.length, hint:'미세먼지 수치가 높을수록 매출 변화'});
+    corrItems.push({label:'😷 일평균 미세먼지', icon:'😷', r, n:pmData.length, hint:'하루 평균 PM2.5'});
   }
 
   // 공휴일 vs 매출 (이진 변수)
@@ -7798,11 +7966,11 @@ function renderPredDebug(){
     corrItems.push({label:'🎌 공휴일', icon:'🎌', r, n:allWithFlag.length, hint:'공휴일 여부 (1=공휴일, 0=평일)'});
   }
 
-  // 날씨 좋음/나쁨 (맑음=0, 구름=1, 흐림=2, 비=3, 눈=4)
-  const wxData = DASH_DATA.filter(x=>x.wx!=null && x.total>0);
-  if(wxData.length>=3){
-    const r = pearson(wxData.map(x=>x.wx), wxData.map(x=>x.total));
-    corrItems.push({label:'☁️ 날씨 코드', icon:'☁️', r, n:wxData.length, hint:'0=맑음 → 4=눈 (수치 높을수록 날씨 안 좋음)'});
+  // 일평균 날씨 코드 vs 매출
+  const wxAllData = DASH_DATA.filter(x=>x.wx!=null && x.total>0);
+  if(wxAllData.length>=3){
+    const r = pearson(wxAllData.map(x=>x.wx), wxAllData.map(x=>x.total));
+    corrItems.push({label:'☁️ 일평균 날씨', icon:'☁️', r, n:wxAllData.length, hint:'0=맑음 → 4=눈'});
   }
 
   // 표 그리기
