@@ -452,6 +452,68 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 /* TOAST */
 .toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(30,20,8,.88);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:300}
 .toast.show{opacity:1}
+
+/* ═══════════════════════════════════════════
+   TABLET MODE (768px 이상) - 매장 비치용
+   글씨/버튼 크게, 모바일은 0% 영향
+   ═══════════════════════════════════════════ */
+@media (min-width: 768px) {
+  body { font-size: 21px; padding-bottom: 110px; }
+  /* 메인 컨테이너는 가운데 정렬, 너무 넓진 않게 */
+  body > .view, body > div.view { max-width: 760px; margin: 0 auto; }
+  /* 본문 여백 */
+  .view { padding: 0 22px; }
+  /* 하단 탭 - 더 큰 버튼 */
+  .bnav { max-width: 760px; margin: 0 auto; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+  .bn { padding: 14px 4px 18px; font-size: 14px; }
+  .bn-ico { font-size: 28px; margin-bottom: 4px; }
+  /* 체크리스트 - 매장 핵심 기능 */
+  .ci-body { font-size: 19px; padding: 16px 18px; }
+  .ci-title { font-size: 19px; }
+  .ci-sub { font-size: 15px; }
+  .check-item { padding: 16px 14px; min-height: 64px; }
+  .check-item label { font-size: 18px; }
+  .check-box { width: 30px; height: 30px; }
+  /* 섹션 헤더 */
+  .sec-hdr { font-size: 20px; padding: 16px 18px; }
+  .sec-title { font-size: 20px; }
+  /* 예약 - 매장 핵심 기능 */
+  .res-cell { font-size: 16px; min-height: 60px; }
+  .order-inp { font-size: 18px; padding: 16px 14px; min-height: 56px; }
+  /* 달력 */
+  .cal-cell { font-size: 18px; min-height: 60px; }
+  .dow { font-size: 16px; padding: 10px 0; }
+  .dow-row { gap: 4px; }
+  /* 버튼 전반 */
+  button { font-size: 18px; }
+  .save-btn { font-size: 19px; padding: 18px; }
+  .ord-btn { font-size: 18px; padding: 16px; min-height: 56px; }
+  .more-menu-btn { padding: 20px 18px; }
+  .more-menu-title { font-size: 19px; }
+  .more-menu-sub { font-size: 15px; }
+  .more-menu-ico { font-size: 32px; }
+  /* 입력 필드 */
+  input, select, textarea { font-size: 18px !important; }
+  .log-sel { font-size: 18px; padding: 14px; }
+  /* 출퇴근 */
+  .stamp-btn { font-size: 26px; padding: 28px; }
+  .stamp-time { font-size: 38px; }
+  /* 토스트 */
+  .toast { font-size: 18px; padding: 16px 32px; bottom: 120px; }
+  /* 헤더/타이틀 */
+  .d-hdr, .ttl, h1, h2, h3 { font-size: 22px; }
+  .d-sec { font-size: 18px; padding: 16px 4px 10px; }
+  /* 매출 입력 */
+  .inp-lbl { font-size: 16px; width: 140px; min-width: 140px; max-width: 140px; height: 56px; }
+  /* 알림 chip */
+  .nm-chip { font-size: 19px; padding: 18px 10px; }
+  /* PIN 키패드 */
+  .pin-key { font-size: 28px; padding: 20px; }
+  /* 모달 */
+  .name-modal, .perm-modal { max-width: 520px; }
+  /* 단골/예약 카드 */
+  .cust-card, .res-card { padding: 18px; font-size: 18px; }
+}
 </style>
 </head>
 <body>
