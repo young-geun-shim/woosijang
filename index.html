@@ -1505,11 +1505,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">과거 날씨 수집</div><div class="more-menu-sub">대표 전용 · 매출 데이터에 날씨 일괄 채우기</div></div>
       <div style="color:var(--red)">›</div>
     </button>
-    <button class="more-menu-btn" id="migrateBtn" onclick="migrateToMultiTenant()" style="background:var(--rbg);border-color:var(--rborder);display:none">
-      <div class="more-menu-ico">🔄</div>
-      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">데이터 마이그레이션</div><div class="more-menu-sub">대표 전용 · 멀티테넌트 구조로 이동 (1회만)</div></div>
-      <div style="color:var(--red)">›</div>
-    </button>
     <button class="more-menu-btn" id="debugErrBtn" onclick="showLastError()" style="background:var(--rbg);border-color:var(--rborder);display:none">
       <div class="more-menu-ico">🐛</div>
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">마지막 에러 보기</div><div class="more-menu-sub">대표 전용 · 예보/날씨 실패 원인 확인</div></div>
@@ -1754,57 +1749,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 // ════ FIREBASE ════
 firebase.initializeApp({databaseURL:'https://woosijang-e9589-default-rtdb.firebaseio.com'});
 const db=firebase.database();
-
-// ════ 멀티테넌트: 매장 ID ════
-// 영근님 우시장회관 = 'woosijang'
-// 친구 가게 = 'kimchi' 등으로 변경
-// 이 한 줄만 바꾸면 같은 코드로 다른 매장 운영 가능
-const STORE_ID = 'woosijang';
-// 모든 Firebase 경로는 자동으로 stores/{STORE_ID}/... 아래로 들어감
-function dbRef(path){
-  // .info/connected 같은 시스템 경로는 그대로
-  if(path && path.startsWith('.')) return db.ref(path);
-  return dbRef('stores/'+STORE_ID+'/'+path);
-}
-
 function setSyncDot(s){['syncDot'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='sync-dot '+s;});}
 db.ref('.info/connected').on('value',s=>setSyncDot(s.val()?'ok':'err'));
-function fbSet(path,val){setSyncDot('ing');return dbRef(path).set(val).then(()=>setSyncDot('ok')).catch(()=>setSyncDot('err'));}
-
-// ════ 데이터 마이그레이션 (한 번만 실행) ════
-// 기존 root 경로 → stores/{STORE_ID}/ 아래로 이동
-async function migrateToMultiTenant(){
-  if(!confirm('⚠️ 데이터 마이그레이션 시작?\n\n기존 데이터를 stores/'+STORE_ID+'/ 아래로 복사합니다.\n원본은 보존되니 안전합니다.\n\n진행할까요?')) return;
-  const ROOT_PATHS = ['sales','attend','checks','weather','airquality','weightHistory','orderlist','orders','reservations','customers','staffSettings','schedules','complains','costSettings','memos'];
-  let migrated = 0, skipped = 0, errors = 0;
-  showToast('🔄 마이그레이션 시작 - 잠시만요', 5000);
-
-  for(const path of ROOT_PATHS){
-    try{
-      // 새 경로에 이미 데이터 있으면 스킵
-      const newSnap = await db.ref('stores/'+STORE_ID+'/'+path).get();
-      if(newSnap.exists()){
-        console.log('[마이그레이션]', path, '- 이미 존재, 스킵');
-        skipped++;
-        continue;
-      }
-      // 기존 경로 데이터 가져오기
-      const oldSnap = await db.ref(path).get();
-      if(!oldSnap.exists()){
-        console.log('[마이그레이션]', path, '- 원본 없음');
-        continue;
-      }
-      // 새 경로에 복사
-      await db.ref('stores/'+STORE_ID+'/'+path).set(oldSnap.val());
-      console.log('[마이그레이션]', path, '- 완료');
-      migrated++;
-    }catch(e){
-      console.error('[마이그레이션]', path, '- 실패:', e);
-      errors++;
-    }
-  }
-  alert('✅ 마이그레이션 완료!\n\n복사: '+migrated+'개\n스킵(이미 존재): '+skipped+'개\n실패: '+errors+'개\n\n새로고침하면 새 구조로 작동합니다.');
-}
+function fbSet(path,val){setSyncDot('ing');db.ref(path).set(val).then(()=>setSyncDot('ok')).catch(()=>setSyncDot('err'));}
 
 // ════ 이름 시스템 ════
 const ADMIN = '심영근';
@@ -1851,8 +1798,6 @@ function applyUser(){
   if(histBtn) histBtn.style.display=CU.name===ADMIN?'flex':'none';
   const dbgBtn=document.getElementById('debugErrBtn');
   if(dbgBtn) dbgBtn.style.display=CU.name===ADMIN?'flex':'none';
-  const migBtn=document.getElementById('migrateBtn');
-  if(migBtn) migBtn.style.display=CU.name===ADMIN?'flex':'none';
   // 목표 설정 입력창 - 심영근만
   const tgtRow=document.getElementById('tgtInputRow');
   if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
@@ -2079,7 +2024,7 @@ function renderCal(){
 }
 function changeMonth(dir){calM+=dir;if(calM<0){calM=11;calY--;}if(calM>11){calM=0;calY++;}renderCal();}
 function subscribeCalMonth(){
-  dbRef('checks').orderByKey().startAt(dkStr(calY,calM,1)).endAt(dkStr(calY,calM,31)).on('value',snap=>{
+  db.ref('checks').orderByKey().startAt(dkStr(calY,calM,1)).endAt(dkStr(calY,calM,31)).on('value',snap=>{
     const all=snap.val()||{};
     Object.keys(all).forEach(dk=>{calPctCache[dk]=getPctFromData(all[dk]);});
     renderCal();
@@ -2134,14 +2079,14 @@ function openDay(y,m,d){
   },50);
 }
 function goBackCal(){
-  if(dayListener){dbRef('checks/'+curChkDate).off('value',dayListener);dayListener=null;}
+  if(dayListener){db.ref('checks/'+curChkDate).off('value',dayListener);dayListener=null;}
   curChkDate=null;
   document.getElementById('vChk').classList.remove('on');
   document.getElementById('vCal').classList.add('on');
   window.scrollTo(0,0);
 }function subscribeDay(){
-  if(dayListener){dbRef('checks/'+curChkDate).off('value',dayListener);}
-  dayListener=dbRef('checks/'+curChkDate).on('value',snap=>{applyChecks(snap.val()||{});});
+  if(dayListener){db.ref('checks/'+curChkDate).off('value',dayListener);}
+  dayListener=db.ref('checks/'+curChkDate).on('value',snap=>{applyChecks(snap.val()||{});});
 }
 function applyChecks(data){
   ALL_IDS.forEach(id=>{
@@ -2221,7 +2166,7 @@ function onOptChk(n,cb){
 function resetSec(sec){
   if(!confirm('이 섹션의 체크를 모두 초기화할까요?'))return;
   const upd={};
-  SEC_IDS[sec].forEach(id=>{upd['stores/'+STORE_ID+'/checks/'+curChkDate+'/'+id]=null;});
+  SEC_IDS[sec].forEach(id=>{upd['checks/'+curChkDate+'/'+id]=null;});
   setSyncDot('ing');
   db.ref().update(upd).then(()=>setSyncDot('ok')).catch(()=>setSyncDot('err'));
 }
@@ -2288,9 +2233,9 @@ function doStamp(type){
   if(!gpsOk){alert('매장 근처에서만 '+(type==='in'?'출근':'퇴근')+'할 수 있어요\n(50m 이내)');return;}
   const n=new Date(), dk=dkStr(n.getFullYear(),n.getMonth(),n.getDate());
   const t=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
-  const key=dbRef('attend').push().key;
+  const key=db.ref('attend').push().key;
   setSyncDot('ing');
-  dbRef('attend/'+key).set({name:CU.name,role:CU.role,type,date:dk,time:t,ts:n.getTime()}).then(()=>{setSyncDot('ok');alert((type==='in'?'✅ 출근':'🚪 퇴근')+' 완료!\n'+CU.name+' '+t);}).catch(()=>setSyncDot('err'));
+  db.ref('attend/'+key).set({name:CU.name,role:CU.role,type,date:dk,time:t,ts:n.getTime()}).then(()=>{setSyncDot('ok');alert((type==='in'?'✅ 출근':'🚪 퇴근')+' 완료!\n'+CU.name+' '+t);}).catch(()=>setSyncDot('err'));
 }
 
 // 출퇴근 달력
@@ -2398,7 +2343,7 @@ function showAttendDay(dk,dd){
   document.getElementById('attendDayDetail').style.display='block';
 }
 function initAttend(){checkGPS();renderTodayLog();loadLogMonths();renderAttendCal();}
-dbRef('attend').on('value',snap=>{attendAllData=snap.val()||{};renderTodayLog();loadLogMonths();renderAttendCal();});
+db.ref('attend').on('value',snap=>{attendAllData=snap.val()||{};renderTodayLog();loadLogMonths();renderAttendCal();});
 function renderTodayLog(){
   const n=new Date(), dk=dkStr(n.getFullYear(),n.getMonth(),n.getDate());
   const box=document.getElementById('todayLog'); if(!box)return;
@@ -2643,7 +2588,7 @@ function saveOrderList(){
 
   if(total===0){ showToast('발주할 항목을 선택하거나 기타에 입력해주세요'); return; }
   setSyncDot('ing');
-  dbRef('orderlist/'+dk).set({items:result, by:CU.name, savedAt:new Date().toISOString()})
+  db.ref('orderlist/'+dk).set({items:result, by:CU.name, savedAt:new Date().toISOString()})
     .then(()=>{
       setSyncDot('ok');
       showToast(`✅ ${total}개 항목 발주 저장 완료!`);
@@ -2658,7 +2603,7 @@ function loadOrderList(){
   const copyBtn = document.getElementById('orderCopyBtn');
   if(!view)return;
   view.innerHTML='<div class="empty-msg" style="padding:20px">불러오는 중...</div>';
-  dbRef('orderlist/'+dk).get().then(snap=>{
+  db.ref('orderlist/'+dk).get().then(snap=>{
     if(!snap.exists()){
       view.innerHTML='<div class="empty-msg">이 날 발주 기록이 없어요</div>';
       if(copyBtn) copyBtn.style.display='none';
@@ -2696,7 +2641,7 @@ function renderOrderListView(data, container){
 
 function copyOrderList(){
   const dk = dkStr(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
-  dbRef('orderlist/'+dk).get().then(snap=>{
+  db.ref('orderlist/'+dk).get().then(snap=>{
     if(!snap.exists()){showToast('저장된 발주 목록이 없어요');return;}
     const data=snap.val();
     if(!data||!data.items)return;
@@ -2728,7 +2673,7 @@ function renderOrderCal(){
 
   // 해당 월 발주 기록 조회
   const monthKey=orderCalY+'-'+String(orderCalM+1).padStart(2,'0');
-  dbRef('orderlist').orderByKey().startAt(monthKey).endAt(monthKey+'\uf8ff').get().then(snap=>{
+  db.ref('orderlist').orderByKey().startAt(monthKey).endAt(monthKey+'\uf8ff').get().then(snap=>{
     const orderData={};
     if(snap.exists()) Object.entries(snap.val()).forEach(([dk,v])=>{orderData[dk]=v;});
 
@@ -2757,7 +2702,7 @@ function openOrderCalDay(dk, d){
   document.getElementById('orderCalDetailLbl').textContent=label+' 발주 내역';
   document.getElementById('orderCalDetail').style.display='block';
   document.getElementById('orderCalDetailContent').innerHTML='<div class="empty-msg">불러오는 중...</div>';
-  dbRef('orderlist/'+dk).get().then(snap=>{
+  db.ref('orderlist/'+dk).get().then(snap=>{
     if(!snap.exists()){document.getElementById('orderCalDetailContent').innerHTML='<div class="empty-msg">기록 없음</div>';return;}
     renderOrderListView(snap.val(), document.getElementById('orderCalDetailContent'));
   });
@@ -3030,7 +2975,7 @@ async function loadTodayWeather(){
       const pm=aq&&aq.dayPm25!=null?` · PM2.5 ${aq.dayPm25}(${pm25Grade(aq.dayPm25)})`:'';
       const el=document.getElementById('hdrSub');
       if(el) el.textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨'+pm;
-      if(aq){ dbRef('airquality/'+dk).set(aq); applyAqToData(dk,aq); }
+      if(aq){ db.ref('airquality/'+dk).set(aq); applyAqToData(dk,aq); }
     }).catch(()=>{
       const el=document.getElementById('hdrSub');
       if(el) el.textContent=WX_ICONS[wx]+' '+WX_NAMES[wx]+'  ·  날씨 연동됨';
@@ -3051,11 +2996,11 @@ async function loadTodayWeather(){
 // Firebase 날씨 캐시 조회 또는 API 호출
 async function getOrFetchWx(dk){
   try{
-    const snap=await dbRef('weather/'+dk).get();
+    const snap=await db.ref('weather/'+dk).get();
     if(snap.exists()) return snap.val();
   }catch(e){}
   const wx=await fetchWeatherByDate(dk);
-  dbRef('weather/'+dk).set(wx);
+  db.ref('weather/'+dk).set(wx);
   return wx;
 }
 
@@ -3066,7 +3011,7 @@ let forecastAq = {}; // {'2026-04-07': {dayPm25:22}, ...}
 function localDateStr(d){ return dkStr(d.getFullYear(), d.getMonth(), d.getDate()); }
 
 async function fetchHistoricalWeather(force=false){
-  const wxSnap=await dbRef('weather').get();
+  const wxSnap=await db.ref('weather').get();
   const cached=wxSnap.exists()?wxSnap.val():{};
   const allDates=new Set([...Object.keys(REAL_SALES), ...Object.keys(firebaseSalesData)]);
   const todayDk = localDateStr(new Date());
@@ -3147,7 +3092,7 @@ async function fetchHistoricalWeather(force=false){
       lunchRain: sliceSum(day.rain, WX_LUNCH_S, WX_LUNCH_E),
       dinnerRain: sliceSum(day.rain, WX_DINNER_S, WX_DINNER_E),
     };
-    dbRef('weather/'+dk).set({...detail, wxVersion:5, savedAt:Date.now()});
+    db.ref('weather/'+dk).set({...detail, wxVersion:5, savedAt:Date.now()});
     cached[dk] = detail;
 
     if(firebaseSalesData[dk]){
@@ -3264,11 +3209,11 @@ function saveSales(){
       record.don5=nv('d5'); record.don1=nv('d1'); record.donBag=nvFmt('dbag');
     }
     fbSet('sales/'+dk,record);
-    dbRef('weather/'+dk).set(wx);
+    db.ref('weather/'+dk).set(wx);
     // 미세먼지 수집 → airquality + sales 둘 다 저장
     fetchAirQuality(dk).then(aq=>{
       if(aq){
-        dbRef('airquality/'+dk).set(aq);
+        db.ref('airquality/'+dk).set(aq);
         applyAqToData(dk,aq);
         // sales 레코드에도 미세먼지 병합
         fbSet('sales/'+dk, {...record, ...aq});
@@ -4068,7 +4013,7 @@ async function fetchHistoricalAirQuality(){
   const todayDk = localDateStr(new Date());
 
   // 캐시 스냅샷으로 한 번에 체크 (날짜별 N번 Firebase 쿼리 방지)
-  const aqSnap=await dbRef('airquality').get().catch(()=>null);
+  const aqSnap=await db.ref('airquality').get().catch(()=>null);
   const cached=aqSnap&&aqSnap.exists()?aqSnap.val():{};
 
   // 필요한 날짜만 (과거만, 캐시 없는 것만)
@@ -4081,7 +4026,7 @@ async function fetchHistoricalAirQuality(){
     try{
       const aq=await fetchAirQuality(dk);
       if(aq){
-        dbRef('airquality/'+dk).set(aq);
+        db.ref('airquality/'+dk).set(aq);
         applyAqToData(dk,aq);
         if(firebaseSalesData[dk]){
           const merged={...firebaseSalesData[dk],...aq};
@@ -4116,20 +4061,20 @@ let firebaseAqData={};
 let firebaseWxData={};
 
 // Firebase 실제 매출 구독
-dbRef('sales').on('value',snap=>{
+db.ref('sales').on('value',snap=>{
   firebaseSalesData=snap.val()||{};
   rebuildDashData();
 });
 
 // Firebase 미세먼지 구독
-dbRef('airquality').on('value',snap=>{
+db.ref('airquality').on('value',snap=>{
   firebaseAqData=snap.val()||{};
   rebuildDashData();
   if(document.getElementById('dashCalGrid')) renderDashCal();
 });
 
 // Firebase 날씨 구독 - REAL_SALES에 자동 병합 (영구 저장 활용)
-dbRef('weather').on('value',snap=>{
+db.ref('weather').on('value',snap=>{
   firebaseWxData=snap.val()||{};
   // REAL_SALES에 Firebase weather 병합
   Object.entries(firebaseWxData).forEach(([dk,wv])=>{
@@ -4374,24 +4319,16 @@ function renderDA(d){
   dc('da');
   const bt=d.reduce((s,x)=>s+x.baemin,0),ct=d.reduce((s,x)=>s+x.coupang,0);
   document.getElementById('daMeta').textContent=`배민 ${Math.round(bt/(bt+ct)*100)}% : 쿠팡 ${Math.round(ct/(bt+ct)*100)}% · ${d.length}일 기준`;
-  // 기간에 따라 그룹 크기 결정: 7~14일=일별, 15~45일=주간, 46일+=주간
-  // 최소 2개 점이 생기도록 조정
-  let groupSize;
-  if(d.length<=14) groupSize=1;       // 일별
-  else if(d.length<=45) groupSize=3;  // 3일씩
-  else groupSize=7;                   // 주간
-  const labelType = groupSize===1?'일별':groupSize+'일 합계';
-
+  // 7일 단위로 그룹화 (주간 합계 - 노이즈 제거, 추이 명확)
   const buckets=[];
-  for(let i=0;i<d.length;i+=groupSize){
-    const chunk=d.slice(i,i+groupSize);
+  for(let i=0;i<d.length;i+=7){
+    const chunk=d.slice(i,i+7);
     if(!chunk.length) continue;
     const baeminSum=chunk.reduce((s,x)=>s+x.baemin,0);
     const coupangSum=chunk.reduce((s,x)=>s+x.coupang,0);
     const firstDs=chunk[0].ds;
     const lastDs=chunk[chunk.length-1].ds;
-    const label=chunk.length===1?firstDs:firstDs+'~'+lastDs;
-    buckets.push({label, shortLabel:firstDs, baemin:baeminSum, coupang:coupangSum, days:chunk.length});
+    buckets.push({label:firstDs+'~'+lastDs.slice(-5), shortLabel:firstDs, baemin:baeminSum, coupang:coupangSum, days:chunk.length});
   }
   const ctx=document.getElementById('daChart').getContext('2d');
   CH['da']=new Chart(ctx,{
@@ -4399,8 +4336,8 @@ function renderDA(d){
     data:{
       labels:buckets.map(b=>b.shortLabel),
       datasets:[
-        {label:'배민 ('+labelType+')', data:buckets.map(b=>b.baemin), borderColor:'#e53', backgroundColor:'rgba(229,51,51,0.12)', tension:0.3, pointRadius:3, pointHoverRadius:5, fill:true, borderWidth:2.5},
-        {label:'쿠팡이츠 ('+labelType+')', data:buckets.map(b=>b.coupang), borderColor:'#c60', backgroundColor:'rgba(204,102,0,0.12)', tension:0.3, pointRadius:3, pointHoverRadius:5, fill:true, borderWidth:2.5}
+        {label:'배민 (주간)', data:buckets.map(b=>b.baemin), borderColor:'#e53', backgroundColor:'rgba(229,51,51,0.12)', tension:0.3, pointRadius:3, pointHoverRadius:5, fill:true, borderWidth:2.5},
+        {label:'쿠팡이츠 (주간)', data:buckets.map(b=>b.coupang), borderColor:'#c60', backgroundColor:'rgba(204,102,0,0.12)', tension:0.3, pointRadius:3, pointHoverRadius:5, fill:true, borderWidth:2.5}
       ]
     },
     options:{
@@ -5207,7 +5144,7 @@ function changeProfitMonth(dir){
 
 // Firebase에서 원가 설정 로드
 function loadCostSettings(){
-  dbRef('costSettings').get().then(snap=>{
+  db.ref('costSettings').get().then(snap=>{
     if(snap.exists()) costSettings = snap.val();
     else costSettings = {fixed:[], var:[]};
     renderCostList();
@@ -5217,7 +5154,7 @@ function loadCostSettings(){
 
 function saveCostSettings(){
   setSyncDot('ing');
-  dbRef('costSettings').set(costSettings).then(()=>{
+  db.ref('costSettings').set(costSettings).then(()=>{
     setSyncDot('ok');
     showToast('✅ 원가 설정 저장됐어요!');
     renderProfitMonth();
@@ -5666,7 +5603,7 @@ async function generateReport(){
       // 날씨 캐시
       let wx = 1;
       try{
-        const wxSnap = await dbRef('weather/'+day.dk).get();
+        const wxSnap = await db.ref('weather/'+day.dk).get();
         if(wxSnap.exists()) wx = wxSnap.val();
       }catch(e){}
       weekData.push({
@@ -6073,10 +6010,10 @@ function saveReservation(){
   const people=document.getElementById('res-people').value.trim();
   const menu=document.getElementById('res-menu').value.trim();
   if(!phone||!time){alert('전화번호와 시간은 필수예요');return;}
-  const key=dbRef('reservations/'+selectedResDate).push().key;
+  const key=db.ref('reservations/'+selectedResDate).push().key;
   const record={name,phone,time,people,menu,by:CU.name,savedAt:new Date().toISOString()};
   setSyncDot('ing');
-  dbRef('reservations/'+selectedResDate+'/'+key).set(record).then(()=>{
+  db.ref('reservations/'+selectedResDate+'/'+key).set(record).then(()=>{
     setSyncDot('ok');
     showToast('예약 저장됐어요!');
     if(phone) recordCustomerVisit(name,phone,'reservation');
@@ -6108,9 +6045,9 @@ function autoFillCustomer(phone){
   }
 }
 function delReservation(dk,key){
-  if(confirm('예약을 삭제할까요?')) dbRef('reservations/'+dk+'/'+key).remove();
+  if(confirm('예약을 삭제할까요?')) db.ref('reservations/'+dk+'/'+key).remove();
 }
-dbRef('reservations').on('value',snap=>{
+db.ref('reservations').on('value',snap=>{
   resData=snap.val()||{};
   renderResCal();
   if(selectedResDate) renderResDayList(selectedResDate);
@@ -6120,7 +6057,7 @@ dbRef('reservations').on('value',snap=>{
 
 // ── 단골 관리 ──
 function loadCustomers(){renderCustomerList();}
-dbRef('customers').on('value',snap=>{
+db.ref('customers').on('value',snap=>{
   customerData=snap.val()||{};
   renderCustomerList();
 });
@@ -6194,7 +6131,7 @@ function saveCustomer(){
   };
   if(!record.visits) record.visits=0;
   setSyncDot('ing');
-  dbRef('customers/'+id).set(record).then(()=>{setSyncDot('ok');showToast('저장됐어요!');closeCustomerModal();}).catch(()=>setSyncDot('err'));
+  db.ref('customers/'+id).set(record).then(()=>{setSyncDot('ok');showToast('저장됐어요!');closeCustomerModal();}).catch(()=>setSyncDot('err'));
 }
 function closeCustomerModal(){
   document.getElementById('customerModal').style.display='none';
@@ -6203,13 +6140,13 @@ function closeCustomerModal(){
 function recordCustomerVisit(name,phone,src){
   const id=phone.replace(/[^0-9]/g,''); // 전화번호만으로 식별
   if(!id) return;
-  dbRef('customers/'+id).get().then(snap=>{
+  db.ref('customers/'+id).get().then(snap=>{
     const existing=snap.val()||{phone,visits:0};
     existing.name=name||existing.name||''; // 이름 업데이트 (최신 이름 유지)
     existing.phone=phone||existing.phone;
     existing.visits=(existing.visits||0)+1;
     existing.lastVisit=dkStr(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
-    dbRef('customers/'+id).set(existing);
+    db.ref('customers/'+id).set(existing);
   });
 }
 function showRTab(id,btn){
@@ -6285,7 +6222,7 @@ function changePayMonth(dir){
   payM+=dir; if(payM<0){payM=11;payY--;} if(payM>11){payM=0;payY++;}
   renderPayroll();
 }
-dbRef('staffSettings').on('value',snap=>{
+db.ref('staffSettings').on('value',snap=>{
   staffSettings=snap.val()||{};
   renderStaffSettingList();
   renderPayroll();
@@ -6438,9 +6375,9 @@ function saveStaffSetting(){
     monthly:parseInt(document.getElementById('staff-monthly').value)||0
   };
   setSyncDot('ing');
-  dbRef('staffSettings/'+name).set(record).then(()=>{setSyncDot('ok');showToast('저장됐어요!');closeStaffModal();}).catch(()=>setSyncDot('err'));
+  db.ref('staffSettings/'+name).set(record).then(()=>{setSyncDot('ok');showToast('저장됐어요!');closeStaffModal();}).catch(()=>setSyncDot('err'));
 }
-function delStaff(name){if(confirm(name+' 직원 설정을 삭제할까요?')) dbRef('staffSettings/'+name).remove();}
+function delStaff(name){if(confirm(name+' 직원 설정을 삭제할까요?')) db.ref('staffSettings/'+name).remove();}
 function closeStaffModal(){document.getElementById('staffModal').style.display='none';}
 function showPTab(id,btn){
   // 직원 설정 탭은 대표(심영근)만 접근 가능
@@ -6465,7 +6402,7 @@ function changeSchedMonth(dir){
   schedM+=dir; if(schedM<0){schedM=11;schedY--;} if(schedM>11){schedM=0;schedY++;}
   renderSchedGrid();
 }
-dbRef('schedules').on('value',snap=>{schedData=snap.val()||{};renderSchedGrid();});
+db.ref('schedules').on('value',snap=>{schedData=snap.val()||{};renderSchedGrid();});
 
 function renderSchedGrid(){
   const lbl=document.getElementById('schedMonthLbl'); if(!lbl)return;
@@ -6526,7 +6463,7 @@ function saveSchedule(){
   if(!name){alert('직원을 선택해주세요');return;}
   const record={type:document.getElementById('sched-type').value,start:document.getElementById('sched-start').value,end:document.getElementById('sched-end').value};
   setSyncDot('ing');
-  dbRef('schedules/'+selectedSchedDate+'/'+name).set(record).then(()=>{
+  db.ref('schedules/'+selectedSchedDate+'/'+name).set(record).then(()=>{
     setSyncDot('ok');showToast('스케줄 저장됐어요!');
     document.getElementById('schedEdit').style.display='none';
   }).catch(()=>setSyncDot('err'));
@@ -6536,11 +6473,11 @@ function saveSchedule(){
 let complainData={}, complainFilter='all';
 const COMP_TYPES={food:'음식',service:'서비스',wait:'대기',hygiene:'위생',price:'가격',other:'기타'};
 
-dbRef('complains').on('value',snap=>{complainData=snap.val()||{};renderComplainList();});
+db.ref('complains').on('value',snap=>{complainData=snap.val()||{};renderComplainList();});
 function saveComplain(){
   const content=document.getElementById('comp-content').value.trim();
   if(!content){alert('컴플레인 내용을 입력해주세요');return;}
-  const key=dbRef('complains').push().key;
+  const key=db.ref('complains').push().key;
   const now=new Date();
   const record={
     type:document.getElementById('comp-type').value,
@@ -6553,7 +6490,7 @@ function saveComplain(){
     ts:now.getTime()
   };
   setSyncDot('ing');
-  dbRef('complains/'+key).set(record).then(()=>{
+  db.ref('complains/'+key).set(record).then(()=>{
     setSyncDot('ok');showToast('기록 저장됐어요!');
     document.getElementById('comp-content').value='';
     document.getElementById('comp-action').value='';
@@ -6912,7 +6849,7 @@ async function autoFillRecentWeather(){
       if(needsWxUpdate){
         const detail=await fetchWeatherDetail(dk);
         if(detail){
-          dbRef('weather/'+dk).set(detail.wx);
+          db.ref('weather/'+dk).set(detail.wx);
           if(firebaseSalesData[dk]){
             const merged={...firebaseSalesData[dk], wx:detail.wx, lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx, lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp, lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain, wxVersion:5};
             fbSet('sales/'+dk, merged);
@@ -6924,11 +6861,11 @@ async function autoFillRecentWeather(){
     }catch(e){}
     // 미세먼지 누락 체크
     try{
-      const aqSnap=await dbRef('airquality/'+dk).get();
+      const aqSnap=await db.ref('airquality/'+dk).get();
       if(!aqSnap.exists()){
         const aq=await fetchAirQuality(dk);
         if(aq){
-          dbRef('airquality/'+dk).set(aq);
+          db.ref('airquality/'+dk).set(aq);
           // sales에도 미세먼지 병합 (rebuildDashData에서 읽히도록)
           if(firebaseSalesData[dk]){
             const merged={...firebaseSalesData[dk], dayPm25:aq.dayPm25, dayPm10:aq.dayPm10, lunchPm25:aq.lunchPm25, dinnerPm25:aq.dinnerPm25, aqi:aq.aqi};
@@ -7005,7 +6942,7 @@ async function fetchWeatherForecast(retryCount=0){
   // 0) Firebase에 이미 저장된 weather 데이터 먼저 불러오기 (오늘 날짜)
   if(retryCount===0){
     try{
-      const snap = await dbRef('weather/'+todayDk).get();
+      const snap = await db.ref('weather/'+todayDk).get();
       if(snap.exists()){
         const val = snap.val();
         if(val && typeof val==='object' && val.wx!=null){
@@ -7188,14 +7125,14 @@ async function replaceForecastWithActual(){
   if(!pastForecasts.length) return;
   for(const dk of pastForecasts){
     try{
-      const snap = await dbRef('weather/'+dk).get();
+      const snap = await db.ref('weather/'+dk).get();
       if(snap.exists()){
         delete forecastWx[dk];
         continue;
       }
       const detail = await fetchWeatherDetail(dk);
       if(detail){
-        dbRef('weather/'+dk).set(detail.wx);
+        db.ref('weather/'+dk).set(detail.wx);
         if(firebaseSalesData[dk]){
           const merged = {...firebaseSalesData[dk], wx:detail.wx, lunchWx:detail.lunchWx, dinnerWx:detail.dinnerWx, lunchTemp:detail.lunchTemp, dinnerTemp:detail.dinnerTemp, lunchRain:detail.lunchRain, dinnerRain:detail.dinnerRain, wxVersion:5};
           fbSet('sales/'+dk, merged);
@@ -7524,7 +7461,7 @@ function refreshWeights(){
     dataCount:DASH_DATA.length,
     hol:weights.hol, wx:weights.wx, pm:weights.pm, temp:weights.temp
   };
-  dbRef('weightHistory/'+today).set(record);
+  db.ref('weightHistory/'+today).set(record);
   showToast('가중치 저장 완료! 공휴일'+Math.round(weights.hol*100)+'% 날씨'+Math.round(weights.wx*100)+'% 미세먼지'+Math.round(weights.pm*100)+'% 온도'+Math.round(weights.temp*100)+'%');
   renderPredDebug();
   loadWeightHistory();
@@ -7546,7 +7483,7 @@ function autoRefreshWeightsDaily(){
     hol:weights.hol, wx:weights.wx, pm:weights.pm, temp:weights.temp,
     auto:true
   };
-  dbRef('weightHistory/'+today).set(record);
+  db.ref('weightHistory/'+today).set(record);
   localStorage.setItem('ws_weight_last_auto', today);
   console.log('[가중치] 자동 갱신:', today, weights);
 }
@@ -7554,7 +7491,7 @@ function autoRefreshWeightsDaily(){
 function loadWeightHistory(){
   const wrap=document.getElementById('weightHistory');
   if(!wrap) return;
-  dbRef('weightHistory').orderByKey().limitToLast(10).once('value',snap=>{
+  db.ref('weightHistory').orderByKey().limitToLast(10).once('value',snap=>{
     const data=snap.val();
     if(!data){ wrap.innerHTML='<div style="color:var(--tm)">아직 저장된 이력이 없어요. "가중치 새로고침 저장" 버튼을 눌러보세요.</div>'; return; }
     const entries=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0]));
