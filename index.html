@@ -1510,6 +1510,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">마지막 에러 보기</div><div class="more-menu-sub">대표 전용 · 예보/날씨 실패 원인 확인</div></div>
       <div style="color:var(--red)">›</div>
     </button>
+    <button class="more-menu-btn" id="bulkXhsBtn" onclick="bulkAddXiaohongshu()" style="background:#FFF8E8;border-color:var(--gold);display:none">
+      <div class="more-menu-ico">📋</div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--brown)">샤오홍수 체험단 일괄 등록</div><div class="more-menu-sub">대표 전용 · 15명 한 번에 예약 등록 (1회용)</div></div>
+      <div style="color:var(--brown)">›</div>
+    </button>
   </div>
 </div>
 <div class="view" id="vPredDebug">
@@ -1838,6 +1843,8 @@ function applyUser(){
   if(histBtn) histBtn.style.display=CU.name===ADMIN?'flex':'none';
   const dbgBtn=document.getElementById('debugErrBtn');
   if(dbgBtn) dbgBtn.style.display=CU.name===ADMIN?'flex':'none';
+  const xhsBtn=document.getElementById('bulkXhsBtn');
+  if(xhsBtn) xhsBtn.style.display=CU.name===ADMIN?'flex':'none';
   // 목표 설정 입력창 - 심영근만
   const tgtRow=document.getElementById('tgtInputRow');
   if(tgtRow) tgtRow.style.display=CU.name===ADMIN?'flex':'none';
@@ -6233,6 +6240,50 @@ function saveReservation(){
   }).catch(()=>setSyncDot('err'));
 }
 
+// ════ 샤오홍수 체험단 15명 일괄 등록 (1회용) ════
+function bulkAddXiaohongshu(){
+  const list=[
+    {name:'장자추',  date:'2026-04-10', time:'18:20'},
+    {name:'장유한',  date:'2026-04-10', time:'19:20'},
+    {name:'남궁헌',  date:'2026-04-10', time:'19:50'},
+    {name:'시오',    date:'2026-04-11', time:'17:20'},
+    {name:'자오위자오',date:'2026-04-14', time:'17:20'},
+    {name:'쑤문',    date:'2026-04-14', time:'18:20'},
+    {name:'후연이',  date:'2026-04-15', time:'17:50'},
+    {name:'천뤄시',  date:'2026-04-17', time:'19:20'},
+    {name:'왕양',    date:'2026-04-18', time:'17:20'},
+    {name:'주영',    date:'2026-04-20', time:'17:20'},
+    {name:'왕자염',  date:'2026-04-23', time:'18:20'},
+    {name:'듀듀',    date:'2026-04-23', time:'20:20'},
+    {name:'장예몽',  date:'2026-04-24', time:'17:20'},
+    {name:'Faye',    date:'2026-04-25', time:'18:20'},
+    {name:'즈위',    date:'2026-04-25', time:'18:20'},
+  ];
+  if(!confirm('샤오홍수 체험단 '+list.length+'명을 예약 목록에 일괄 등록할까요?\n\n날짜: 4월 10일~25일\n이름 뒤에 (샤오홍수 체험단) 자동 추가됨')){return;}
+  setSyncDot('ing');
+  let saved=0, errors=0;
+  const promises=list.map(item=>{
+    const key=db.ref('reservations/'+item.date).push().key;
+    const record={
+      name: item.name+'(샤오홍수 체험단)',
+      phone:'',
+      time: item.time,
+      people:'',
+      menu:'샤오홍수 체험단',
+      by: CU.name||'시스템',
+      savedAt: new Date().toISOString()
+    };
+    return db.ref('reservations/'+item.date+'/'+key).set(record)
+      .then(()=>saved++)
+      .catch(()=>errors++);
+  });
+  Promise.all(promises).then(()=>{
+    setSyncDot('ok');
+    alert('✅ 일괄 등록 완료!\n\n성공: '+saved+'명\n실패: '+errors+'명\n\n예약 탭에서 4월 10일~25일 확인해주세요.');
+    if(typeof renderResCal==='function') renderResCal();
+  });
+}
+
 // 전화번호로 기존 고객 자동 검색
 function autoFillCustomer(phone){
   const matchEl=document.getElementById('resCustMatch');
@@ -6242,7 +6293,35 @@ function autoFillCustomer(phone){
   if(found){
     matchEl.style.display='block';
     const g=getGrade(found.visits||0);
-    matchEl.innerHTML=`${g.label} <strong>${found.name||''}</strong> · 방문${found.visits||0}회${found.pref?' · 선호:'+found.pref:''}`;
+    // 기본 정보
+    let html=`${g.label} <strong>${found.name||''}</strong> · 방문${found.visits||0}회${found.pref?' · 선호:'+found.pref:''}`;
+    // 과거 예약 기록 찾기 (최신순)
+    const history=[];
+    Object.entries(resData).forEach(([dk,dayRes])=>{
+      Object.values(dayRes||{}).forEach(r=>{
+        const rPhone=(r.phone||'').replace(/[^0-9]/g,'');
+        if(rPhone===cleaned || (rPhone && rPhone.endsWith(cleaned)) || (cleaned.length>=8 && cleaned.endsWith(rPhone))){
+          history.push({date:dk, time:r.time||'-', people:r.people||'-', menu:r.menu||''});
+        }
+      });
+    });
+    history.sort((a,b)=>b.date.localeCompare(a.date));
+    if(history.length>0){
+      html+=`<div style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--gborder);font-size:10px;color:var(--td)">
+        <div style="font-weight:700;color:var(--green);margin-bottom:3px">📅 과거 방문 기록 (${history.length}회)</div>
+        <div style="max-height:140px;overflow-y:auto;display:flex;flex-direction:column;gap:2px">`;
+      history.forEach(h=>{
+        const dShort=h.date.slice(2).replace(/-/g,'/');
+        html+=`<div style="display:flex;gap:8px;padding:3px 4px;background:rgba(255,255,255,0.5);border-radius:4px;font-size:10px">
+          <span style="color:var(--brown);font-weight:600;min-width:55px">${dShort}</span>
+          <span style="color:var(--td);min-width:36px">${h.time}</span>
+          <span style="color:var(--tm);min-width:36px">${h.people}명</span>
+          ${h.menu?`<span style="color:var(--tm);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.menu}</span>`:''}
+        </div>`;
+      });
+      html+=`</div></div>`;
+    }
+    matchEl.innerHTML=html;
     document.getElementById('res-name').value=found.name||'';
   } else {
     matchEl.style.display=cleaned.length>=8?'block':'none';
