@@ -1750,6 +1750,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
   <button class="bn" id="bn-cal" onclick="goTab('cal')"><div class="bn-ico">📅</div>체크리스트</button>
   <button class="bn" id="bn-board" onclick="goTab('board')"><div class="bn-ico">📦</div>발주</button>
   <button class="bn" id="bn-sales" onclick="goTab('sales')"><div class="bn-ico">✏️</div>매출</button>
+  <button class="bn" id="bn-reserve" onclick="goTab('reserve')"><div class="bn-ico">📞</div>예약</button>
   <button class="bn" id="bn-more" onclick="goTab('more')"><div class="bn-ico">☰</div>더보기</button>
 </div>
 
@@ -5666,6 +5667,8 @@ async function generateReport(){
           }
         }catch(e){}
       }
+      // 미세먼지 데이터 (raw 자체 또는 firebaseAqData에서)
+      const aq = firebaseAqData[day.dk] || {};
       weekData.push({
         ...day,
         ds: (day.date.getMonth()+1)+'/'+day.date.getDate(),
@@ -5677,6 +5680,8 @@ async function generateReport(){
         cash: raw.cash||0,
         card: raw.card||0,
         wx, lunchTemp, lunchRain, dinnerTemp, dinnerRain,
+        dayPm25: raw.dayPm25 ?? aq.dayPm25 ?? null,
+        dayPm10: raw.dayPm10 ?? aq.dayPm10 ?? null,
         isHoliday: holidaySet.has(day.dk)
       });
     }
@@ -5956,8 +5961,8 @@ function goTab(tab){
   }
   const b=document.getElementById('bn-'+tab);
   if(b) b.classList.add('on');
-  // 더보기 탭 하위 메뉴들은 더보기 버튼 on 유지
-  if(['dash','reserve','payroll','schedule','complain','report','monthreport','profit'].includes(tab)){
+  // 더보기 탭 하위 메뉴들은 더보기 버튼 on 유지 (reserve는 이제 독립 탭이라 제외)
+  if(['dash','payroll','schedule','complain','report','monthreport','profit'].includes(tab)){
     const bMore=document.getElementById('bn-more');
     if(bMore) bMore.classList.add('on');
   }
@@ -6864,6 +6869,19 @@ async function manualFetchHistoricalWeather(){
     startY = e.touches[0].clientY;
   }, {passive:true});
   document.body.addEventListener('touchmove', e=>{
+    // 팝업/모달 안에서는 스크롤 막지 않음 (자식 스크롤 가능)
+    let target = e.target;
+    while(target && target !== document.body){
+      if(target.id==='predPopup' || target.id==='predPopupContent' || target.id==='albaNameModal'){
+        return; // 팝업 안 → 통과
+      }
+      // 스크롤 가능한 요소 안이면 통과 (overflow auto/scroll)
+      const style = window.getComputedStyle(target);
+      if((style.overflowY==='auto' || style.overflowY==='scroll') && target.scrollHeight > target.clientHeight){
+        return;
+      }
+      target = target.parentElement;
+    }
     const y = e.touches[0].clientY;
     const scrollTop = document.body.scrollTop || document.documentElement.scrollTop;
     const scrollHeight = document.body.scrollHeight;
