@@ -1532,14 +1532,14 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 오늘/내일 매출 예측 팝업 ═══ -->
 <div id="predPopup" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.65);align-items:flex-end;justify-content:center;padding:0">
-  <div style="background:var(--white);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:20px 20px 32px;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-      <div style="font-size:16px;font-weight:700;color:var(--brown)">🔮 매출 예측</div>
-      <button onclick="closePredPopup(false)" style="background:none;border:none;font-size:20px;color:var(--tm);cursor:pointer;line-height:1">×</button>
+  <div style="background:var(--white);border-radius:18px 18px 0 0;width:100%;max-width:440px;padding:14px 16px 20px;max-height:72vh;display:flex;flex-direction:column;box-sizing:border-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-shrink:0">
+      <div style="font-size:15px;font-weight:700;color:var(--brown)">🔮 매출 예측</div>
+      <button onclick="closePredPopup(false)" style="background:none;border:none;font-size:22px;color:var(--tm);cursor:pointer;line-height:1;padding:0 4px">×</button>
     </div>
-    <div id="predPopupContent"></div>
-    <div style="margin-top:16px;display:flex;gap:8px">
-      <button onclick="closePredPopup(true)" style="flex:1;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--surface);font-size:13px;color:var(--tm);cursor:pointer">오늘 하루 보지 않기</button>
+    <div id="predPopupContent" style="flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding-right:2px"></div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-shrink:0">
+      <button onclick="closePredPopup(true)" style="flex:1;padding:11px;border:1px solid var(--gold);border-radius:10px;background:#FFF8E8;font-size:12px;color:var(--brown);font-weight:600;cursor:pointer">🚫 오늘 더 안보기</button>
       <button onclick="closePredPopup(false)" style="flex:1;padding:11px;background:var(--brown);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer">확인</button>
     </div>
   </div>
@@ -1666,41 +1666,51 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div id="reportWeather" style="padding:12px"></div>
     </div>
 
-    <!-- 온도·강수량 심화분석 더보기 -->
+    <!-- 온도·강수량 심화분석 더보기 (대시보드 날씨분석기와 동일 - 주간리포트 기간 데이터) -->
     <button onclick="toggleReportWxDetail(this)" style="width:100%;padding:12px;border:1px solid var(--bs);border-radius:10px;background:var(--surface);font-size:13px;font-weight:700;color:var(--brown);cursor:pointer;margin-bottom:12px;display:flex;align-items:center;justify-content:center;gap:6px">
-      <span id="reportWxDetailArrow">▼</span> 온도·강수량 심화분석 더보기
+      <span id="reportWxDetailArrow">▼</span> 날씨 심화분석기
     </button>
     <div id="reportWxDetailSection" style="display:none;margin-bottom:12px">
-      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">날씨별 매출 카드</div>
-        </div>
-        <div id="reportWxCards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px"></div>
+      <div style="font-size:11px;color:var(--tm);text-align:center;padding:8px;background:#FFF8E8;border-radius:8px;margin-bottom:10px">📅 이 기간 통계: <span id="reportWxRangeLbl">-</span></div>
+
+      <!-- 방법1: 히트맵 -->
+      <div class="d-sec">방법 1 — 온도 × 강수량 히트맵</div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-ttl">온도·강수량 조합별 평균 총매출</div><div class="chart-meta" id="reportHeatmapWxMeta">진할수록 매출 높음</div></div>
+        <div class="chart-body"><div id="reportHeatmapWxGrid" style="overflow-x:auto"></div></div>
       </div>
-      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">온도 구간별 홀·배달 분석</div>
-        </div>
-        <div style="padding:12px"><canvas id="reportTempBand4Chart" style="max-height:200px"></canvas></div>
+      <!-- 방법2: 버블차트 -->
+      <div class="d-sec">방법 2 — 온도 vs 매출 버블차트</div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-ttl">X=온도 · Y=매출 · 버블크기=강수량</div><div class="chart-meta" id="reportBubbleMeta">-</div></div>
+        <div class="chart-body"><canvas id="reportBubbleChart"></canvas></div>
       </div>
-      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">온도×강수량 히트맵</div>
-        </div>
-        <div style="padding:12px;overflow-x:auto"><div id="reportHeatmapGrid"></div></div>
+      <!-- 방법3: 날씨 카드 -->
+      <div class="d-sec">방법 3 — 날씨별 매출 카드</div>
+      <div class="chart-card">
+        <div class="chart-body"><div class="w-grid" id="reportWxCards3"></div></div>
       </div>
-      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">온도 vs 매출 버블차트</div>
-        </div>
-        <div style="padding:12px"><canvas id="reportBubbleChart" style="max-height:200px"></canvas></div>
+      <!-- 방법4: 온도구간 막대 -->
+      <div class="d-sec">방법 4 — 온도 구간별 홀 · 배달 분석</div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-ttl">점심홀 · 점심배달 · 저녁홀 · 저녁배달 · 평균매출</div><div class="chart-meta" id="reportTempBand4Meta2">-</div></div>
+        <div class="chart-body"><canvas id="reportTempBand4Chart2"></canvas></div>
       </div>
-      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-        <div style="padding:12px 14px;border-bottom:1px solid var(--border)">
-          <div style="font-size:13px;font-weight:700;color:var(--txt)">🌡 온도 · 강수량 vs 매출 상관관계</div>
-          <div style="font-size:11px;color:var(--tm);margin-top:2px">r: 1에 가까울수록 강한 양의 상관</div>
-        </div>
-        <div id="reportWeatherCorr" style="padding:12px"></div>
+      <!-- 방법5: 강수량구간 막대 -->
+      <div class="d-sec">방법 5 — 강수량 구간별 홀 · 배달 분석</div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-ttl">강수량별 점심홀 · 점심배달 · 저녁홀 · 저녁배달 · 평균매출</div><div class="chart-meta" id="reportRainBandChart2Meta">-</div></div>
+        <div class="chart-body"><canvas id="reportRainBandChart2"></canvas></div>
+      </div>
+      <!-- 미세먼지 -->
+      <div class="d-sec">미세먼지 vs 매출</div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-ttl">PM2.5 등급별 평균 매출</div><div class="chart-meta" id="reportPmMeta">-</div></div>
+        <div style="padding:10px 14px"><div id="reportPmBarRows"></div></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-hdr"><div class="chart-ttl">미세먼지 나쁜 날 홀·배달 변화</div><div class="chart-meta" id="reportPmDelivMeta">-</div></div>
+        <div style="padding:10px 14px"><div id="reportPmDelivRows"></div></div>
       </div>
     </div>
 
@@ -4472,6 +4482,7 @@ function renderMonthly(d){
 }
 // ════ 날씨 심화분석기 토글 ════
 let wxDetailOpen=false, reportWxDetailOpen=false;
+let currentReportData=null;
 
 function toggleWxDetail(btn){
   wxDetailOpen=!wxDetailOpen;
@@ -4503,16 +4514,35 @@ function toggleReportWxDetail(btn){
 }
 
 function renderReportWxDetail(){
-  const d=DASH_DATA;
-  // 날씨 카드
-  const wrap=document.getElementById('reportWxCards');
-  if(wrap) renderWxCardsInto(d,wrap);
-  // 히트맵
-  renderHeatmapWxInto(d, document.getElementById('reportHeatmapGrid'));
-  // 버블
+  // 리포트에서 선택한 주간 데이터만 사용 (전체 158일 X)
+  const d = (typeof reportWeekFullData !== 'undefined' && reportWeekFullData && reportWeekFullData.length) 
+    ? reportWeekFullData 
+    : DASH_DATA;
+  // 기간 라벨 표시 (dk로 정렬, ds로 표시)
+  const lbl=document.getElementById('reportWxRangeLbl');
+  if(lbl && d.length){
+    const sorted=[...d].filter(x=>x.dk).sort((a,b)=>a.dk.localeCompare(b.dk));
+    if(sorted.length){
+      const first=sorted[0].ds||sorted[0].dk;
+      const last=sorted[sorted.length-1].ds||sorted[sorted.length-1].dk;
+      lbl.textContent = first+' ~ '+last+' ('+d.length+'일)';
+    }
+  }
+  // 방법1: 히트맵
+  renderHeatmapWxInto(d, document.getElementById('reportHeatmapWxGrid'));
+  const hm=document.getElementById('reportHeatmapWxMeta');
+  if(hm) hm.textContent=d.filter(x=>x.lunchTemp!=null).length+'일 기준 · 진할수록 매출 높음';
+  // 방법2: 버블차트
   renderBubbleInto(d,'reportBubbleChart');
-  // 온도구간 막대
-  renderTempBand4Into(d,'reportTempBand4Chart');
+  // 방법3: 날씨 카드
+  const wrap=document.getElementById('reportWxCards3');
+  if(wrap) renderWxCardsInto(d,wrap);
+  // 방법4: 온도구간 막대
+  renderTempBand4Into(d,'reportTempBand4Chart2');
+  // 방법5: 강수량구간 막대
+  renderRainBand(d,'reportRainBandChart2');
+  // 미세먼지
+  renderPMInto(d, 'report');
 }
 
 // ── 방법1: 온도×강수량 히트맵 ──
@@ -4877,10 +4907,13 @@ function renderHoliday(d){
 }
 
 // ════ 미세먼지 분석 ════
-function renderPM(d){
-  const barRows=document.getElementById('pmBarRows');
-  const delivRows=document.getElementById('pmDelivRows');
-  const meta=document.getElementById('pmMeta');
+function renderPM(d){ renderPMInto(d, ''); }
+function renderPMInto(d, prefix){
+  const P=prefix||'';
+  const idCap=(s)=>P?P+s.charAt(0).toUpperCase()+s.slice(1):s;
+  const barRows=document.getElementById(idCap('pmBarRows'));
+  const delivRows=document.getElementById(idCap('pmDelivRows'));
+  const meta=document.getElementById(idCap('pmMeta'));
   if(!barRows||!delivRows) return;
 
   const grades=[
@@ -4922,7 +4955,7 @@ function renderPM(d){
   }).join('');
 
   // 홀·배달 변화 비교
-  const delivMeta=document.getElementById('pmDelivMeta');
+  const delivMeta=document.getElementById(idCap('pmDelivMeta'));
   const good=stats.find(s=>s.lbl==='좋음')||stats[0]; // 좋음 없으면 가장 낮은 등급 기준
   if(!good){ delivRows.innerHTML='<div style="font-size:12px;color:var(--tm);text-align:center;padding:12px">데이터 부족</div>'; return; }
   if(delivMeta) delivMeta.textContent=`"${good.lbl}" 기준 비교 · ${valid.length}일 기준`;
@@ -4956,8 +4989,8 @@ function renderPM(d){
   if(maxDelivDiff>0) delivRows.innerHTML+=`<div style="margin-top:6px;padding:7px 10px;background:#FAEEDA;border-radius:8px;font-size:11px;color:#633806">미세먼지 나쁨 이상인 날 배달 비중 최대 +${maxDelivDiff}%p · 홀 감소</div>`;
 
   // 미세먼지 등급별 예상 매출
-  const predEl=document.getElementById('pmPredRows');
-  const predMeta=document.getElementById('pmPredMeta');
+  const predEl=document.getElementById(idCap('pmPredRows'));
+  const predMeta=document.getElementById(idCap('pmPredMeta'));
   if(!predEl) return;
   const lastWithPm=d.slice().reverse().find(x=>x.dayPm25!=null);
   const todayPm=lastWithPm?lastWithPm.dayPm25:null;
@@ -5335,6 +5368,7 @@ function showProfitTab(id, btn){
 const WD_NAMES = ['일','월','화','수','목','금','토'];
 const WX_LABEL = {0:'☀️ 맑음', 1:'☁️ 흐림', 2:'🌧️ 비', 3:'❄️ 눈'};
 let reportWeekOffset = 0; // 0=이번주, -1=지난주 등
+let reportWeekFullData = null; // 리포트 심화분석용 주간 데이터 (날씨 상세 포함)
 
 function getWeekRange(offset){
   const now = new Date();
@@ -5608,14 +5642,33 @@ async function generateReport(){
     const rsData = REAL_SALES[day.dk];
     const raw = fbData || rsData;
     if(raw && raw.total > 0){
-      // 날씨 캐시
-      let wx = 1;
-      try{
-        const wxSnap = await db.ref('weather/'+day.dk).get();
-        if(wxSnap.exists()) wx = wxSnap.val();
-      }catch(e){}
+      // 날씨 캐시 (코드 + 상세)
+      let wx = 1, lunchTemp=null, lunchRain=null, dinnerTemp=null, dinnerRain=null;
+      const fbWx = firebaseWxData[day.dk];
+      if(fbWx && typeof fbWx==='object'){
+        wx = fbWx.wx!=null ? fbWx.wx : (fbWx.lunchWx!=null ? fbWx.lunchWx : 1);
+        lunchTemp = fbWx.lunchTemp;
+        lunchRain = fbWx.lunchRain;
+        dinnerTemp = fbWx.dinnerTemp;
+        dinnerRain = fbWx.dinnerRain;
+      } else if(typeof fbWx==='number'){
+        wx = fbWx;
+      } else {
+        try{
+          const wxSnap = await db.ref('weather/'+day.dk).get();
+          if(wxSnap.exists()){
+            const v = wxSnap.val();
+            if(typeof v==='object'){
+              wx = v.wx!=null?v.wx:(v.lunchWx!=null?v.lunchWx:1);
+              lunchTemp = v.lunchTemp; lunchRain = v.lunchRain;
+              dinnerTemp = v.dinnerTemp; dinnerRain = v.dinnerRain;
+            } else wx = v;
+          }
+        }catch(e){}
+      }
       weekData.push({
         ...day,
+        ds: (day.date.getMonth()+1)+'/'+day.date.getDate(),
         total: raw.total||0,
         hall: raw.hall||0,
         deliv: raw.deliv||(raw.baemin||0)+(raw.coupang||0),
@@ -5623,10 +5676,13 @@ async function generateReport(){
         coupang: raw.coupang||0,
         cash: raw.cash||0,
         card: raw.card||0,
-        wx
+        wx, lunchTemp, lunchRain, dinnerTemp, dinnerRain,
+        isHoliday: holidaySet.has(day.dk)
       });
     }
   }
+  // 심화분석 함수가 사용할 전역 변수
+  reportWeekFullData = weekData;
 
   if(!weekData.length){
     document.getElementById('reportContent').style.display='none';
@@ -5650,6 +5706,7 @@ async function generateReport(){
 }
 
 function renderReportUI(data, prevData){
+  currentReportData = data;  // 심화 분석에서 사용
   const total = data.reduce((s,d)=>s+d.total,0);
   const avg = Math.floor(total/data.length);
   const delivTotal = data.reduce((s,d)=>s+d.deliv,0);
@@ -5935,7 +5992,11 @@ function goTab(tab){
       const dayBtn=document.querySelector('#vSales .ptab');
       if(dayBtn) setPeriod('day', dayBtn);
       else renderDayView();
-    }, 50);
+      // 달력이 첫 화면에 보이도록 맨 위로 강제 스크롤
+      window.scrollTo({top:0, behavior:'instant'});
+      document.body.scrollTop=0;
+      document.documentElement.scrollTop=0;
+    }, 80);
   }
   if(tab==='reserve'){initReserve();}
   if(tab==='payroll'){initPayroll();}
