@@ -7743,6 +7743,112 @@ function renderPredDebug(){
   html+=`데이터 수집일: ${DASH_DATA.length}일 / 자동보정: ${isAuto?'활성':'데이터 5일 미만'}`;
   html+=`</div>`;
 
+  // 10. 상관관계 분석 (Pearson 상관계수)
+  html+=`<div class="d-sec" style="margin-top:18px">📊 매출 상관관계 분석</div>`;
+  html+=`<div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;line-height:1.6;color:var(--blue)">`;
+  html+=`<strong>상관계수 읽는 법:</strong><br>`;
+  html+=`+1.0 = 완전 양의 상관 (X 오를수록 매출↑)<br>`;
+  html+=`0.0 = 무관 / -1.0 = 완전 음의 상관 (X 오를수록 매출↓)<br>`;
+  html+=`<strong>강도:</strong> 0.7+ 강함 · 0.4~0.7 중간 · 0.2~0.4 약함 · 0.2미만 거의 무관`;
+  html+=`</div>`;
+
+  // Pearson 상관계수 계산 함수
+  const pearson = (xs, ys) => {
+    const n = xs.length;
+    if(n < 3) return null;
+    const mx = xs.reduce((s,v)=>s+v,0)/n;
+    const my = ys.reduce((s,v)=>s+v,0)/n;
+    let num=0, dxs=0, dys=0;
+    for(let i=0;i<n;i++){
+      const dx=xs[i]-mx, dy=ys[i]-my;
+      num+=dx*dy; dxs+=dx*dx; dys+=dy*dy;
+    }
+    const den=Math.sqrt(dxs*dys);
+    return den===0?0:num/den;
+  };
+
+  // 변수별 데이터 추출
+  const corrItems = [];
+
+  // 점심 온도 vs 매출
+  const tempData = DASH_DATA.filter(x=>x.lunchTemp!=null && x.total>0);
+  if(tempData.length>=3){
+    const r = pearson(tempData.map(x=>x.lunchTemp), tempData.map(x=>x.total));
+    corrItems.push({label:'🌡️ 점심 온도', icon:'🌡️', r, n:tempData.length, hint:'온도가 높을수록 매출 변화'});
+  }
+
+  // 점심 강수량 vs 매출
+  const rainData = DASH_DATA.filter(x=>x.lunchRain!=null && x.total>0);
+  if(rainData.length>=3){
+    const r = pearson(rainData.map(x=>x.lunchRain), rainData.map(x=>x.total));
+    corrItems.push({label:'🌧️ 점심 강수량', icon:'🌧️', r, n:rainData.length, hint:'비가 많을수록 매출 변화'});
+  }
+
+  // 미세먼지 vs 매출
+  const pmData = DASH_DATA.filter(x=>x.dayPm25!=null && x.total>0);
+  if(pmData.length>=3){
+    const r = pearson(pmData.map(x=>x.dayPm25), pmData.map(x=>x.total));
+    corrItems.push({label:'😷 미세먼지(PM2.5)', icon:'😷', r, n:pmData.length, hint:'미세먼지 수치가 높을수록 매출 변화'});
+  }
+
+  // 공휴일 vs 매출 (이진 변수)
+  const allWithFlag = DASH_DATA.filter(x=>x.total>0);
+  if(allWithFlag.length>=3){
+    const r = pearson(allWithFlag.map(x=>x.isHoliday?1:0), allWithFlag.map(x=>x.total));
+    corrItems.push({label:'🎌 공휴일', icon:'🎌', r, n:allWithFlag.length, hint:'공휴일 여부 (1=공휴일, 0=평일)'});
+  }
+
+  // 날씨 좋음/나쁨 (맑음=0, 구름=1, 흐림=2, 비=3, 눈=4)
+  const wxData = DASH_DATA.filter(x=>x.wx!=null && x.total>0);
+  if(wxData.length>=3){
+    const r = pearson(wxData.map(x=>x.wx), wxData.map(x=>x.total));
+    corrItems.push({label:'☁️ 날씨 코드', icon:'☁️', r, n:wxData.length, hint:'0=맑음 → 4=눈 (수치 높을수록 날씨 안 좋음)'});
+  }
+
+  // 표 그리기
+  if(corrItems.length===0){
+    html+=`<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center;font-size:12px;color:var(--tm);margin-bottom:14px">데이터가 부족해서 상관관계를 계산할 수 없어요</div>`;
+  } else {
+    // 상관계수 절대값 큰 순으로 정렬
+    corrItems.sort((a,b)=>Math.abs(b.r)-Math.abs(a.r));
+    html+=`<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px">`;
+    corrItems.forEach((item,idx)=>{
+      const absR = Math.abs(item.r);
+      const strength = absR>=0.7?'매우 강함':absR>=0.4?'강함':absR>=0.2?'중간':absR>=0.1?'약함':'거의 무관';
+      const direction = item.r>0.05?'양(+)':item.r<-0.05?'음(-)':'중립';
+      const color = absR>=0.4?(item.r>0?'var(--green)':'var(--red)'):absR>=0.2?'var(--brown)':'var(--tm)';
+      const bgColor = absR>=0.4?(item.r>0?'var(--gbg)':'var(--rbg)'):'var(--surface)';
+      // 막대 (절대값 기준 0~1을 0~100%로)
+      const barPct = Math.round(absR*100);
+      html+=`<div style="padding:12px 14px;${idx>0?'border-top:1px solid var(--border);':''}background:${bgColor}">`;
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">`;
+      html+=`<div style="font-size:13px;font-weight:700;color:var(--txt)">${item.label}</div>`;
+      html+=`<div style="font-size:14px;font-weight:700;color:${color}">${item.r>=0?'+':''}${item.r.toFixed(3)}</div>`;
+      html+=`</div>`;
+      // 막대바
+      html+=`<div style="height:8px;background:var(--surface);border-radius:4px;overflow:hidden;margin-bottom:6px">`;
+      html+=`<div style="height:100%;width:${barPct}%;background:${color};border-radius:4px"></div>`;
+      html+=`</div>`;
+      // 정보
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;font-size:10px;color:var(--tm)">`;
+      html+=`<span>${strength} · ${direction}</span>`;
+      html+=`<span>${item.n}일 데이터</span>`;
+      html+=`</div>`;
+      html+=`<div style="font-size:10px;color:var(--tm);margin-top:3px;font-style:italic">${item.hint}</div>`;
+      html+=`</div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // 해석 가이드
+  html+=`<div style="background:var(--gbg);border:1px solid var(--gborder);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:11px;line-height:1.7;color:var(--green)">`;
+  html+=`<strong>💡 활용법:</strong><br>`;
+  html+=`• <strong>강한 양의 상관 (+0.4 이상):</strong> 그 요소가 좋아지면 매출이 늘어요<br>`;
+  html+=`• <strong>강한 음의 상관 (-0.4 이하):</strong> 그 요소가 악화되면 매출이 늘어요 (예: 비 오면 배달 ↑)<br>`;
+  html+=`• <strong>약한 상관 (±0.2 미만):</strong> 그 요소가 매출에 거의 영향 없어요<br>`;
+  html+=`• 데이터가 30일 이상이어야 통계가 의미 있어요`;
+  html+=`</div>`;
+
   wrap.innerHTML=html;
 }
 
