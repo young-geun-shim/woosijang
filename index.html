@@ -291,6 +291,9 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 .ptab{flex:1;padding:7px 0;border:1px solid var(--bs);border-radius:8px;background:var(--white);color:var(--tm);font-size:12px;font-weight:600;font-family:'Noto Sans KR',sans-serif;cursor:pointer;text-align:center;transition:all .2s}
 .ptab.on{background:var(--brown);border-color:var(--brown);color:#fff}
 .d-sec{padding:10px 12px 4px;font-size:10px;font-weight:700;letter-spacing:1px;color:var(--tm)}
+.d-hdr{display:flex;align-items:center;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.d-back{background:var(--surface);border:1px solid var(--border);border-radius:8px;width:36px;height:36px;font-size:22px;font-weight:700;color:var(--brown);cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;flex-shrink:0;font-family:'Noto Sans KR',sans-serif}
+.d-back:active{background:var(--gbg);transform:scale(.93)}
 .sum-row{display:flex;gap:7px;padding:0 12px}
 .sum-card{flex:1;background:var(--white);border:1px solid var(--border);border-radius:12px;padding:11px 9px}
 .sum-lbl{font-size:9px;font-weight:700;color:var(--tm);letter-spacing:.8px;margin-bottom:4px}
@@ -1166,6 +1169,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 월간 리포트 ═══ -->
 <div class="view" id="vMonthReport">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">📅 월간 리포트</div>
+  </div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 12px">
     <button class="cal-arrow" onclick="changeMonthReport(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--brown)">‹</button>
     <div style="text-align:center">
@@ -1299,6 +1306,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 급여 계산 ═══ -->
 <div class="view" id="vPayroll">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">💰 급여 자동 계산</div>
+  </div>
   <div style="background:var(--brown);padding:0 16px 0">
     <div class="btabs">
       <button class="btab on" id="pt-calc" onclick="showPTab('calc',this)">💰 급여 계산</button>
@@ -1369,6 +1380,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 스케줄표 ═══ -->
 <div class="view" id="vSchedule">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">📋 알바 스케줄표</div>
+  </div>
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 8px">
     <button class="cal-arrow" onclick="changeSchedMonth(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--brown)">‹</button>
     <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)" id="schedMonthLbl"></div>
@@ -1407,6 +1422,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 컴플레인 기록 ═══ -->
 <div class="view" id="vComplain">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">📝 컴플레인 기록</div>
+  </div>
   <div style="margin-bottom:12px">
     <div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.8px;margin-bottom:8px">새 컴플레인 기록</div>
     <div style="display:flex;flex-direction:column;gap:6px">
@@ -1456,12 +1475,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     </button>
     <button class="more-menu-btn" onclick="goTabAdmin('profit')" style="background:var(--rbg);border-color:var(--rborder)">
       <div class="more-menu-ico">🔐</div>
-      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">원가 · 순이익 분석</div><div class="more-menu-sub">대표 전용 · 원가 입력 → 순이익 자동 계산</div></div>
-      <div style="color:var(--red)">›</div>
-    </button>
-    <button class="more-menu-btn" onclick="goTabAdmin('orderCost')" style="background:var(--rbg);border-color:var(--rborder)">
-      <div class="more-menu-ico">🏷️</div>
-      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">발주 품목 원가 설정</div><div class="more-menu-sub">대표 전용 · 품목별 단가 입력 → 식재료비 자동 계산</div></div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">원가 · 순이익 분석</div><div class="more-menu-sub">대표 전용 · 원가/발주단가 입력 → 순이익 자동 계산</div></div>
       <div style="color:var(--red)">›</div>
     </button>
     <button class="more-menu-btn" onclick="goTabAdmin('predDebug')" style="background:var(--rbg);border-color:var(--rborder)">
@@ -1590,6 +1604,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 
 <!-- ═══ 원가 · 순이익 분석 (대표 전용) ═══ -->
 <div class="view" id="vProfit">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">🔐 원가 · 순이익 분석</div>
+  </div>
 
   <!-- 대표 PIN 잠금 -->
   <div id="profitLock" style="padding:32px 20px;text-align:center">
@@ -1608,6 +1626,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="btabs">
         <button class="btab on" id="pft-monthly" onclick="showProfitTab('monthly',this)">📅 월별 분석</button>
         <button class="btab" id="pft-cost" onclick="showProfitTab('cost',this)">⚙️ 원가 설정</button>
+        <button class="btab" id="pft-itemcost" onclick="showProfitTab('itemcost',this)">🏷️ 발주 원가</button>
       </div>
     </div>
 
@@ -1636,6 +1655,20 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <button onclick="addCostItem('var')" style="width:100%;padding:10px;background:var(--surface);border:1px dashed var(--bs);border-radius:10px;font-size:13px;color:var(--tm);cursor:pointer;margin-bottom:16px">+ 변동비 항목 추가</button>
 
       <button class="save-btn" style="margin:0;padding:13px" onclick="saveCostSettings()">💾 원가 설정 저장</button>
+    </div>
+
+    <!-- 발주 품목 원가 탭 -->
+    <div class="bc" id="pfc-itemcost">
+      <div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.7;color:var(--blue)">
+        💡 <strong>발주 품목별 단가 입력</strong><br>
+        • 발주할 때마다 자동으로 식재료비 계산<br>
+        • 변동비 안에 "발주 식재료비" 항목으로 자동 반영<br>
+        • 단가가 0원이면 계산에서 제외됨
+      </div>
+      <div id="orderCostList2"></div>
+      <button onclick="saveOrderCosts2()" class="save-btn" style="margin:14px 0 8px;padding:14px">
+        💾 발주 원가 저장
+      </button>
     </div>
   </div>
 </div>
@@ -1694,6 +1727,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 </div>
 
 <div class="view" id="vReport">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">📊 주간 리포트</div>
+  </div>
   <!-- 주차 선택 -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 12px">
     <button class="cal-arrow" onclick="changeReportWeek(-1)" style="background:var(--surface);border:1px solid var(--border);color:var(--brown)">‹</button>
@@ -5590,6 +5627,82 @@ function showProfitTab(id, btn){
   btn.classList.add('on');
   if(id==='monthly') renderProfitMonth();
   if(id==='cost') renderCostList();
+  if(id==='itemcost') loadOrderItemCostsForProfit();
+}
+
+// 원가/순이익 화면의 발주원가 탭용 - 별도 컨테이너 사용
+function loadOrderItemCostsForProfit(){
+  db.ref('orderItemCosts').get().then(snap=>{
+    orderItemCosts = snap.val() || {};
+    renderOrderCostListForProfit();
+  }).catch(()=>{
+    orderItemCosts = {};
+    renderOrderCostListForProfit();
+  });
+}
+
+function renderOrderCostListForProfit(){
+  const wrap = document.getElementById('orderCostList2');
+  if(!wrap) return;
+  let html = '';
+  Object.keys(ORDER_ITEMS).forEach(cat=>{
+    const items = ORDER_ITEMS[cat];
+    if(!items.length) return;
+    if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
+    const emoji = CAT_EMOJI[cat] || '📦';
+    const label = CAT_LABEL[cat] || cat;
+    const filledCount = items.filter(i=>orderItemCosts[cat][i.name]>0).length;
+    html += `
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+        <div style="background:var(--surface);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:14px;font-weight:700;color:var(--brown)">${emoji} ${label}</div>
+          <div style="font-size:11px;color:var(--tm)">${filledCount}/${items.length} 입력됨</div>
+        </div>
+        <div style="padding:6px 0">`;
+    items.forEach(item=>{
+      const curCost = orderItemCosts[cat][item.name] || '';
+      html += `
+        <div style="display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--surface);gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}</div>
+            <div style="font-size:10px;color:var(--tm)">${item.unit}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <input type="number" inputmode="numeric" placeholder="0" value="${curCost}"
+              data-cat="${cat}" data-item="${item.name}"
+              class="order-cost-inp2"
+              style="width:90px;padding:8px 10px;text-align:right;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--white)">
+            <span style="font-size:11px;color:var(--tm)">원</span>
+          </div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+function saveOrderCosts2(){
+  const inputs = document.querySelectorAll('.order-cost-inp2');
+  inputs.forEach(inp=>{
+    const cat = inp.dataset.cat;
+    const item = inp.dataset.item;
+    const val = parseInt(inp.value) || 0;
+    if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
+    if(val > 0){
+      orderItemCosts[cat][item] = val;
+    } else {
+      delete orderItemCosts[cat][item];
+    }
+  });
+  setSyncDot('ing');
+  db.ref('orderItemCosts').set(orderItemCosts).then(()=>{
+    setSyncDot('ok');
+    showToast('✅ 발주 원가 저장 완료!', 3000);
+    renderOrderCostListForProfit();
+  }).catch(()=>{
+    setSyncDot('err');
+    showToast('❌ 저장 실패');
+  });
 }
 const WD_NAMES = ['일','월','화','수','목','금','토'];
 const WX_LABEL = {0:'☀️ 맑음', 1:'☁️ 흐림', 2:'🌧️ 비', 3:'❄️ 눈'};
@@ -6171,6 +6284,14 @@ function showToast(msg,dur){const t=document.getElementById('toast');t.textConte
 
 // ════ TAB 시스템 업데이트 ════
 const ALL_TABS=['attend','cal','chk','board','sales','reserve','payroll','schedule','complain','more','report','monthreport','profit','predDebug','orderCost'];
+// 메인 탭 (하단 네비게이션) - 이 탭들은 슬라이드/뒤로가기 적용 안 됨
+const MAIN_TABS=['attend','cal','chk','board','sales','reserve','more'];
+// 탭별 부모 탭 (뒤로가기 시 이동할 곳)
+const TAB_PARENT={
+  payroll:'more', schedule:'more', complain:'more',
+  report:'more', monthreport:'more', profit:'more',
+  predDebug:'more', orderCost:'more'
+};
 function goTab(tab){
   ALL_TABS.forEach(t=>{
     const v=document.getElementById('v'+t.charAt(0).toUpperCase()+t.slice(1));
@@ -7253,6 +7374,48 @@ async function manualFetchHistoricalWeather(){
       e.preventDefault();
     }
   }, {passive:false});
+})();
+
+// ════ 슬라이드 뒤로가기 (하위 페이지에서만) ════
+(function swipeBack(){
+  let startX = 0, startY = 0, tracking = false;
+  document.body.addEventListener('touchstart', e=>{
+    // 메인 탭에서는 비활성
+    if(MAIN_TABS.includes(curTab)) return;
+    // 모달/팝업 안에서는 비활성
+    let target = e.target;
+    while(target && target !== document.body){
+      if(target.id==='predPopup' || target.id==='timePickerModal' || 
+         target.id==='albaNameModal' || target.id==='customerModal' ||
+         target.id==='staffModal' || target.id==='costModal'){
+        return;
+      }
+      target = target.parentElement;
+    }
+    // 화면 왼쪽 가장자리(20px 이내)에서 시작 시 - 시스템 제스처 방지
+    if(e.touches[0].clientX < 20) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    tracking = true;
+  }, {passive:true});
+  document.body.addEventListener('touchmove', e=>{
+    if(!tracking) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = Math.abs(e.touches[0].clientY - startY);
+    // 세로 움직임이 더 크면 스크롤로 간주, 추적 중단
+    if(dy > Math.abs(dx)) tracking = false;
+  }, {passive:true});
+  document.body.addEventListener('touchend', e=>{
+    if(!tracking) return;
+    tracking = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    // 50px 이상 오른쪽 슬라이드 + 세로 움직임 작으면 뒤로가기
+    if(dx >= 50 && dy < 40){
+      const parent = TAB_PARENT[curTab] || 'more';
+      goTab(parent);
+    }
+  }, {passive:true});
 })();
 
 loadUser();
