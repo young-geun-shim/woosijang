@@ -379,10 +379,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 .order-item-name{flex:1;font-size:13px;color:var(--td)}
 .order-item-qty{font-size:12px;color:var(--tm);font-weight:600}
 
-/* 발주 달력 */
-.order-cal-cell{aspect-ratio:1;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:2px}
-.order-cal-dot{width:5px;height:5px;border-radius:50%;background:var(--gold)}
-
 /* ── 발주 카테고리 ── */
 /* ── 원가/순이익 ── */
 .profit-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px}
@@ -452,68 +448,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
 /* TOAST */
 .toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%);background:rgba(30,20,8,.88);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap;z-index:300}
 .toast.show{opacity:1}
-
-/* ═══════════════════════════════════════════
-   TABLET MODE (768px 이상) - 매장 비치용
-   글씨/버튼 크게, 모바일은 0% 영향
-   ═══════════════════════════════════════════ */
-@media (min-width: 768px) {
-  body { font-size: 21px; padding-bottom: 110px; }
-  /* 메인 컨테이너는 가운데 정렬, 너무 넓진 않게 */
-  body > .view, body > div.view { max-width: 760px; margin: 0 auto; }
-  /* 본문 여백 */
-  .view { padding: 0 22px; }
-  /* 하단 탭 - 더 큰 버튼 */
-  .bnav { max-width: 760px; margin: 0 auto; left: 50%; transform: translateX(-50%); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-  .bn { padding: 14px 4px 18px; font-size: 14px; }
-  .bn-ico { font-size: 28px; margin-bottom: 4px; }
-  /* 체크리스트 - 매장 핵심 기능 */
-  .ci-body { font-size: 19px; padding: 16px 18px; }
-  .ci-title { font-size: 19px; }
-  .ci-sub { font-size: 15px; }
-  .check-item { padding: 16px 14px; min-height: 64px; }
-  .check-item label { font-size: 18px; }
-  .check-box { width: 30px; height: 30px; }
-  /* 섹션 헤더 */
-  .sec-hdr { font-size: 20px; padding: 16px 18px; }
-  .sec-title { font-size: 20px; }
-  /* 예약 - 매장 핵심 기능 */
-  .res-cell { font-size: 16px; min-height: 60px; }
-  .order-inp { font-size: 18px; padding: 16px 14px; min-height: 56px; }
-  /* 달력 */
-  .cal-cell { font-size: 18px; min-height: 60px; }
-  .dow { font-size: 16px; padding: 10px 0; }
-  .dow-row { gap: 4px; }
-  /* 버튼 전반 */
-  button { font-size: 18px; }
-  .save-btn { font-size: 19px; padding: 18px; }
-  .ord-btn { font-size: 18px; padding: 16px; min-height: 56px; }
-  .more-menu-btn { padding: 20px 18px; }
-  .more-menu-title { font-size: 19px; }
-  .more-menu-sub { font-size: 15px; }
-  .more-menu-ico { font-size: 32px; }
-  /* 입력 필드 */
-  input, select, textarea { font-size: 18px !important; }
-  .log-sel { font-size: 18px; padding: 14px; }
-  /* 출퇴근 */
-  .stamp-btn { font-size: 26px; padding: 28px; }
-  .stamp-time { font-size: 38px; }
-  /* 토스트 */
-  .toast { font-size: 18px; padding: 16px 32px; bottom: 120px; }
-  /* 헤더/타이틀 */
-  .d-hdr, .ttl, h1, h2, h3 { font-size: 22px; }
-  .d-sec { font-size: 18px; padding: 16px 4px 10px; }
-  /* 매출 입력 */
-  .inp-lbl { font-size: 16px; width: 140px; min-width: 140px; max-width: 140px; height: 56px; }
-  /* 알림 chip */
-  .nm-chip { font-size: 19px; padding: 18px 10px; }
-  /* PIN 키패드 */
-  .pin-key { font-size: 28px; padding: 20px; }
-  /* 모달 */
-  .name-modal, .perm-modal { max-width: 520px; }
-  /* 단골/예약 카드 */
-  .cust-card, .res-card { padding: 18px; font-size: 18px; }
-}
 </style>
 </head>
 <body>
@@ -913,7 +847,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="dow" style="color:var(--red)">일</div><div class="dow">월</div><div class="dow">화</div>
       <div class="dow">수</div><div class="dow">목</div><div class="dow">금</div><div class="dow" style="color:var(--blue)">토</div>
     </div>
-    <div id="orderCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:12px"></div>
+    <div class="day-grid" id="orderCalGrid"></div>
     <div id="orderCalDetail" style="display:none">
       <div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.8px;padding:6px 2px;border-bottom:1px solid var(--border);margin-bottom:8px" id="orderCalDetailLbl"></div>
       <div id="orderCalDetailContent"></div>
@@ -1525,6 +1459,11 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">원가 · 순이익 분석</div><div class="more-menu-sub">대표 전용 · 원가 입력 → 순이익 자동 계산</div></div>
       <div style="color:var(--red)">›</div>
     </button>
+    <button class="more-menu-btn" onclick="goTabAdmin('orderCost')" style="background:var(--rbg);border-color:var(--rborder)">
+      <div class="more-menu-ico">🏷️</div>
+      <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">발주 품목 원가 설정</div><div class="more-menu-sub">대표 전용 · 품목별 단가 입력 → 식재료비 자동 계산</div></div>
+      <div style="color:var(--red)">›</div>
+    </button>
     <button class="more-menu-btn" onclick="goTabAdmin('predDebug')" style="background:var(--rbg);border-color:var(--rborder)">
       <div class="more-menu-ico">🧮</div>
       <div class="more-menu-txt"><div class="more-menu-title" style="color:var(--red)">예측 계산 분석</div><div class="more-menu-sub">대표 전용 · 보정계수 · 가중치 상세</div></div>
@@ -1721,6 +1660,39 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     </div>
   </div>
 </div>
+
+<!-- ═══ 발주 품목 원가 설정 (대표 전용) ═══ -->
+<div class="view" id="vOrderCost">
+  <div class="d-hdr">
+    <button class="d-back" onclick="goTab('more')">‹</button>
+    <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">🏷️ 발주 품목 원가 설정</div>
+  </div>
+  <!-- 잠금 화면 -->
+  <div id="orderCostLock" style="padding:32px 20px;text-align:center">
+    <div style="font-size:40px;margin-bottom:14px">🔐</div>
+    <div style="font-size:16px;font-weight:700;color:var(--brown);margin-bottom:6px">대표 전용 기능</div>
+    <div style="font-size:13px;color:var(--tm);margin-bottom:20px">대표 PIN을 입력하세요</div>
+    <input id="orderCostPinInp" type="password" inputmode="numeric" maxlength="4"
+      style="width:200px;padding:14px;text-align:center;font-size:24px;letter-spacing:8px;border:2px solid var(--border);border-radius:12px;margin-bottom:10px"
+      oninput="checkOrderCostPin()">
+    <div id="orderCostPinErr" style="font-size:12px;color:var(--red);display:none">PIN이 틀렸어요</div>
+  </div>
+  <!-- 본문 -->
+  <div id="orderCostContent" style="display:none">
+    <div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.7;color:var(--blue)">
+      💡 <strong>사용 방법</strong><br>
+      • 각 발주 품목의 단가(원가)를 입력하세요<br>
+      • 한 번 입력하면 발주할 때마다 자동으로 식재료비 계산<br>
+      • 월간 리포트에 자동 반영돼요<br>
+      • 단가가 0원이면 계산에서 제외됨
+    </div>
+    <div id="orderCostList"></div>
+    <button onclick="saveOrderCosts()" class="save-btn" style="margin:14px 0 8px;padding:14px">
+      💾 원가 정보 저장
+    </button>
+  </div>
+</div>
+
 <div class="view" id="vReport">
   <!-- 주차 선택 -->
   <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0 12px">
@@ -2558,6 +2530,7 @@ const ORDER_ITEMS = {
     {name:'계란', unit:'30ea'},
     {name:'참기름', unit:'2kg'},
     {name:'들기름', unit:'2kg'},
+    {name:'김', unit:'1box'},
   ],
   '주류음료': [
     {name:'코카콜라', unit:'24ea'},
@@ -2573,6 +2546,7 @@ const ORDER_ITEMS = {
     {name:'테라', unit:'1box'},
     {name:'켈리', unit:'1box'},
     {name:'화요', unit:'1box'},
+    {name:'막걸리', unit:'1box'},
   ],
   '일회용품': [
     {name:'걸어쓰는 냅킨', unit:'1box'},
@@ -2619,6 +2593,11 @@ function initOrderSystem(){
 }
 
 function chgOrderDate(dir){
+  // 대표(공동대표 포함)는 모든 날짜 이동 가능, 직원은 오늘만
+  if(!isAdmin(CU.name)){
+    showToast('직원은 오늘 날짜에만 발주 입력할 수 있어요');
+    return;
+  }
   orderDate.setDate(orderDate.getDate()+dir);
   renderOrderDateLbl();
   if(document.getElementById('bc-list').classList.contains('on')) loadOrderList();
@@ -2785,7 +2764,13 @@ function renderOrderCal(){
     if(snap.exists()) Object.entries(snap.val()).forEach(([dk,v])=>{orderData[dk]=v;});
 
     grid.innerHTML='';
-    for(let i=0;i<first;i++){const e=document.createElement('div');e.style.cssText='aspect-ratio:1';grid.appendChild(e);}
+    // 빈 칸 (월 시작 전)
+    for(let i=0;i<first;i++){
+      const e=document.createElement('div');
+      e.className='day-cell empty';
+      grid.appendChild(e);
+    }
+    // 날짜 칸
     for(let d=1;d<=last;d++){
       const dk=dkStr(orderCalY,orderCalM,d), dow=(first+d-1)%7;
       const order=orderData[dk];
@@ -2793,10 +2778,10 @@ function renderOrderCal(){
       const isToday=dk===todayK;
       const byName=order&&order.by?order.by.replace('심영근','심').replace('김성훈','훈').replace('곽진수','곽').replace('김성연','연').replace('최은란','은').replace('이동수','동').replace('허성림','허'):'';
       const cell=document.createElement('div');
-      cell.className='order-cal-cell';
-      cell.style.cssText=`background:${isToday?'var(--gbg)':hasOrder?'var(--white)':'var(--surface)'};border:1px solid ${isToday?'var(--gold)':hasOrder?'var(--border)':'transparent'};border-radius:8px;aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:${hasOrder?'pointer':'default'};gap:2px;`;
-      const numColor=dow===0?'var(--red)':dow===6?'var(--blue)':'var(--txt)';
-      cell.innerHTML=`<div style="font-size:12px;font-weight:700;color:${numColor};line-height:1">${d}</div>${hasOrder?`<div class="order-cal-dot"></div><div style="font-size:7px;color:var(--tm);line-height:1">${byName}</div>`:''}`;
+      // 체크리스트 달력 스타일 클래스 사용
+      cell.className='day-cell'+(isToday?' today':'')+(dow===0?' sun':dow===6?' sat':'');
+      cell.innerHTML=`<div class="day-num">${d}</div>`+
+        (hasOrder?`<div class="day-dot has-data"></div><div style="font-size:8px;color:var(--tm);line-height:1;margin-top:2px">${byName}</div>`:'<div class="day-dot"></div>');
       if(hasOrder) cell.onclick=()=>openOrderCalDay(dk,d);
       grid.appendChild(cell);
     }
@@ -5230,6 +5215,146 @@ function renderHeatmap(d){
 }
 function renderTable(){}
 
+// ════ 발주 품목 원가 설정 (대표 전용) ════
+let orderItemCosts = {}; // {식자재: {쌀: 55000, ...}, 주류음료: {...}, ...}
+let orderCostUnlocked = false;
+
+function initOrderCost(){
+  if(isAdmin(CU.name)){
+    orderCostUnlocked = true;
+    document.getElementById('orderCostLock').style.display='none';
+    document.getElementById('orderCostContent').style.display='block';
+    loadOrderItemCosts();
+  } else {
+    document.getElementById('orderCostLock').style.display='block';
+    document.getElementById('orderCostContent').style.display='none';
+  }
+}
+
+function checkOrderCostPin(){
+  const val = document.getElementById('orderCostPinInp').value;
+  if(val.length < 4) return;
+  const matched = ADMIN_NAMES.find(n => NAME_PINS[n] === val);
+  if(!matched){
+    document.getElementById('orderCostPinErr').style.display='block';
+    document.getElementById('orderCostPinInp').value='';
+    return;
+  }
+  orderCostUnlocked = true;
+  document.getElementById('orderCostLock').style.display='none';
+  document.getElementById('orderCostContent').style.display='block';
+  loadOrderItemCosts();
+}
+
+function loadOrderItemCosts(){
+  db.ref('orderItemCosts').get().then(snap=>{
+    orderItemCosts = snap.val() || {};
+    renderOrderCostList();
+  }).catch(()=>{
+    orderItemCosts = {};
+    renderOrderCostList();
+  });
+}
+
+function renderOrderCostList(){
+  const wrap = document.getElementById('orderCostList');
+  if(!wrap) return;
+  let html = '';
+  // 카테고리별로 표시
+  Object.keys(ORDER_ITEMS).forEach(cat=>{
+    const items = ORDER_ITEMS[cat];
+    if(!items.length) return;
+    if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
+    const emoji = CAT_EMOJI[cat] || '📦';
+    const label = CAT_LABEL[cat] || cat;
+    // 카테고리 합계 (원가 입력된 것)
+    const filledCount = items.filter(i=>orderItemCosts[cat][i.name]>0).length;
+    html += `
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
+        <div style="background:var(--surface);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:14px;font-weight:700;color:var(--brown)">${emoji} ${label}</div>
+          <div style="font-size:11px;color:var(--tm)">${filledCount}/${items.length} 입력됨</div>
+        </div>
+        <div style="padding:6px 0">`;
+    items.forEach(item=>{
+      const curCost = orderItemCosts[cat][item.name] || '';
+      html += `
+        <div style="display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--surface);gap:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}</div>
+            <div style="font-size:10px;color:var(--tm)">${item.unit}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+            <input type="number" inputmode="numeric" placeholder="0" value="${curCost}"
+              data-cat="${cat}" data-item="${item.name}"
+              class="order-cost-inp"
+              style="width:90px;padding:8px 10px;text-align:right;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--white)">
+            <span style="font-size:11px;color:var(--tm)">원</span>
+          </div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  });
+  wrap.innerHTML = html;
+}
+
+function saveOrderCosts(){
+  // 모든 input 값 수집
+  const inputs = document.querySelectorAll('.order-cost-inp');
+  inputs.forEach(inp=>{
+    const cat = inp.dataset.cat;
+    const item = inp.dataset.item;
+    const val = parseInt(inp.value) || 0;
+    if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
+    if(val > 0){
+      orderItemCosts[cat][item] = val;
+    } else {
+      delete orderItemCosts[cat][item];
+    }
+  });
+  setSyncDot('ing');
+  db.ref('orderItemCosts').set(orderItemCosts).then(()=>{
+    setSyncDot('ok');
+    showToast('✅ 원가 정보 저장 완료!', 3000);
+    renderOrderCostList(); // 입력 카운트 갱신
+  }).catch(()=>{
+    setSyncDot('err');
+    showToast('❌ 저장 실패');
+  });
+}
+
+// 외부에서 사용: 특정 발주 데이터의 식재료비 합계 계산
+function calcOrderCostFromOrder(orderData){
+  if(!orderData || !orderData.items) return 0;
+  let total = 0;
+  // orderData.items 구조: {식자재: {쌀: 5, 김치: 2, ...}, 주류음료: {...}}
+  Object.keys(orderData.items).forEach(cat=>{
+    if(!orderItemCosts[cat]) return;
+    Object.keys(orderData.items[cat]).forEach(itemName=>{
+      const qty = orderData.items[cat][itemName] || 0;
+      const cost = orderItemCosts[cat][itemName] || 0;
+      total += qty * cost;
+    });
+  });
+  return total;
+}
+
+// 월간 식재료비 합계 (월 단위)
+async function getMonthOrderCost(year, month){
+  const monthKey = year + '-' + String(month+1).padStart(2,'0');
+  try{
+    const snap = await db.ref('orderlist').orderByKey().startAt(monthKey).endAt(monthKey+'\uf8ff').get();
+    if(!snap.exists()) return 0;
+    let total = 0;
+    Object.values(snap.val()).forEach(order=>{
+      total += calcOrderCostFromOrder(order);
+    });
+    return total;
+  }catch(e){
+    return 0;
+  }
+}
+
 // ════ 원가 · 순이익 분석 (대표 전용) ════
 // PROFIT_ADMIN: 김성훈도 공동대표라 isAdmin() 사용
 let profitY = new Date().getFullYear(), profitM = new Date().getMonth();
@@ -6045,7 +6170,7 @@ function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 function showToast(msg,dur){const t=document.getElementById('toast');t.textContent=msg||'완료!';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur||2500);}
 
 // ════ TAB 시스템 업데이트 ════
-const ALL_TABS=['attend','cal','chk','board','sales','reserve','payroll','schedule','complain','more','report','monthreport','profit','predDebug'];
+const ALL_TABS=['attend','cal','chk','board','sales','reserve','payroll','schedule','complain','more','report','monthreport','profit','predDebug','orderCost'];
 function goTab(tab){
   ALL_TABS.forEach(t=>{
     const v=document.getElementById('v'+t.charAt(0).toUpperCase()+t.slice(1));
@@ -6070,7 +6195,14 @@ function goTab(tab){
   // 현재 탭 저장 (새로고침 시 복구용)
   try{ localStorage.setItem('ws_last_tab', tab); }catch(e){}
   if(tab==='attend') initAttend();
-  if(tab==='board'){ renderOrderDateLbl(); renderOrderCal(); }
+  if(tab==='board'){
+    // 직원은 오늘 날짜로 강제 리셋 (대표는 마지막 선택 유지)
+    if(!isAdmin(CU.name)){
+      orderDate = new Date();
+    }
+    renderOrderDateLbl();
+    renderOrderCal();
+  }
   if(tab==='dash'){ renderDash(); renderDashCal(); }
   if(tab==='sales'){
     checkSalesAccess();
@@ -6111,6 +6243,7 @@ function goTab(tab){
   if(tab==='monthreport'){initMonthReport();}
   if(tab==='profit'){initProfit();}
   if(tab==='predDebug'){renderPredDebug();loadWeightHistory();}
+  if(tab==='orderCost'){initOrderCost();}
   window.scrollTo(0,0);
 }
 
