@@ -795,8 +795,20 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <button class="date-nav-btn" onclick="chgOrderDate(1)">›</button>
     </div>
 
+    <!-- 🔍 품목 검색 -->
+    <div style="position:relative;margin-bottom:10px">
+      <input type="text" id="orderSearchInp" placeholder="🔍 품목 검색 (예: 김치, 양파)"
+        oninput="doOrderSearch()"
+        style="width:100%;padding:11px 38px 11px 14px;border:1.5px solid var(--bs);border-radius:10px;font-size:13px;background:var(--white);outline:none;box-sizing:border-box;font-family:'Noto Sans KR',sans-serif"
+        onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--bs)'">
+      <button id="orderSearchClear" onclick="clearOrderSearch()" 
+        style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--surface);border:none;width:24px;height:24px;border-radius:50%;font-size:14px;color:var(--tm);cursor:pointer;padding:0">×</button>
+    </div>
+    <!-- 검색 결과 영역 (평소 숨김) -->
+    <div id="orderSearchResult" style="display:none;margin-bottom:10px"></div>
+
     <!-- 1차 탭: 홀/주방 -->
-    <div style="display:flex;gap:6px;margin-bottom:8px">
+    <div id="orderRoomTabs" style="display:flex;gap:6px;margin-bottom:8px">
       <button class="tg on" id="oroom-홀" onclick="showOrderRoom('홀',this)" style="flex:1;padding:11px 0;font-size:14px;font-weight:700">🍽️ 홀</button>
       <button class="tg" id="oroom-주방" onclick="showOrderRoom('주방',this)" style="flex:1;padding:11px 0;font-size:14px;font-weight:700">🍳 주방</button>
     </div>
@@ -1271,8 +1283,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div style="text-align:center;font-size:10px;font-weight:700;color:var(--blue)">토</div>
     </div>
 <div id="resCalGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:10px"></div>
-    <!-- 예약 폼 -->
-    <div id="resForm" style="display:none">
+    <!-- 예약 목록 (명단 먼저) -->
+    <div id="resDayList"></div>
+    <!-- 예약 폼 (입력은 아래) -->
+    <div id="resForm" style="display:none;margin-top:12px">
       <div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.8px;padding:8px 2px 6px;border-bottom:1px solid var(--border);margin-bottom:8px" id="resFormDate"></div>
       <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
         <input class="order-inp" id="res-phone" placeholder="전화번호 (010-0000-0000)" type="tel" style="width:100%" oninput="autoFillCustomer(this.value)">
@@ -1286,8 +1300,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       </div>
       <button class="save-btn" style="margin:0;padding:13px" onclick="saveReservation()">📅 예약 저장</button>
     </div>
-    <!-- 예약 목록 -->
-    <div id="resDayList"></div>
   </div>
 
   <!-- 단골 탭 -->
@@ -1674,7 +1686,6 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div class="btabs">
         <button class="btab on" id="pft-monthly" onclick="showProfitTab('monthly',this)">📅 월별 분석</button>
         <button class="btab" id="pft-cost" onclick="showProfitTab('cost',this)">⚙️ 원가 설정</button>
-        <button class="btab" id="pft-itemcost" onclick="showProfitTab('itemcost',this)">🏷️ 발주 원가</button>
       </div>
     </div>
 
@@ -1702,19 +1713,30 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <div id="varCostList" style="margin-bottom:12px"></div>
       <button onclick="addCostItem('var')" style="width:100%;padding:10px;background:var(--surface);border:1px dashed var(--bs);border-radius:10px;font-size:13px;color:var(--tm);cursor:pointer;margin-bottom:16px">+ 변동비 항목 추가</button>
 
-      <button class="save-btn" style="margin:0;padding:13px" onclick="saveCostSettings()">💾 원가 설정 저장</button>
-    </div>
+      <button class="save-btn" style="margin:0 0 18px;padding:13px" onclick="saveCostSettings()">💾 원가 설정 저장</button>
 
-    <!-- 발주 품목 원가 탭 -->
-    <div class="bc" id="pfc-itemcost">
-      <div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.7;color:var(--blue)">
-        💡 <strong>발주 품목별 단가 입력</strong><br>
-        • 발주할 때마다 자동으로 식재료비 계산<br>
-        • 변동비 안에 "발주 식재료비" 항목으로 자동 반영<br>
-        • 단가가 0원이면 계산에서 제외됨
+      <!-- 🏷️ 발주 원가 (아코디언) -->
+      <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:8px">🏷️ 발주 원가</div>
+      <div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:10px 12px;margin-bottom:10px;font-size:11px;line-height:1.6;color:var(--blue)">
+        💡 발주할 때마다 자동으로 식재료비 계산 · 변동비에 자동 반영
       </div>
-      <div id="orderCostList2"></div>
-      <button onclick="saveOrderCosts2()" class="save-btn" style="margin:14px 0 8px;padding:14px">
+      <!-- 홀 아코디언 -->
+      <div id="accHall" style="background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;overflow:hidden">
+        <button onclick="toggleOrderCostAcc('Hall')" style="width:100%;padding:13px 14px;background:var(--surface);border:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:13px;font-weight:700;color:var(--brown)">
+          <span>🏪 홀 품목</span>
+          <span id="accHallArrow" style="font-size:14px;color:var(--tm);transition:transform .2s">▼</span>
+        </button>
+        <div id="accHallBody" style="display:none;padding:10px 12px;border-top:1px solid var(--border)"></div>
+      </div>
+      <!-- 주방 아코디언 -->
+      <div id="accKitchen" style="background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
+        <button onclick="toggleOrderCostAcc('Kitchen')" style="width:100%;padding:13px 14px;background:var(--surface);border:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:13px;font-weight:700;color:var(--brown)">
+          <span>🍳 주방 품목</span>
+          <span id="accKitchenArrow" style="font-size:14px;color:var(--tm);transition:transform .2s">▼</span>
+        </button>
+        <div id="accKitchenBody" style="display:none;padding:10px 12px;border-top:1px solid var(--border)"></div>
+      </div>
+      <button onclick="saveOrderCosts2()" class="save-btn" style="margin:0;padding:13px">
         💾 발주 원가 저장
       </button>
     </div>
@@ -2808,6 +2830,91 @@ function adjOrderQty(cat, name, idx, delta){
   if(label) label.className='ocat-item'+(next>0?' selected':'');
   if(qtyEl){qtyEl.textContent=next;qtyEl.style.color=next>0?'var(--green)':'var(--tm)';}
   if(plusBtn){plusBtn.style.background=next>0?'var(--green)':'var(--white)';plusBtn.style.color=next>0?'#fff':'var(--green)';}
+  // 검색 결과에도 반영
+  const sQty = document.getElementById(`sqty-${cat}-${encodeURIComponent(name)}`);
+  if(sQty){
+    sQty.textContent = next;
+    sQty.style.color = next>0?'var(--green)':'var(--tm)';
+  }
+}
+
+// ── 발주 품목 검색 ──
+function doOrderSearch(){
+  const inp = document.getElementById('orderSearchInp');
+  const q = (inp.value || '').trim().toLowerCase();
+  const result = document.getElementById('orderSearchResult');
+  const clearBtn = document.getElementById('orderSearchClear');
+  const roomTabs = document.getElementById('orderRoomTabs');
+  const subTabs = document.getElementById('orderSubTabs');
+  const catWrap = document.getElementById('orderCatContainer');
+
+  if(!q){
+    result.style.display = 'none';
+    result.innerHTML = '';
+    clearBtn.style.display = 'none';
+    roomTabs.style.display = 'flex';
+    subTabs.style.display = 'flex';
+    catWrap.style.display = 'block';
+    return;
+  }
+
+  clearBtn.style.display = 'block';
+  // 검색 중엔 탭/카테고리 숨기고 결과만
+  roomTabs.style.display = 'none';
+  subTabs.style.display = 'none';
+  catWrap.style.display = 'none';
+  result.style.display = 'block';
+
+  // 모든 카테고리에서 품목명/거래처 검색
+  const matches = [];
+  Object.keys(ORDER_ITEMS).forEach(cat=>{
+    ORDER_ITEMS[cat].forEach((item, idx)=>{
+      const nameL = item.name.toLowerCase();
+      const vendorL = (item.vendor || '').toLowerCase();
+      if(nameL.includes(q) || vendorL.includes(q)){
+        matches.push({cat, item, idx});
+      }
+    });
+  });
+
+  if(matches.length === 0){
+    result.innerHTML = `<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;padding:24px;text-align:center;color:var(--tm);font-size:13px">
+      🔍 "${q}"에 해당하는 품목이 없어요
+    </div>`;
+    return;
+  }
+
+  let html = `<div style="font-size:11px;color:var(--tm);margin-bottom:6px;padding:0 4px">검색 결과 ${matches.length}개</div>`;
+  html += '<div style="background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden">';
+  matches.forEach(({cat, item, idx})=>{
+    if(!selectedOrderItems[cat]) selectedOrderItems[cat]={};
+    const qty = selectedOrderItems[cat][item.name] || 0;
+    const parsed = parseOrderCat(cat);
+    const roomLbl = parsed.room === '주방' ? '🍳 주방' : '🍽️ 홀';
+    const subLbl = CAT_LABEL[cat] || parsed.sub || '';
+    const vendorBadge = item.vendor ? `<span style="display:inline-block;font-size:9px;color:var(--brown);background:var(--gbg);border:1px solid var(--gborder);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">${item.vendor}</span>` : '';
+    const encName = encodeURIComponent(item.name);
+    html += `
+      <div class="search-order-row" style="display:flex;align-items:center;padding:10px 12px;border-bottom:1px solid var(--surface);gap:10px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}${vendorBadge}</div>
+          <div style="font-size:10px;color:var(--tm);margin-top:2px">${roomLbl} · ${subLbl} · ${item.unit}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+          <button onclick="adjOrderQty('${cat}','${item.name}',${idx},-1)" style="width:28px;height:28px;border:1.5px solid var(--bs);border-radius:6px;background:var(--white);font-size:16px;font-weight:700;color:var(--brown);cursor:pointer">-</button>
+          <span id="sqty-${cat}-${encName}" style="min-width:22px;text-align:center;font-size:14px;font-weight:700;color:${qty>0?'var(--green)':'var(--tm)'}">${qty}</span>
+          <button onclick="adjOrderQty('${cat}','${item.name}',${idx},1)" style="width:28px;height:28px;border:1.5px solid var(--green);border-radius:6px;background:var(--white);font-size:16px;font-weight:700;color:var(--green);cursor:pointer">+</button>
+        </div>
+      </div>`;
+  });
+  html += '</div>';
+  result.innerHTML = html;
+}
+
+function clearOrderSearch(){
+  const inp = document.getElementById('orderSearchInp');
+  if(inp) inp.value = '';
+  doOrderSearch();
 }
 
 function showOrderCat(cat, btn){
@@ -5829,8 +5936,21 @@ function showProfitTab(id, btn){
   document.getElementById('pfc-'+id).classList.add('on');
   btn.classList.add('on');
   if(id==='monthly') renderProfitMonth();
-  if(id==='cost') renderCostList();
-  if(id==='itemcost') loadOrderItemCostsForProfit();
+  if(id==='cost'){ renderCostList(); loadOrderItemCostsForProfit(); }
+}
+
+// 아코디언 토글 (홀/주방)
+function toggleOrderCostAcc(which){
+  const body = document.getElementById('acc'+which+'Body');
+  const arrow = document.getElementById('acc'+which+'Arrow');
+  if(!body) return;
+  if(body.style.display === 'none' || !body.style.display){
+    body.style.display = 'block';
+    arrow.style.transform = 'rotate(180deg)';
+  } else {
+    body.style.display = 'none';
+    arrow.style.transform = 'rotate(0deg)';
+  }
 }
 
 // 원가/순이익 화면의 발주원가 탭용 - 별도 컨테이너 사용
@@ -5845,50 +5965,61 @@ function loadOrderItemCostsForProfit(){
 }
 
 function renderOrderCostListForProfit(){
-  const wrap = document.getElementById('orderCostList2');
-  if(!wrap) return;
-  let html = '';
-  Object.keys(ORDER_ITEMS).forEach(cat=>{
+  const hallBody = document.getElementById('accHallBody');
+  const kitBody = document.getElementById('accKitchenBody');
+  if(!hallBody || !kitBody) return;
+
+  function renderCatSection(cat){
     const items = ORDER_ITEMS[cat];
-    if(!items.length) return;
+    if(!items || !items.length) return '';
     if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
     const emoji = CAT_EMOJI[cat] || '📦';
-    const parsed = parseOrderCat(cat);
-    const roomLbl = parsed.room === '주방' ? ' (주방)' : ' (홀)';
-    const label = (CAT_LABEL[cat] || cat) + roomLbl;
-    // 입력된 것: 저장값 있거나 기본 price 있으면 카운트
+    const label = CAT_LABEL[cat] || cat;
     const filledCount = items.filter(i=>(orderItemCosts[cat][i.name]>0) || (i.price>0)).length;
-    html += `
-      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
-        <div style="background:var(--surface);padding:10px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
-          <div style="font-size:14px;font-weight:700;color:var(--brown)">${emoji} ${label}</div>
-          <div style="font-size:11px;color:var(--tm)">${filledCount}/${items.length} 입력됨</div>
+    let h = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;overflow:hidden">
+        <div style="background:var(--bbg);padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:12px;font-weight:700;color:var(--brown)">${emoji} ${label}</div>
+          <div style="font-size:10px;color:var(--tm)">${filledCount}/${items.length} 입력됨</div>
         </div>
-        <div style="padding:6px 0">`;
+        <div style="padding:4px 0;background:var(--white)">`;
     items.forEach(item=>{
-      // Firebase 저장값 > 엑셀 기본값 > 빈 칸
       const curCost = (orderItemCosts[cat][item.name] != null && orderItemCosts[cat][item.name] !== '') 
                       ? orderItemCosts[cat][item.name] 
                       : (item.price || '');
       const vendorBadge = item.vendor ? `<span style="display:inline-block;font-size:9px;color:var(--brown);background:var(--gbg);border:1px solid var(--gborder);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">${item.vendor}</span>` : '';
-      html += `
-        <div style="display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--surface);gap:10px">
+      h += `
+        <div style="display:flex;align-items:center;padding:6px 12px;border-bottom:1px solid var(--surface);gap:8px">
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}${vendorBadge}</div>
-            <div style="font-size:10px;color:var(--tm)">${item.unit}</div>
+            <div style="font-size:12px;font-weight:600;color:var(--txt)">${item.name}${vendorBadge}</div>
+            <div style="font-size:9px;color:var(--tm)">${item.unit}</div>
           </div>
-          <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+          <div style="display:flex;align-items:center;gap:3px;flex-shrink:0">
             <input type="number" inputmode="numeric" placeholder="0" value="${curCost}"
               data-cat="${cat}" data-item="${item.name}"
               class="order-cost-inp2"
-              style="width:90px;padding:8px 10px;text-align:right;font-size:13px;border:1px solid var(--border);border-radius:6px;background:var(--white)">
-            <span style="font-size:11px;color:var(--tm)">원</span>
+              style="width:80px;padding:6px 8px;text-align:right;font-size:12px;border:1px solid var(--border);border-radius:5px;background:var(--white)">
+            <span style="font-size:10px;color:var(--tm)">원</span>
           </div>
         </div>`;
     });
-    html += `</div></div>`;
+    h += `</div></div>`;
+    return h;
+  }
+
+  // 홀
+  let hallHtml = '';
+  Object.keys(ORDER_ITEMS).forEach(cat=>{
+    if(parseOrderCat(cat).room === '홀') hallHtml += renderCatSection(cat);
   });
-  wrap.innerHTML = html;
+  hallBody.innerHTML = hallHtml || '<div style="padding:20px;text-align:center;color:var(--tm);font-size:12px">홀 품목이 없어요</div>';
+
+  // 주방
+  let kitHtml = '';
+  Object.keys(ORDER_ITEMS).forEach(cat=>{
+    if(parseOrderCat(cat).room === '주방') kitHtml += renderCatSection(cat);
+  });
+  kitBody.innerHTML = kitHtml || '<div style="padding:20px;text-align:center;color:var(--tm);font-size:12px">주방 품목이 없어요</div>';
 }
 
 function saveOrderCosts2(){
