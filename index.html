@@ -8292,10 +8292,10 @@ function buildPredContext(){
 
   const predict=(dt)=>{
     // 총매출 예측 (기존)
-    const r = predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg);
+    const r = predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg, 'total');
     // 홀/배달 분리 예측
-    const hr = predictSingleDay(dt, hallStats.dowAvg, hallStats.baseAvg, hallStats.holAvgFn, hallStats.wxStats, hallStats.pmGradeAvg, hallStats.tempBandAvg, weightsHall, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg);
-    const dr = predictSingleDay(dt, delivStats.dowAvg, delivStats.baseAvg, delivStats.holAvgFn, delivStats.wxStats, delivStats.pmGradeAvg, delivStats.tempBandAvg, weightsDeliv, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg);
+    const hr = predictSingleDay(dt, hallStats.dowAvg, hallStats.baseAvg, hallStats.holAvgFn, hallStats.wxStats, hallStats.pmGradeAvg, hallStats.tempBandAvg, weightsHall, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg, 'hall');
+    const dr = predictSingleDay(dt, delivStats.dowAvg, delivStats.baseAvg, delivStats.holAvgFn, delivStats.wxStats, delivStats.pmGradeAvg, delivStats.tempBandAvg, weightsDeliv, PRED_PM_GRADES, TEMP_BANDS, seasonalAvg, 'deliv');
     return {...r, predHall:hr.pred, predDeliv:dr.pred, predSplit:hr.pred+dr.pred};
   };
 
@@ -8339,7 +8339,7 @@ function calcMonthPred(year, month){
 }
 
 // ── 단일 날짜 예측 (날씨+온도+미세먼지 예보 사용) ──
-function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PM_GRADES, TEMP_BANDS, seasonalAvg){
+function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, tempBandAvg, weights, PM_GRADES, TEMP_BANDS, seasonalAvg, target){
   const dk=localDateStr(dt);
   const dow=dt.getDay();
   const month=dt.getMonth();
@@ -8407,7 +8407,32 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, te
     dayBase*tempFactor*weights.temp
   );
   // 적응형 보정 계수 적용 (correctionFactors가 로드돼있을 때만)
-  const pred = applyCorrection(rawPred, dt, dayWx, dayTemp, holType);
+  const correctedPred = applyCorrection(rawPred, dt, dayWx, dayTemp, holType);
+
+  // ══ 5모델 앙상블 (Phase 1: 2모델) ══
+  // 총매출 예측에만 적용 (홀/배달 분리 예측은 기존 방식 유지)
+  let pred = correctedPred;
+  if(target === 'total' || target == null){
+    try{
+      // DASH_DATA가 있어야 모델 2 가능
+      if(typeof DASH_DATA !== 'undefined' && DASH_DATA && DASH_DATA.length >= 14){
+        const vd = DASH_DATA.filter(x=>x.total > 0);
+        if(vd.length >= 14){
+          const avgT = vd.reduce((s,x)=>s+x.total, 0) / vd.length;
+          const outThr = avgT * 0.7;
+          const model2 = backtestModel2_trend(dt, vd, outThr);
+          if(model2 && model2.pred > 0){
+            // 2모델 앙상블 (단순 평균)
+            const ens = ensemblePredict([correctedPred, model2.pred], false);
+            if(ens && ens > 0) pred = ens;
+          }
+        }
+      }
+    }catch(e){
+      pred = correctedPred;
+    }
+  }
+
   return {dk,dow,holType,dayWx,dayPm25,dayTemp,pmGrade,pred,rawPred};
 }
 
@@ -8605,19 +8630,27 @@ async function runBacktest(){
     if(x.total < outlierThreshold) outlierDates.add(localDateStr(x.date));
   });
 
-  // 각 날짜에 대해 백테스팅 (학습 데이터에서도 이상치 제외하도록 수정 필요)
-  // 일단 모든 날짜로 백테스팅
+  // 각 날짜에 대해 백테스팅
+  // 모델 1: 기존 (가중 요일 + 날씨/공휴일/온도/미세먼지)
+  // 모델 2: 누적 추세 (이번 주 페이스 반영)
   const allResults = [];
+  const model2Results = [];
   for(const x of validData){
-    const r = backtestSingleDayClean(x.date, validData, outlierThreshold);
-    if(r && r.actual > 0 && r.pred > 0){
-      r.isOutlier = outlierDates.has(r.date);
-      allResults.push(r);
+    const r1 = backtestSingleDayClean(x.date, validData, outlierThreshold);
+    if(r1 && r1.actual > 0 && r1.pred > 0){
+      r1.isOutlier = outlierDates.has(r1.date);
+      allResults.push(r1);
+    }
+    const r2 = backtestModel2_trend(x.date, validData, outlierThreshold);
+    if(r2 && r2.actual > 0 && r2.pred > 0){
+      r2.isOutlier = outlierDates.has(r2.date);
+      model2Results.push(r2);
     }
   }
 
   // 평가는 정상 데이터만
   const results = allResults.filter(r => !r.isOutlier);
+  const model2ResultsClean = model2Results.filter(r => !r.isOutlier);
 
   if(results.length === 0){
     if(resultDiv) resultDiv.innerHTML = '<div style="background:var(--rbg);padding:14px;border-radius:8px;color:var(--red);font-size:13px">⚠️ 백테스팅 결과가 없어요</div>';
@@ -8653,6 +8686,34 @@ async function runBacktest(){
   const beforeAcc = Math.max(0, 100 - beforeMape);
   const afterAcc = Math.max(0, 100 - afterMape);
   const improvement = afterAcc - beforeAcc;
+
+  // ══ 앙상블 계산 (2모델: 현재 + 누적추세) ══
+  // 같은 날짜 기준으로 매칭
+  const ensembleStats = { model1Acc: 0, model2Acc: 0, ensembleAcc: 0, commonDays: 0 };
+  if(model2ResultsClean.length > 0){
+    const m1Map = {};
+    results.forEach(r=>{ m1Map[r.date] = r; });
+    const m2Map = {};
+    model2ResultsClean.forEach(r=>{ m2Map[r.date] = r; });
+    // 공통 날짜만
+    const commonDates = Object.keys(m1Map).filter(d => m2Map[d]);
+    if(commonDates.length > 0){
+      // 각 모델 단독 MAPE
+      let m1Mape = 0, m2Mape = 0, ensMape = 0;
+      commonDates.forEach(d=>{
+        const a = m1Map[d].actual;
+        m1Mape += Math.abs(m1Map[d].pred - a) / a;
+        m2Mape += Math.abs(m2Map[d].pred - a) / a;
+        // 앙상블 (2모델 단순 평균)
+        const ensPred = ensemblePredict([m1Map[d].pred, m2Map[d].pred], false);
+        ensMape += Math.abs(ensPred - a) / a;
+      });
+      ensembleStats.model1Acc = Math.max(0, 100 - (m1Mape / commonDates.length * 100));
+      ensembleStats.model2Acc = Math.max(0, 100 - (m2Mape / commonDates.length * 100));
+      ensembleStats.ensembleAcc = Math.max(0, 100 - (ensMape / commonDates.length * 100));
+      ensembleStats.commonDays = commonDates.length;
+    }
+  }
 
   // Firebase 저장
   setSyncDot('ing');
@@ -8715,7 +8776,7 @@ async function runBacktest(){
   }
 
   // 결과 렌더링
-  renderBacktestResult(results, correctedResults, appliedFactors, beforeMape, afterMape, beforeRmse, afterRmse, beforeAcc, afterAcc, improvement, allResults.length - results.length);
+  renderBacktestResult(results, correctedResults, appliedFactors, beforeMape, afterMape, beforeRmse, afterRmse, beforeAcc, afterAcc, improvement, allResults.length - results.length, ensembleStats);
   loadAccuracyHistory();
   if(btn) btn.disabled = false;
 }
@@ -8851,8 +8912,141 @@ function backtestSingleDayClean(targetDate, allData, outlierThreshold){
   };
 }
 
+// ════════════════════════════════════════════════════════════
+// 📊 모델 2: 누적 추세 (Phase 1)
+// 이번 주 페이스 반영 - 최근 7일의 평균 대비 비율로 모멘텀 계산
+// ════════════════════════════════════════════════════════════
+function backtestModel2_trend(targetDate, allData, outlierThreshold){
+  const tDk = localDateStr(targetDate);
+  const trainData = allData.filter(x => 
+    localDateStr(x.date) < tDk && 
+    x.total > 0 && 
+    x.total >= outlierThreshold
+  );
+  if(trainData.length < 14) return null;
+
+  const targetDow = targetDate.getDay();
+
+  // 가중 평균 함수 (최근일수록 큰 가중치)
+  function getWeight(date){
+    const days = Math.floor((targetDate - date) / 86400000);
+    if(days <= 14) return 5.0;
+    if(days <= 30) return 3.0;
+    if(days <= 60) return 1.5;
+    return 0.3;
+  }
+
+  // 1) 같은 요일 가중 평균 (60일 이내)
+  let sumDow = 0, cntDow = 0;
+  trainData.forEach(x=>{
+    if(x.dow === targetDow){
+      const days = Math.floor((targetDate - x.date) / 86400000);
+      if(days <= 60){
+        const w = getWeight(x.date);
+        sumDow += x.total * w;
+        cntDow += w;
+      }
+    }
+  });
+
+  // 60일 이내 같은 요일 데이터 없으면 폴백: 전체 같은 요일 평균
+  if(cntDow === 0){
+    trainData.forEach(x=>{
+      if(x.dow === targetDow){
+        sumDow += x.total;
+        cntDow += 1;
+      }
+    });
+  }
+  if(cntDow === 0) return null;
+
+  let basePred = sumDow / cntDow;
+
+  // 2) 최근 7일 모멘텀 (이번 주 페이스)
+  const recent7 = trainData.filter(x=>{
+    const days = Math.floor((targetDate - x.date) / 86400000);
+    return days > 0 && days <= 7;
+  });
+
+  if(recent7.length >= 3){
+    const ratios = [];
+    recent7.forEach(r=>{
+      // 그 요일의 60일 평균
+      const sameDowData = trainData.filter(x=>{
+        const days = Math.floor((targetDate - x.date) / 86400000);
+        return x.dow === r.dow && days > 0 && days <= 60;
+      });
+      if(sameDowData.length >= 2){
+        const avgDow = sameDowData.reduce((s,y)=>s+y.total, 0) / sameDowData.length;
+        if(avgDow > 0) ratios.push(r.total / avgDow);
+      }
+    });
+    if(ratios.length >= 2){
+      let momentum = ratios.reduce((s,r)=>s+r, 0) / ratios.length;
+      // 클램핑 ±15%
+      momentum = Math.max(0.85, Math.min(1.15, momentum));
+      basePred *= momentum;
+    }
+  }
+
+  // 3) 공휴일 보정
+  const holType = getHolType(tDk) || 'normal';
+  if(holType !== 'normal'){
+    const holData = trainData.filter(x=>{
+      const t = getHolType(localDateStr(x.date));
+      return t === holType;
+    });
+    if(holData.length >= 2){
+      const holAvg = holData.reduce((s,x)=>s+x.total, 0) / holData.length;
+      const allAvg = trainData.reduce((s,x)=>s+x.total, 0) / trainData.length;
+      if(allAvg > 0){
+        basePred *= (holAvg / allAvg);
+      }
+    }
+  }
+
+  const target = allData.find(x => localDateStr(x.date) === tDk);
+  return {
+    date: tDk, dow: targetDow, holType: holType,
+    dayWx: target?.wx, dayTemp: target?.lunchTemp, dayPm25: target?.dayPm25,
+    pred: Math.round(basePred), actual: target?.total || 0,
+    trainSize: trainData.length
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+// 🎯 앙상블 예측 함수 (Phase별 확장)
+// 여러 모델의 예측을 받아서 단순 평균 (+ 옵션: 이상치 제거)
+// ════════════════════════════════════════════════════════════
+function ensemblePredict(preds, useTrimming){
+  // preds: [null, 280, 285, ...] (null은 모델 실패)
+  const valid = preds.filter(p => p != null && p > 0);
+  if(valid.length === 0) return null;
+  if(valid.length === 1) return valid[0];
+
+  // 이상치 제거 옵션 (모델 3개 이상일 때만 효과)
+  if(useTrimming && valid.length >= 3){
+    const sorted = [...valid].sort((a,b)=>a-b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    // 중앙값에서 가장 먼 1개 제거
+    let farthestIdx = 0;
+    let farthestDist = 0;
+    valid.forEach((v, i)=>{
+      const d = Math.abs(v - median);
+      if(d > farthestDist){
+        farthestDist = d;
+        farthestIdx = i;
+      }
+    });
+    valid.splice(farthestIdx, 1);
+  }
+
+  const avg = valid.reduce((s,v)=>s+v, 0) / valid.length;
+  return Math.round(avg);
+}
+
 // 백테스팅 결과 렌더링
-function renderBacktestResult(results, corrected, factors, bMape, aMape, bRmse, aRmse, bAcc, aAcc, improve, outlierCount){
+function renderBacktestResult(results, corrected, factors, bMape, aMape, bRmse, aRmse, bAcc, aAcc, improve, outlierCount, ensembleStats){
   const div = document.getElementById('backtestResult');
   if(!div) return;
   const accColor = aAcc>=90?'var(--green)':aAcc>=80?'var(--gold)':'var(--red)';
@@ -8868,6 +9062,40 @@ function renderBacktestResult(results, corrected, factors, bMape, aMape, bRmse, 
       <div style="font-size:13px;color:var(--tm);margin-top:4px">${grade}</div>
       <div style="font-size:11px;color:var(--tm);margin-top:8px">정상 데이터 ${results.length}일 기준 ${outlierCount>0?`<br>(이상치 ${outlierCount}일 자동 제외)`:''}</div>
     </div>`;
+
+  // ══ 5모델 앙상블 비교 카드 (Phase 1: 2모델) ══
+  if(ensembleStats && ensembleStats.commonDays > 0){
+    const ensImprove = ensembleStats.ensembleAcc - ensembleStats.model1Acc;
+    const ensColor = ensImprove > 0 ? 'var(--green)' : 'var(--tm)';
+    html += `
+      <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:4px">🎯 다중 모델 앙상블 (Phase 1)</div>
+        <div style="font-size:10px;color:var(--tm);margin-bottom:10px">${ensembleStats.commonDays}일 공정 비교 · 단순평균</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+          <div style="background:var(--surface);padding:10px 8px;border-radius:8px;text-align:center">
+            <div style="font-size:9px;color:var(--tm);margin-bottom:2px">모델 1</div>
+            <div style="font-size:10px;color:var(--td);margin-bottom:4px">현재</div>
+            <div style="font-size:15px;font-weight:700;color:var(--td)">${ensembleStats.model1Acc.toFixed(1)}%</div>
+          </div>
+          <div style="background:var(--surface);padding:10px 8px;border-radius:8px;text-align:center">
+            <div style="font-size:9px;color:var(--tm);margin-bottom:2px">모델 2</div>
+            <div style="font-size:10px;color:var(--td);margin-bottom:4px">누적추세</div>
+            <div style="font-size:15px;font-weight:700;color:var(--td)">${ensembleStats.model2Acc.toFixed(1)}%</div>
+          </div>
+          <div style="background:var(--gbg);padding:10px 8px;border-radius:8px;text-align:center;border:1.5px solid var(--gborder)">
+            <div style="font-size:9px;color:var(--green);margin-bottom:2px">★ 앙상블</div>
+            <div style="font-size:10px;color:var(--green);margin-bottom:4px">평균</div>
+            <div style="font-size:15px;font-weight:700;color:var(--green)">${ensembleStats.ensembleAcc.toFixed(1)}%</div>
+          </div>
+        </div>
+        <div style="text-align:center;font-size:11px;color:${ensColor};font-weight:700">
+          모델 1 대비 ${ensImprove>=0?'+':''}${ensImprove.toFixed(2)}%p
+        </div>
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--tm);text-align:center">
+          Phase 2, 3 진행 시 시계열·머신러닝 모델 추가 예정
+        </div>
+      </div>`;
+  }
 
   // 보정 적용 여부 알림
   if(corrApplied){
@@ -9083,15 +9311,24 @@ async function dailyAdaptiveLearning(){
       if(x.total < outlierThreshold) outlierDates.add(localDateStr(x.date));
     });
 
+    // 모델 1 백테스팅
     const allResults = [];
+    const model2Results = [];
     for(const x of validData){
-      const r = backtestSingleDayClean(x.date, validData, outlierThreshold);
-      if(r && r.actual > 0 && r.pred > 0){
-        r.isOutlier = outlierDates.has(r.date);
-        allResults.push(r);
+      const r1 = backtestSingleDayClean(x.date, validData, outlierThreshold);
+      if(r1 && r1.actual > 0 && r1.pred > 0){
+        r1.isOutlier = outlierDates.has(r1.date);
+        allResults.push(r1);
+      }
+      // 모델 2 백테스팅 (누적 추세)
+      const r2 = backtestModel2_trend(x.date, validData, outlierThreshold);
+      if(r2 && r2.actual > 0 && r2.pred > 0){
+        r2.isOutlier = outlierDates.has(r2.date);
+        model2Results.push(r2);
       }
     }
     const results = allResults.filter(r => !r.isOutlier);
+    const model2ResultsClean = model2Results.filter(r => !r.isOutlier);
     if(results.length === 0) return;
 
     const beforeMape = calcMape(results, 'pred');
@@ -9118,6 +9355,33 @@ async function dailyAdaptiveLearning(){
     const beforeAcc = Math.max(0, 100-beforeMape);
     const afterAcc = Math.max(0, 100-afterMape);
 
+    // ══ 앙상블 정확도 계산 (Phase 1: 2모델) ══
+    let ensembleAcc = afterAcc;
+    let model1AccForEns = afterAcc;
+    let model2AccForEns = 0;
+    let ensembleDays = 0;
+    if(model2ResultsClean.length > 0){
+      const m1Map = {};
+      results.forEach(r=>{ m1Map[r.date] = r; });
+      const m2Map = {};
+      model2ResultsClean.forEach(r=>{ m2Map[r.date] = r; });
+      const commonDates = Object.keys(m1Map).filter(d => m2Map[d]);
+      if(commonDates.length > 0){
+        let m1Mape = 0, m2Mape = 0, ensMape = 0;
+        commonDates.forEach(d=>{
+          const a = m1Map[d].actual;
+          m1Mape += Math.abs(m1Map[d].pred - a) / a;
+          m2Mape += Math.abs(m2Map[d].pred - a) / a;
+          const ensP = ensemblePredict([m1Map[d].pred, m2Map[d].pred], false);
+          ensMape += Math.abs(ensP - a) / a;
+        });
+        model1AccForEns = Math.max(0, 100 - (m1Mape / commonDates.length * 100));
+        model2AccForEns = Math.max(0, 100 - (m2Mape / commonDates.length * 100));
+        ensembleAcc = Math.max(0, 100 - (ensMape / commonDates.length * 100));
+        ensembleDays = commonDates.length;
+      }
+    }
+
     // Firebase 저장
     if(appliedFactors){
       await db.ref('correctionFactors').set(appliedFactors);
@@ -9138,11 +9402,19 @@ async function dailyAdaptiveLearning(){
       afterAcc: Math.round(afterAcc*10)/10,
       improvement: Math.round((afterAcc-beforeAcc)*10)/10,
       correctionApplied: !!appliedFactors,
+      // 앙상블 정보 (Phase 1)
+      ensemble: {
+        model1Acc: Math.round(model1AccForEns*10)/10,
+        model2Acc: Math.round(model2AccForEns*10)/10,
+        ensembleAcc: Math.round(ensembleAcc*10)/10,
+        ensembleDays: ensembleDays,
+        phase: 1
+      },
       ranAt: new Date().toISOString(),
       auto: true
     });
     localStorage.setItem('ws_backtest_last_run', today);
-    console.log(`[적응형 학습] 자동 백테스팅 완료, 신뢰도: ${afterAcc.toFixed(1)}% (${appliedFactors?'보정 적용':'보정 없음'})`);
+    console.log(`[적응형 학습] 자동 백테스팅 완료, 신뢰도: ${afterAcc.toFixed(1)}% | 2모델 앙상블: ${ensembleAcc.toFixed(1)}%`);
   }catch(e){
     console.error('[적응형 학습] 실패:', e);
   }
