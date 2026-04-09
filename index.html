@@ -8409,21 +8409,28 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, te
   // 적응형 보정 계수 적용 (correctionFactors가 로드돼있을 때만)
   const correctedPred = applyCorrection(rawPred, dt, dayWx, dayTemp, holType);
 
-  // ══ 5모델 앙상블 (Phase 1: 2모델) ══
+  // ══ 다중 모델 앙상블 (Phase 2: 4모델) ══
   // 총매출 예측에만 적용 (홀/배달 분리 예측은 기존 방식 유지)
   let pred = correctedPred;
   if(target === 'total' || target == null){
     try{
-      // DASH_DATA가 있어야 모델 2 가능
-      if(typeof DASH_DATA !== 'undefined' && DASH_DATA && DASH_DATA.length >= 14){
+      if(typeof DASH_DATA !== 'undefined' && DASH_DATA && DASH_DATA.length >= 21){
         const vd = DASH_DATA.filter(x=>x.total > 0);
-        if(vd.length >= 14){
+        if(vd.length >= 21){
           const avgT = vd.reduce((s,x)=>s+x.total, 0) / vd.length;
-          const outThr = avgT * 0.7;
-          const model2 = backtestModel2_trend(dt, vd, outThr);
-          if(model2 && model2.pred > 0){
-            // 2모델 앙상블 (단순 평균)
-            const ens = ensemblePredict([correctedPred, model2.pred], false);
+          // 클리핑 65~135%
+          const outThr = { lo: avgT * 0.65, hi: avgT * 1.35 };
+          const m2 = backtestModel2_trend(dt, vd, outThr);
+          const m3 = backtestModel3_tsCustom(dt, vd, outThr);
+          const m4 = backtestModel4_holtWinters(dt, vd, outThr);
+          const preds = [correctedPred];
+          if(m2 && m2.pred > 0) preds.push(m2.pred);
+          if(m3 && m3.pred > 0) preds.push(m3.pred);
+          if(m4 && m4.pred > 0) preds.push(m4.pred);
+          if(preds.length >= 2){
+            // 3개 이상이면 이상치 제거 평균, 2개면 단순 평균
+            const useTrim = preds.length >= 3;
+            const ens = ensemblePredict(preds, useTrim);
             if(ens && ens > 0) pred = ens;
           }
         }
@@ -8622,19 +8629,25 @@ async function runBacktest(){
     return;
   }
 
-  // ★ 이상치 자동 감지 (평균의 70% 미만)
+  // ★ 이상치 범위 (65%~135% 클리핑)
   const avgTotal = validData.reduce((s,x)=>s+x.total, 0) / validData.length;
-  const outlierThreshold = avgTotal * 0.7;
+  const outlierThreshold = { lo: avgTotal * 0.65, hi: avgTotal * 1.35 };
   const outlierDates = new Set();
   validData.forEach(x=>{
-    if(x.total < outlierThreshold) outlierDates.add(localDateStr(x.date));
+    if(x.total < outlierThreshold.lo || x.total > outlierThreshold.hi){
+      outlierDates.add(localDateStr(x.date));
+    }
   });
 
-  // 각 날짜에 대해 백테스팅
+  // 각 날짜에 대해 4모델 백테스팅
   // 모델 1: 기존 (가중 요일 + 날씨/공휴일/온도/미세먼지)
   // 모델 2: 누적 추세 (이번 주 페이스 반영)
+  // 모델 3: 시계열 자체 구현 (요일/월/추세/휴일)
+  // 모델 4: Holt-Winters (7일 주기 지수평활)
   const allResults = [];
   const model2Results = [];
+  const model3Results = [];
+  const model4Results = [];
   for(const x of validData){
     const r1 = backtestSingleDayClean(x.date, validData, outlierThreshold);
     if(r1 && r1.actual > 0 && r1.pred > 0){
@@ -8646,11 +8659,23 @@ async function runBacktest(){
       r2.isOutlier = outlierDates.has(r2.date);
       model2Results.push(r2);
     }
+    const r3 = backtestModel3_tsCustom(x.date, validData, outlierThreshold);
+    if(r3 && r3.actual > 0 && r3.pred > 0){
+      r3.isOutlier = outlierDates.has(r3.date);
+      model3Results.push(r3);
+    }
+    const r4 = backtestModel4_holtWinters(x.date, validData, outlierThreshold);
+    if(r4 && r4.actual > 0 && r4.pred > 0){
+      r4.isOutlier = outlierDates.has(r4.date);
+      model4Results.push(r4);
+    }
   }
 
   // 평가는 정상 데이터만
   const results = allResults.filter(r => !r.isOutlier);
   const model2ResultsClean = model2Results.filter(r => !r.isOutlier);
+  const model3ResultsClean = model3Results.filter(r => !r.isOutlier);
+  const model4ResultsClean = model4Results.filter(r => !r.isOutlier);
 
   if(results.length === 0){
     if(resultDiv) resultDiv.innerHTML = '<div style="background:var(--rbg);padding:14px;border-radius:8px;color:var(--red);font-size:13px">⚠️ 백테스팅 결과가 없어요</div>';
@@ -8687,30 +8712,39 @@ async function runBacktest(){
   const afterAcc = Math.max(0, 100 - afterMape);
   const improvement = afterAcc - beforeAcc;
 
-  // ══ 앙상블 계산 (2모델: 현재 + 누적추세) ══
-  // 같은 날짜 기준으로 매칭
-  const ensembleStats = { model1Acc: 0, model2Acc: 0, ensembleAcc: 0, commonDays: 0 };
-  if(model2ResultsClean.length > 0){
-    const m1Map = {};
-    results.forEach(r=>{ m1Map[r.date] = r; });
-    const m2Map = {};
-    model2ResultsClean.forEach(r=>{ m2Map[r.date] = r; });
-    // 공통 날짜만
-    const commonDates = Object.keys(m1Map).filter(d => m2Map[d]);
+  // ══ 앙상블 계산 (Phase 2: 4모델) ══
+  // 4모델 모두 성공한 공통 날짜 기준으로 매칭
+  const ensembleStats = { 
+    model1Acc: 0, model2Acc: 0, model3Acc: 0, model4Acc: 0, 
+    ensembleAcc: 0, ensembleTrimAcc: 0, commonDays: 0, phase: 2 
+  };
+  if(model2ResultsClean.length > 0 && model3ResultsClean.length > 0 && model4ResultsClean.length > 0){
+    const m1Map = {}; results.forEach(r=>{ m1Map[r.date] = r; });
+    const m2Map = {}; model2ResultsClean.forEach(r=>{ m2Map[r.date] = r; });
+    const m3Map = {}; model3ResultsClean.forEach(r=>{ m3Map[r.date] = r; });
+    const m4Map = {}; model4ResultsClean.forEach(r=>{ m4Map[r.date] = r; });
+    const commonDates = Object.keys(m1Map).filter(d => m2Map[d] && m3Map[d] && m4Map[d]);
     if(commonDates.length > 0){
-      // 각 모델 단독 MAPE
-      let m1Mape = 0, m2Mape = 0, ensMape = 0;
+      let m1Mape=0, m2Mape=0, m3Mape=0, m4Mape=0, ensMape=0, ensTrimMape=0;
       commonDates.forEach(d=>{
         const a = m1Map[d].actual;
         m1Mape += Math.abs(m1Map[d].pred - a) / a;
         m2Mape += Math.abs(m2Map[d].pred - a) / a;
-        // 앙상블 (2모델 단순 평균)
-        const ensPred = ensemblePredict([m1Map[d].pred, m2Map[d].pred], false);
-        ensMape += Math.abs(ensPred - a) / a;
+        m3Mape += Math.abs(m3Map[d].pred - a) / a;
+        m4Mape += Math.abs(m4Map[d].pred - a) / a;
+        // 4모델 단순 평균
+        const ensAvg = ensemblePredict([m1Map[d].pred, m2Map[d].pred, m3Map[d].pred, m4Map[d].pred], false);
+        ensMape += Math.abs(ensAvg - a) / a;
+        // 4모델 + 이상치 제거 (중앙값 가장 먼 1개 제거)
+        const ensTrim = ensemblePredict([m1Map[d].pred, m2Map[d].pred, m3Map[d].pred, m4Map[d].pred], true);
+        ensTrimMape += Math.abs(ensTrim - a) / a;
       });
       ensembleStats.model1Acc = Math.max(0, 100 - (m1Mape / commonDates.length * 100));
       ensembleStats.model2Acc = Math.max(0, 100 - (m2Mape / commonDates.length * 100));
+      ensembleStats.model3Acc = Math.max(0, 100 - (m3Mape / commonDates.length * 100));
+      ensembleStats.model4Acc = Math.max(0, 100 - (m4Mape / commonDates.length * 100));
       ensembleStats.ensembleAcc = Math.max(0, 100 - (ensMape / commonDates.length * 100));
+      ensembleStats.ensembleTrimAcc = Math.max(0, 100 - (ensTrimMape / commonDates.length * 100));
       ensembleStats.commonDays = commonDates.length;
     }
   }
@@ -8784,12 +8818,28 @@ async function runBacktest(){
 // ── 백테스팅 단일일 (이상치 제외 학습) ──
 function backtestSingleDayClean(targetDate, allData, outlierThreshold){
   const tDk = localDateStr(targetDate);
-  // 학습 데이터: 그 날짜 이전 + 이상치 제외
-  const trainData = allData.filter(x => 
-    localDateStr(x.date) < tDk && 
-    x.total > 0 && 
-    x.total >= outlierThreshold
-  );
+  // outlierThreshold: {lo, hi} 객체 또는 number(구버전 호환)
+  let lo, hi;
+  if(typeof outlierThreshold === 'object' && outlierThreshold !== null){
+    lo = outlierThreshold.lo;
+    hi = outlierThreshold.hi;
+  } else {
+    lo = outlierThreshold;
+    hi = Infinity;
+  }
+  // 학습 데이터: 그 날짜 이전 + 클리핑 적용
+  // 원본은 제거하지 않고 극단값만 경계로 잘라냄 (Winsorizing)
+  const trainData = allData
+    .filter(x => localDateStr(x.date) < tDk && x.total > 0)
+    .map(x => {
+      if(x.total < lo){
+        return {...x, total: lo, _origTotal: x.total, _clipped: true};
+      }
+      if(x.total > hi){
+        return {...x, total: hi, _origTotal: x.total, _clipped: true};
+      }
+      return x;
+    });
   if(trainData.length < 3) return null;
 
   function getWeight(date){
@@ -8918,11 +8968,23 @@ function backtestSingleDayClean(targetDate, allData, outlierThreshold){
 // ════════════════════════════════════════════════════════════
 function backtestModel2_trend(targetDate, allData, outlierThreshold){
   const tDk = localDateStr(targetDate);
-  const trainData = allData.filter(x => 
-    localDateStr(x.date) < tDk && 
-    x.total > 0 && 
-    x.total >= outlierThreshold
-  );
+  // outlierThreshold: {lo, hi} 객체 또는 number(구버전 호환)
+  let lo, hi;
+  if(typeof outlierThreshold === 'object' && outlierThreshold !== null){
+    lo = outlierThreshold.lo;
+    hi = outlierThreshold.hi;
+  } else {
+    lo = outlierThreshold;
+    hi = Infinity;
+  }
+  // 클리핑 적용 (이상치 제거 X, 극단값 경계로 완화)
+  const trainData = allData
+    .filter(x => localDateStr(x.date) < tDk && x.total > 0)
+    .map(x => {
+      if(x.total < lo) return {...x, total: lo, _clipped: true};
+      if(x.total > hi) return {...x, total: hi, _clipped: true};
+      return x;
+    });
   if(trainData.length < 14) return null;
 
   const targetDow = targetDate.getDay();
@@ -9015,6 +9077,179 @@ function backtestModel2_trend(targetDate, allData, outlierThreshold){
 }
 
 // ════════════════════════════════════════════════════════════
+// 📊 모델 3: 시계열 자체 구현 (Phase 2)
+// 요일별 계절성 + 월별 계절성 + 추세 + 휴일
+// ════════════════════════════════════════════════════════════
+function backtestModel3_tsCustom(targetDate, allData, outlierThreshold){
+  const tDk = localDateStr(targetDate);
+  let lo, hi;
+  if(typeof outlierThreshold === 'object' && outlierThreshold !== null){
+    lo = outlierThreshold.lo; hi = outlierThreshold.hi;
+  } else { lo = outlierThreshold; hi = Infinity; }
+
+  // 클리핑 적용 + 날짜 순 정렬
+  const trainData = allData
+    .filter(x => localDateStr(x.date) < tDk && x.total > 0)
+    .map(x => {
+      if(x.total < lo) return {...x, total: lo};
+      if(x.total > hi) return {...x, total: hi};
+      return x;
+    })
+    .sort((a,b)=>a.date - b.date);
+  if(trainData.length < 30) return null;
+
+  const targetDow = targetDate.getDay();
+  const targetMonth = targetDate.getMonth();
+
+  // 전체 평균
+  const overallAvg = trainData.reduce((s,x)=>s+x.total, 0) / trainData.length;
+  if(!overallAvg) return null;
+
+  // 1) 요일별 계절성
+  const dowSums = {};
+  const dowCnts = {};
+  trainData.forEach(x=>{
+    if(!dowSums[x.dow]) { dowSums[x.dow] = 0; dowCnts[x.dow] = 0; }
+    dowSums[x.dow] += x.total;
+    dowCnts[x.dow] += 1;
+  });
+  const dowFactor = dowCnts[targetDow] ? (dowSums[targetDow] / dowCnts[targetDow]) / overallAvg : 1;
+
+  // 2) 월별 계절성
+  const monthData = trainData.filter(x=>x.date.getMonth() === targetMonth);
+  let monthFactor = 1;
+  if(monthData.length >= 5){
+    const monthAvg = monthData.reduce((s,x)=>s+x.total, 0) / monthData.length;
+    monthFactor = monthAvg / overallAvg;
+    // 클램핑 (0.85~1.15)
+    monthFactor = Math.max(0.85, Math.min(1.15, monthFactor));
+  }
+
+  // 3) 추세 (최근 14일 vs 그 이전 14일)
+  let trendFactor = 1;
+  if(trainData.length >= 28){
+    const recent14 = trainData.slice(-14);
+    const prev14 = trainData.slice(-28, -14);
+    const recentAvg = recent14.reduce((s,x)=>s+x.total, 0) / 14;
+    const prevAvg = prev14.reduce((s,x)=>s+x.total, 0) / 14;
+    if(prevAvg > 0){
+      trendFactor = recentAvg / prevAvg;
+      trendFactor = Math.max(0.85, Math.min(1.15, trendFactor));
+    }
+  }
+
+  // 4) 휴일 효과
+  let holFactor = 1;
+  const targetHol = getHolType(tDk) || 'normal';
+  if(targetHol !== 'normal'){
+    const holData = trainData.filter(x=>{
+      const t = getHolType(localDateStr(x.date));
+      return t === targetHol;
+    });
+    if(holData.length >= 2){
+      const holAvg = holData.reduce((s,x)=>s+x.total, 0) / holData.length;
+      holFactor = holAvg / overallAvg;
+      holFactor = Math.max(0.7, Math.min(1.3, holFactor));
+    }
+  }
+
+  // 최종 예측: 전체평균 × 요일 × 월 × 추세 × 휴일
+  const pred = Math.round(overallAvg * dowFactor * monthFactor * trendFactor * holFactor);
+
+  const target = allData.find(x => localDateStr(x.date) === tDk);
+  return {
+    date: tDk, dow: targetDow, holType: targetHol,
+    dayWx: target?.wx, dayTemp: target?.lunchTemp, dayPm25: target?.dayPm25,
+    pred: pred, actual: target?.total || 0,
+    trainSize: trainData.length
+  };
+}
+
+// ════════════════════════════════════════════════════════════
+// 📊 모델 4: Holt-Winters 지수평활 (Phase 2)
+// 7일 주기 계절성 시계열 (level + trend + seasonal)
+// alpha=0.3 (level), beta=0.1 (trend), gamma=0.3 (seasonal)
+// ════════════════════════════════════════════════════════════
+function backtestModel4_holtWinters(targetDate, allData, outlierThreshold){
+  const tDk = localDateStr(targetDate);
+  let lo, hi;
+  if(typeof outlierThreshold === 'object' && outlierThreshold !== null){
+    lo = outlierThreshold.lo; hi = outlierThreshold.hi;
+  } else { lo = outlierThreshold; hi = Infinity; }
+
+  // 클리핑 + 날짜순
+  const trainData = allData
+    .filter(x => localDateStr(x.date) < tDk && x.total > 0)
+    .map(x => {
+      if(x.total < lo) return {...x, total: lo};
+      if(x.total > hi) return {...x, total: hi};
+      return x;
+    })
+    .sort((a,b)=>a.date - b.date);
+  if(trainData.length < 21) return null; // 최소 3주
+
+  const period = 7;
+  const alpha = 0.3; // level smoothing
+  const beta = 0.1;  // trend smoothing
+  const gamma = 0.3; // seasonal smoothing
+
+  const values = trainData.map(x => x.total);
+  if(values.length < period * 2) return null;
+
+  // 초기화
+  let level = values.slice(0, period).reduce((s,v)=>s+v, 0) / period;
+  let trend = (values.slice(period, period*2).reduce((s,v)=>s+v, 0) / period - level) / period;
+  const seasonal = values.slice(0, period).map(v => v / level);
+
+  // 학습 (period 이후부터)
+  for(let i = period; i < values.length; i++){
+    const v = values[i];
+    const sIdx = i % period;
+    const lastLevel = level;
+    if(seasonal[sIdx] > 0){
+      level = alpha * (v / seasonal[sIdx]) + (1 - alpha) * (level + trend);
+      trend = beta * (level - lastLevel) + (1 - beta) * trend;
+      seasonal[sIdx] = gamma * (v / level) + (1 - gamma) * seasonal[sIdx];
+    }
+  }
+
+  // 예측: 다음 날
+  const nextIdx = values.length % period;
+  let pred = (level + trend) * seasonal[nextIdx];
+
+  // 휴일 후처리 보정
+  const targetHol = getHolType(tDk) || 'normal';
+  if(targetHol !== 'normal'){
+    const holData = trainData.filter(x=>{
+      const t = getHolType(localDateStr(x.date));
+      return t === targetHol;
+    });
+    if(holData.length >= 2){
+      const holAvg = holData.reduce((s,x)=>s+x.total, 0) / holData.length;
+      const allAvg = trainData.reduce((s,x)=>s+x.total, 0) / trainData.length;
+      if(allAvg > 0){
+        let hf = holAvg / allAvg;
+        hf = Math.max(0.7, Math.min(1.3, hf));
+        pred *= hf;
+      }
+    }
+  }
+
+  // 이상한 값 방지
+  const avgAll = trainData.reduce((s,x)=>s+x.total, 0) / trainData.length;
+  if(pred <= 0 || pred > avgAll * 3 || !isFinite(pred)) return null;
+
+  const targetDow = targetDate.getDay();
+  const target = allData.find(x => localDateStr(x.date) === tDk);
+  return {
+    date: tDk, dow: targetDow, holType: targetHol,
+    dayWx: target?.wx, dayTemp: target?.lunchTemp, dayPm25: target?.dayPm25,
+    pred: Math.round(pred), actual: target?.total || 0,
+    trainSize: trainData.length
+  };
+}
+
+// ════════════════════════════════════════════════════════════
 // 🎯 앙상블 예측 함수 (Phase별 확장)
 // 여러 모델의 예측을 받아서 단순 평균 (+ 옵션: 이상치 제거)
 // ════════════════════════════════════════════════════════════
@@ -9063,14 +9298,55 @@ function renderBacktestResult(results, corrected, factors, bMape, aMape, bRmse, 
       <div style="font-size:11px;color:var(--tm);margin-top:8px">정상 데이터 ${results.length}일 기준 ${outlierCount>0?`<br>(이상치 ${outlierCount}일 자동 제외)`:''}</div>
     </div>`;
 
-  // ══ 5모델 앙상블 비교 카드 (Phase 1: 2모델) ══
+  // ══ 다중 모델 앙상블 비교 카드 (Phase 2: 4모델) ══
   if(ensembleStats && ensembleStats.commonDays > 0){
-    const ensImprove = ensembleStats.ensembleAcc - ensembleStats.model1Acc;
+    const phase = ensembleStats.phase || 1;
+    const hasModel3 = ensembleStats.model3Acc > 0;
+    const hasModel4 = ensembleStats.model4Acc > 0;
+
+    // 최고 앙상블 방식 선택 (trim vs 단순 평균)
+    const bestEns = Math.max(ensembleStats.ensembleAcc, ensembleStats.ensembleTrimAcc || 0);
+    const ensImprove = bestEns - ensembleStats.model1Acc;
     const ensColor = ensImprove > 0 ? 'var(--green)' : 'var(--tm)';
+    const usedTrim = ensembleStats.ensembleTrimAcc > ensembleStats.ensembleAcc;
+
     html += `
       <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:4px">🎯 다중 모델 앙상블 (Phase 1)</div>
-        <div style="font-size:10px;color:var(--tm);margin-bottom:10px">${ensembleStats.commonDays}일 공정 비교 · 단순평균</div>
+        <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:4px">🎯 다중 모델 앙상블 (Phase ${phase})</div>
+        <div style="font-size:10px;color:var(--tm);margin-bottom:10px">${ensembleStats.commonDays}일 공정 비교 · ${usedTrim?'이상치 제거 평균':'단순 평균'}</div>`;
+
+    if(hasModel3 && hasModel4){
+      // Phase 2: 4모델
+      html += `
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:8px">
+          <div style="background:var(--surface);padding:8px 4px;border-radius:6px;text-align:center">
+            <div style="font-size:8px;color:var(--tm);margin-bottom:1px">모델 1</div>
+            <div style="font-size:9px;color:var(--td);margin-bottom:3px">현재</div>
+            <div style="font-size:13px;font-weight:700;color:var(--td)">${ensembleStats.model1Acc.toFixed(1)}%</div>
+          </div>
+          <div style="background:var(--surface);padding:8px 4px;border-radius:6px;text-align:center">
+            <div style="font-size:8px;color:var(--tm);margin-bottom:1px">모델 2</div>
+            <div style="font-size:9px;color:var(--td);margin-bottom:3px">추세</div>
+            <div style="font-size:13px;font-weight:700;color:var(--td)">${ensembleStats.model2Acc.toFixed(1)}%</div>
+          </div>
+          <div style="background:var(--surface);padding:8px 4px;border-radius:6px;text-align:center">
+            <div style="font-size:8px;color:var(--tm);margin-bottom:1px">모델 3</div>
+            <div style="font-size:9px;color:var(--td);margin-bottom:3px">시계열</div>
+            <div style="font-size:13px;font-weight:700;color:var(--td)">${ensembleStats.model3Acc.toFixed(1)}%</div>
+          </div>
+          <div style="background:var(--surface);padding:8px 4px;border-radius:6px;text-align:center">
+            <div style="font-size:8px;color:var(--tm);margin-bottom:1px">모델 4</div>
+            <div style="font-size:9px;color:var(--td);margin-bottom:3px">HW</div>
+            <div style="font-size:13px;font-weight:700;color:var(--td)">${ensembleStats.model4Acc.toFixed(1)}%</div>
+          </div>
+        </div>
+        <div style="background:var(--gbg);padding:10px 12px;border-radius:8px;text-align:center;border:1.5px solid var(--gborder);margin-bottom:8px">
+          <div style="font-size:10px;color:var(--green);margin-bottom:3px">★ 4모델 앙상블</div>
+          <div style="font-size:18px;font-weight:700;color:var(--green)">${bestEns.toFixed(2)}%</div>
+        </div>`;
+    } else {
+      // Phase 1: 2모델
+      html += `
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
           <div style="background:var(--surface);padding:10px 8px;border-radius:8px;text-align:center">
             <div style="font-size:9px;color:var(--tm);margin-bottom:2px">모델 1</div>
@@ -9087,12 +9363,15 @@ function renderBacktestResult(results, corrected, factors, bMape, aMape, bRmse, 
             <div style="font-size:10px;color:var(--green);margin-bottom:4px">평균</div>
             <div style="font-size:15px;font-weight:700;color:var(--green)">${ensembleStats.ensembleAcc.toFixed(1)}%</div>
           </div>
-        </div>
+        </div>`;
+    }
+
+    html += `
         <div style="text-align:center;font-size:11px;color:${ensColor};font-weight:700">
           모델 1 대비 ${ensImprove>=0?'+':''}${ensImprove.toFixed(2)}%p
         </div>
         <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--tm);text-align:center">
-          Phase 2, 3 진행 시 시계열·머신러닝 모델 추가 예정
+          ${phase===2 ? 'Phase 3에서 머신러닝 모델 추가 예정' : 'Phase 2, 3 진행 시 시계열·머신러닝 모델 추가 예정'}
         </div>
       </div>`;
   }
@@ -9303,32 +9582,47 @@ async function dailyAdaptiveLearning(){
   if(!DASH_DATA || DASH_DATA.filter(x=>x.total>0).length < 10) return;
   try{
     const validData = DASH_DATA.filter(x => x.total > 0).sort((a,b)=>a.date-b.date);
-    // ★ 이상치 자동 감지
+    // ★ 이상치 범위 (65%~135% 클리핑)
     const avgTotal = validData.reduce((s,x)=>s+x.total, 0) / validData.length;
-    const outlierThreshold = avgTotal * 0.7;
+    const outlierThreshold = { lo: avgTotal * 0.65, hi: avgTotal * 1.35 };
     const outlierDates = new Set();
     validData.forEach(x=>{
-      if(x.total < outlierThreshold) outlierDates.add(localDateStr(x.date));
+      if(x.total < outlierThreshold.lo || x.total > outlierThreshold.hi){
+        outlierDates.add(localDateStr(x.date));
+      }
     });
 
-    // 모델 1 백테스팅
+    // 4모델 백테스팅
     const allResults = [];
     const model2Results = [];
+    const model3Results = [];
+    const model4Results = [];
     for(const x of validData){
       const r1 = backtestSingleDayClean(x.date, validData, outlierThreshold);
       if(r1 && r1.actual > 0 && r1.pred > 0){
         r1.isOutlier = outlierDates.has(r1.date);
         allResults.push(r1);
       }
-      // 모델 2 백테스팅 (누적 추세)
       const r2 = backtestModel2_trend(x.date, validData, outlierThreshold);
       if(r2 && r2.actual > 0 && r2.pred > 0){
         r2.isOutlier = outlierDates.has(r2.date);
         model2Results.push(r2);
       }
+      const r3 = backtestModel3_tsCustom(x.date, validData, outlierThreshold);
+      if(r3 && r3.actual > 0 && r3.pred > 0){
+        r3.isOutlier = outlierDates.has(r3.date);
+        model3Results.push(r3);
+      }
+      const r4 = backtestModel4_holtWinters(x.date, validData, outlierThreshold);
+      if(r4 && r4.actual > 0 && r4.pred > 0){
+        r4.isOutlier = outlierDates.has(r4.date);
+        model4Results.push(r4);
+      }
     }
     const results = allResults.filter(r => !r.isOutlier);
     const model2ResultsClean = model2Results.filter(r => !r.isOutlier);
+    const model3ResultsClean = model3Results.filter(r => !r.isOutlier);
+    const model4ResultsClean = model4Results.filter(r => !r.isOutlier);
     if(results.length === 0) return;
 
     const beforeMape = calcMape(results, 'pred');
@@ -9339,7 +9633,6 @@ async function dailyAdaptiveLearning(){
     if(factors){
       const tested = applyFactorsToResults(results, factors);
       const testedMape = calcMape(tested, 'corrected');
-      // ★ 안전장치: 더 나아질 때만 적용
       if(testedMape < beforeMape){
         appliedFactors = factors;
         afterMape = testedMape;
@@ -9355,29 +9648,35 @@ async function dailyAdaptiveLearning(){
     const beforeAcc = Math.max(0, 100-beforeMape);
     const afterAcc = Math.max(0, 100-afterMape);
 
-    // ══ 앙상블 정확도 계산 (Phase 1: 2모델) ══
-    let ensembleAcc = afterAcc;
-    let model1AccForEns = afterAcc;
-    let model2AccForEns = 0;
+    // ══ 앙상블 정확도 계산 (Phase 2: 4모델) ══
+    let m1AccEns = afterAcc, m2AccEns = 0, m3AccEns = 0, m4AccEns = 0;
+    let ensembleAcc = afterAcc, ensembleTrimAcc = afterAcc;
     let ensembleDays = 0;
-    if(model2ResultsClean.length > 0){
-      const m1Map = {};
-      results.forEach(r=>{ m1Map[r.date] = r; });
-      const m2Map = {};
-      model2ResultsClean.forEach(r=>{ m2Map[r.date] = r; });
-      const commonDates = Object.keys(m1Map).filter(d => m2Map[d]);
+    if(model2ResultsClean.length > 0 && model3ResultsClean.length > 0 && model4ResultsClean.length > 0){
+      const m1Map = {}; results.forEach(r=>{ m1Map[r.date] = r; });
+      const m2Map = {}; model2ResultsClean.forEach(r=>{ m2Map[r.date] = r; });
+      const m3Map = {}; model3ResultsClean.forEach(r=>{ m3Map[r.date] = r; });
+      const m4Map = {}; model4ResultsClean.forEach(r=>{ m4Map[r.date] = r; });
+      const commonDates = Object.keys(m1Map).filter(d => m2Map[d] && m3Map[d] && m4Map[d]);
       if(commonDates.length > 0){
-        let m1Mape = 0, m2Mape = 0, ensMape = 0;
+        let m1M=0, m2M=0, m3M=0, m4M=0, ensM=0, ensTrimM=0;
         commonDates.forEach(d=>{
           const a = m1Map[d].actual;
-          m1Mape += Math.abs(m1Map[d].pred - a) / a;
-          m2Mape += Math.abs(m2Map[d].pred - a) / a;
-          const ensP = ensemblePredict([m1Map[d].pred, m2Map[d].pred], false);
-          ensMape += Math.abs(ensP - a) / a;
+          m1M += Math.abs(m1Map[d].pred - a) / a;
+          m2M += Math.abs(m2Map[d].pred - a) / a;
+          m3M += Math.abs(m3Map[d].pred - a) / a;
+          m4M += Math.abs(m4Map[d].pred - a) / a;
+          const ens = ensemblePredict([m1Map[d].pred, m2Map[d].pred, m3Map[d].pred, m4Map[d].pred], false);
+          ensM += Math.abs(ens - a) / a;
+          const ensT = ensemblePredict([m1Map[d].pred, m2Map[d].pred, m3Map[d].pred, m4Map[d].pred], true);
+          ensTrimM += Math.abs(ensT - a) / a;
         });
-        model1AccForEns = Math.max(0, 100 - (m1Mape / commonDates.length * 100));
-        model2AccForEns = Math.max(0, 100 - (m2Mape / commonDates.length * 100));
-        ensembleAcc = Math.max(0, 100 - (ensMape / commonDates.length * 100));
+        m1AccEns = Math.max(0, 100 - (m1M / commonDates.length * 100));
+        m2AccEns = Math.max(0, 100 - (m2M / commonDates.length * 100));
+        m3AccEns = Math.max(0, 100 - (m3M / commonDates.length * 100));
+        m4AccEns = Math.max(0, 100 - (m4M / commonDates.length * 100));
+        ensembleAcc = Math.max(0, 100 - (ensM / commonDates.length * 100));
+        ensembleTrimAcc = Math.max(0, 100 - (ensTrimM / commonDates.length * 100));
         ensembleDays = commonDates.length;
       }
     }
@@ -9402,19 +9701,23 @@ async function dailyAdaptiveLearning(){
       afterAcc: Math.round(afterAcc*10)/10,
       improvement: Math.round((afterAcc-beforeAcc)*10)/10,
       correctionApplied: !!appliedFactors,
-      // 앙상블 정보 (Phase 1)
+      // 앙상블 정보 (Phase 2)
       ensemble: {
-        model1Acc: Math.round(model1AccForEns*10)/10,
-        model2Acc: Math.round(model2AccForEns*10)/10,
+        model1Acc: Math.round(m1AccEns*10)/10,
+        model2Acc: Math.round(m2AccEns*10)/10,
+        model3Acc: Math.round(m3AccEns*10)/10,
+        model4Acc: Math.round(m4AccEns*10)/10,
         ensembleAcc: Math.round(ensembleAcc*10)/10,
+        ensembleTrimAcc: Math.round(ensembleTrimAcc*10)/10,
         ensembleDays: ensembleDays,
-        phase: 1
+        phase: 2
       },
       ranAt: new Date().toISOString(),
       auto: true
     });
     localStorage.setItem('ws_backtest_last_run', today);
-    console.log(`[적응형 학습] 자동 백테스팅 완료, 신뢰도: ${afterAcc.toFixed(1)}% | 2모델 앙상블: ${ensembleAcc.toFixed(1)}%`);
+    const bestEns = Math.max(ensembleAcc, ensembleTrimAcc);
+    console.log(`[적응형 학습] 자동 백테스팅 완료, 신뢰도: ${afterAcc.toFixed(1)}% | 4모델 앙상블: ${bestEns.toFixed(1)}%`);
   }catch(e){
     console.error('[적응형 학습] 실패:', e);
   }
