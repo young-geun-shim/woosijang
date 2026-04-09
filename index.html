@@ -795,27 +795,51 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
       <button class="date-nav-btn" onclick="chgOrderDate(1)">›</button>
     </div>
 
-    <!-- 카테고리 탭 -->
+    <!-- 1차 탭: 홀/주방 -->
+    <div style="display:flex;gap:6px;margin-bottom:8px">
+      <button class="tg on" id="oroom-홀" onclick="showOrderRoom('홀',this)" style="flex:1;padding:11px 0;font-size:14px;font-weight:700">🍽️ 홀</button>
+      <button class="tg" id="oroom-주방" onclick="showOrderRoom('주방',this)" style="flex:1;padding:11px 0;font-size:14px;font-weight:700">🍳 주방</button>
+    </div>
+
+    <!-- 2차 탭: 카테고리 -->
     <div style="display:flex;gap:4px;margin-bottom:10px">
       <button class="tg on" id="otab-식자재" onclick="showOrderCat('식자재',this)">🥬 식자재</button>
       <button class="tg" id="otab-주류음료" onclick="showOrderCat('주류음료',this)">🍺 주류/음료</button>
       <button class="tg" id="otab-일회용품" onclick="showOrderCat('일회용품',this)">📦 일회용품</button>
     </div>
 
-    <!-- 식자재 -->
-    <div id="ocat-식자재" class="order-cat-wrap">
-      <div class="ocat-title">🥬 식자재</div>
-      <div class="ocat-grid" id="ocat-grid-식자재"></div>
-    </div>
-    <!-- 주류/음료 -->
-    <div id="ocat-주류음료" class="order-cat-wrap" style="display:none">
-      <div class="ocat-title">🍺 주류 / 음료</div>
-      <div class="ocat-grid" id="ocat-grid-주류음료"></div>
-    </div>
-    <!-- 일회용품 -->
-    <div id="ocat-일회용품" class="order-cat-wrap" style="display:none">
-      <div class="ocat-title">📦 일회용품 및 부자재</div>
-      <div class="ocat-grid" id="ocat-grid-일회용품"></div>
+    <!-- 동적 카테고리 컨테이너 -->
+    <div id="orderCatContainer">
+      <!-- 홀-식자재 -->
+      <div id="ocat-홀-식자재" class="order-cat-wrap">
+        <div class="ocat-title">🥬 식자재 (홀)</div>
+        <div class="ocat-grid" id="ocat-grid-홀-식자재"></div>
+      </div>
+      <!-- 홀-주류/음료 -->
+      <div id="ocat-홀-주류음료" class="order-cat-wrap" style="display:none">
+        <div class="ocat-title">🍺 주류 / 음료 (홀)</div>
+        <div class="ocat-grid" id="ocat-grid-홀-주류음료"></div>
+      </div>
+      <!-- 홀-일회용품 -->
+      <div id="ocat-홀-일회용품" class="order-cat-wrap" style="display:none">
+        <div class="ocat-title">📦 일회용품 및 부자재 (홀)</div>
+        <div class="ocat-grid" id="ocat-grid-홀-일회용품"></div>
+      </div>
+      <!-- 주방-식자재 -->
+      <div id="ocat-주방-식자재" class="order-cat-wrap" style="display:none">
+        <div class="ocat-title">🥬 식자재 (주방)</div>
+        <div class="ocat-grid" id="ocat-grid-주방-식자재"></div>
+      </div>
+      <!-- 주방-주류/음료 -->
+      <div id="ocat-주방-주류음료" class="order-cat-wrap" style="display:none">
+        <div class="ocat-title">🍺 주류 / 음료 (주방)</div>
+        <div class="ocat-grid" id="ocat-grid-주방-주류음료"></div>
+      </div>
+      <!-- 주방-일회용품 -->
+      <div id="ocat-주방-일회용품" class="order-cat-wrap" style="display:none">
+        <div class="ocat-title">📦 일회용품 및 부자재 (주방)</div>
+        <div class="ocat-grid" id="ocat-grid-주방-일회용품"></div>
+      </div>
     </div>
 
     <!-- 기타 항목 직접 입력 -->
@@ -2556,8 +2580,10 @@ function showATab(id,btn){
 
 // ════ 발주/메모 ════
 // ════ 발주 시스템 ════
+// 카테고리 키 형식: '{room}-{cat}' (예: '홀-식자재', '주방-식자재')
+// 기존 데이터 호환을 위해 '식자재'(접두사 없음)는 자동으로 '홀-식자재'로 인식
 const ORDER_ITEMS = {
-  '식자재': [
+  '홀-식자재': [
     {name:'고추장아찌', unit:'10kg'},
     {name:'쌈장', unit:'14kg'},
     {name:'오뚜기 겨자분', unit:'4ea'},
@@ -2575,7 +2601,7 @@ const ORDER_ITEMS = {
     {name:'들기름', unit:'2kg'},
     {name:'김', unit:'1box'},
   ],
-  '주류음료': [
+  '홀-주류음료': [
     {name:'코카콜라', unit:'24ea'},
     {name:'사이다', unit:'24ea'},
     {name:'펩시제로', unit:'24ea'},
@@ -2591,7 +2617,7 @@ const ORDER_ITEMS = {
     {name:'화요', unit:'1box'},
     {name:'막걸리', unit:'1box'},
   ],
-  '일회용품': [
+  '홀-일회용품': [
     {name:'걸어쓰는 냅킨', unit:'1box'},
     {name:'종이컵', unit:'2000ea'},
     {name:'위생롤백 35×45', unit:'1롤'},
@@ -2621,9 +2647,41 @@ const ORDER_ITEMS = {
     {name:'숯', unit:'10kg'},
     {name:'일회용 석쇄', unit:'100ea'},
   ],
+  '주방-식자재': [],
+  '주방-주류음료': [],
+  '주방-일회용품': [],
 };
-const CAT_EMOJI = {'식자재':'🥬','주류음료':'🍺','일회용품':'📦','기타':'✏️'};
-const CAT_LABEL = {'식자재':'식자재','주류음료':'주류 / 음료','일회용품':'일회용품 및 부자재','기타':'기타'};
+// 호환성: 기존 데이터의 '식자재', '주류음료', '일회용품' 키를 '홀-' 접두사로 자동 변환
+function normalizeOrderCat(cat){
+  if(!cat) return cat;
+  if(cat.startsWith('홀-') || cat.startsWith('주방-')) return cat;
+  if(cat==='식자재' || cat==='주류음료' || cat==='일회용품') return '홀-'+cat;
+  return cat;
+}
+// 카테고리에서 room과 sub 추출
+function parseOrderCat(cat){
+  const c = normalizeOrderCat(cat);
+  if(c && c.startsWith('홀-')) return {room:'홀', sub:c.slice(2)};
+  if(c && c.startsWith('주방-')) return {room:'주방', sub:c.slice(3)};
+  return {room:'홀', sub:c};
+}
+const CAT_EMOJI = {
+  '홀-식자재':'🥬','홀-주류음료':'🍺','홀-일회용품':'📦',
+  '주방-식자재':'🥬','주방-주류음료':'🍺','주방-일회용품':'📦',
+  // 기존 호환
+  '식자재':'🥬','주류음료':'🍺','일회용품':'📦','기타':'✏️'
+};
+const CAT_LABEL = {
+  '홀-식자재':'식자재','홀-주류음료':'주류 / 음료','홀-일회용품':'일회용품 및 부자재',
+  '주방-식자재':'식자재','주방-주류음료':'주류 / 음료','주방-일회용품':'일회용품 및 부자재',
+  // 기존 호환
+  '식자재':'식자재','주류음료':'주류 / 음료','일회용품':'일회용품 및 부자재','기타':'기타'
+};
+
+// 현재 선택된 room (홀/주방)
+let currentOrderRoom = '홀';
+// 현재 선택된 카테고리 (room 포함)
+let currentOrderCat = '홀-식자재';
 
 let orderDate = new Date();
 let orderCalY = new Date().getFullYear(), orderCalM = new Date().getMonth();
@@ -2688,11 +2746,41 @@ function adjOrderQty(cat, name, idx, delta){
 }
 
 function showOrderCat(cat, btn){
+  // cat은 sub만 (예: '식자재') → currentOrderRoom 결합
+  currentOrderCat = currentOrderRoom + '-' + cat;
   Object.keys(ORDER_ITEMS).forEach(c=>{
-    const el=document.getElementById('ocat-'+c); if(el) el.style.display=c===cat?'block':'none';
+    const el=document.getElementById('ocat-'+c); if(el) el.style.display=c===currentOrderCat?'block':'none';
   });
-  document.querySelectorAll('#bc-order .tg').forEach(b=>b.classList.remove('on'));
-  btn.classList.add('on');
+  document.querySelectorAll('#bc-order .tg').forEach(b=>{
+    // 1차 탭(홀/주방) 버튼은 건드리지 않음
+    if(b.id && (b.id.startsWith('oroom-'))) return;
+    b.classList.remove('on');
+  });
+  if(btn) btn.classList.add('on');
+}
+
+function showOrderRoom(room, btn){
+  currentOrderRoom = room;
+  // 홀/주방 탭 활성화
+  document.querySelectorAll('[id^="oroom-"]').forEach(b=>b.classList.remove('on'));
+  if(btn) btn.classList.add('on');
+  // 현재 선택된 카테고리 sub 부분 유지 (예: 홀-식자재 → 주방-식자재)
+  let curSub = '식자재';
+  if(currentOrderCat && currentOrderCat.includes('-')){
+    curSub = currentOrderCat.split('-')[1];
+  }
+  // 카테고리 다시 표시 (sub 유지)
+  const newCat = room + '-' + curSub;
+  currentOrderCat = newCat;
+  Object.keys(ORDER_ITEMS).forEach(c=>{
+    const el=document.getElementById('ocat-'+c); if(el) el.style.display=c===newCat?'block':'none';
+  });
+  // 2차 탭 active 갱신 (sub 기준)
+  document.querySelectorAll('#bc-order .tg').forEach(b=>{
+    if(b.id && b.id.startsWith('oroom-')) return;
+    b.classList.remove('on');
+    if(b.id === 'otab-'+curSub) b.classList.add('on');
+  });
 }
 
 // 발주 저장
@@ -5309,7 +5397,9 @@ function renderOrderCostList(){
     if(!items.length) return;
     if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
     const emoji = CAT_EMOJI[cat] || '📦';
-    const label = CAT_LABEL[cat] || cat;
+    const parsed = parseOrderCat(cat);
+    const roomLbl = parsed.room === '주방' ? ' (주방)' : ' (홀)';
+    const label = (CAT_LABEL[cat] || cat) + roomLbl;
     // 카테고리 합계 (원가 입력된 것)
     const filledCount = items.filter(i=>orderItemCosts[cat][i.name]>0).length;
     html += `
@@ -5656,7 +5746,9 @@ function renderOrderCostListForProfit(){
     if(!items.length) return;
     if(!orderItemCosts[cat]) orderItemCosts[cat] = {};
     const emoji = CAT_EMOJI[cat] || '📦';
-    const label = CAT_LABEL[cat] || cat;
+    const parsed = parseOrderCat(cat);
+    const roomLbl = parsed.room === '주방' ? ' (주방)' : ' (홀)';
+    const label = (CAT_LABEL[cat] || cat) + roomLbl;
     const filledCount = items.filter(i=>orderItemCosts[cat][i.name]>0).length;
     html += `
       <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden">
