@@ -802,7 +802,7 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     </div>
 
     <!-- 2차 탭: 카테고리 -->
-    <div style="display:flex;gap:4px;margin-bottom:10px">
+    <div id="orderSubTabs" style="display:flex;gap:4px;margin-bottom:10px">
       <button class="tg on" id="otab-식자재" onclick="showOrderCat('식자재',this)">🥬 식자재</button>
       <button class="tg" id="otab-주류음료" onclick="showOrderCat('주류음료',this)">🍺 주류/음료</button>
       <button class="tg" id="otab-일회용품" onclick="showOrderCat('일회용품',this)">📦 일회용품</button>
@@ -830,15 +830,10 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
         <div class="ocat-title">🥬 식자재 (주방)</div>
         <div class="ocat-grid" id="ocat-grid-주방-식자재"></div>
       </div>
-      <!-- 주방-주류/음료 -->
-      <div id="ocat-주방-주류음료" class="order-cat-wrap" style="display:none">
-        <div class="ocat-title">🍺 주류 / 음료 (주방)</div>
-        <div class="ocat-grid" id="ocat-grid-주방-주류음료"></div>
-      </div>
-      <!-- 주방-일회용품 -->
-      <div id="ocat-주방-일회용품" class="order-cat-wrap" style="display:none">
-        <div class="ocat-title">📦 일회용품 및 부자재 (주방)</div>
-        <div class="ocat-grid" id="ocat-grid-주방-일회용품"></div>
+      <!-- 주방-부자재 -->
+      <div id="ocat-주방-부자재" class="order-cat-wrap" style="display:none">
+        <div class="ocat-title">📦 부자재 (주방)</div>
+        <div class="ocat-grid" id="ocat-grid-주방-부자재"></div>
       </div>
     </div>
 
@@ -1559,15 +1554,44 @@ body{background:var(--bg);color:var(--txt);font-family:'Noto Sans KR',sans-serif
     <button class="d-back" onclick="goTab('more')">‹</button>
     <div style="font-family:'Noto Serif KR',serif;font-size:15px;font-weight:700;color:var(--brown)">🧮 예측 계산 분석</div>
   </div>
-  <div style="padding:12px 0">
-    <div style="display:flex;gap:8px;margin-bottom:12px">
-      <button class="save-btn" onclick="renderPredDebug()" style="flex:1;margin:0;padding:12px">분석 보기</button>
-      <button class="save-btn" onclick="refreshWeights()" style="flex:1;margin:0;padding:12px;background:var(--green);color:#fff">가중치 새로고침 저장</button>
+  <!-- 탭 -->
+  <div style="background:var(--brown);padding:0 16px 0;margin:0 -16px">
+    <div class="btabs">
+      <button class="btab on" id="pdt-debug" onclick="showPredDbgTab('debug',this)">📊 가중치 분석</button>
+      <button class="btab" id="pdt-accuracy" onclick="showPredDbgTab('accuracy',this)">🎯 신뢰도 측정</button>
     </div>
-    <div id="predDebugContent"></div>
-    <div style="margin-top:16px">
-      <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:8px">가중치 변경 이력</div>
-      <div id="weightHistory" style="font-size:12px;color:var(--tm)">로딩중...</div>
+  </div>
+  <!-- 가중치 분석 탭 -->
+  <div class="bc on" id="pdc-debug">
+    <div style="padding:12px 0">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="save-btn" onclick="renderPredDebug()" style="flex:1;margin:0;padding:12px">분석 보기</button>
+        <button class="save-btn" onclick="refreshWeights()" style="flex:1;margin:0;padding:12px;background:var(--green);color:#fff">가중치 새로고침 저장</button>
+      </div>
+      <div id="predDebugContent"></div>
+      <div style="margin-top:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:8px">가중치 변경 이력</div>
+        <div id="weightHistory" style="font-size:12px;color:var(--tm)">로딩중...</div>
+      </div>
+    </div>
+  </div>
+  <!-- 신뢰도 측정 탭 -->
+  <div class="bc" id="pdc-accuracy">
+    <div style="padding:12px 0">
+      <div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:12px;line-height:1.7;color:var(--blue)">
+        💡 <strong>신뢰도 시스템</strong><br>
+        • 백테스팅: 전체 매출 데이터로 예측 vs 실제 비교<br>
+        • 자동 보정: 발견된 편향을 매출 예측에 자동 적용<br>
+        • 적응형 학습: 매일 새 데이터로 보정 계수 자동 갱신
+      </div>
+      <button onclick="runBacktest()" class="save-btn" style="margin:0 0 12px;padding:14px;background:var(--brown);color:#fff">
+        🔬 백테스팅 실행
+      </button>
+      <div id="backtestResult"></div>
+      <div style="margin-top:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--brown);margin-bottom:8px">신뢰도 변화 이력</div>
+        <div id="accuracyHistoryView" style="font-size:12px;color:var(--tm)">로딩중...</div>
+      </div>
     </div>
   </div>
 </div>
@@ -2647,9 +2671,50 @@ const ORDER_ITEMS = {
     {name:'숯', unit:'10kg'},
     {name:'일회용 석쇄', unit:'100ea'},
   ],
-  '주방-식자재': [],
-  '주방-주류음료': [],
-  '주방-일회용품': [],
+  '주방-식자재': [
+    {name:'굴젓', unit:'1kg', vendor:'마포젓갈'},
+    {name:'냉장늑간살 IBP', unit:'1kg', vendor:'마중물'},
+    {name:'앞사태 KILCOY', unit:'1kg', vendor:'마중물'},
+    {name:'차돌양지 그린다이아', unit:'1kg', vendor:'마중물'},
+    {name:'사태 KILCOY', unit:'1kg', vendor:'마중물'},
+    {name:'냉장 삼겹살', unit:'1kg', vendor:'용현축산'},
+    {name:'깐 양파', unit:'1kg', vendor:'일성상회'},
+    {name:'청량 고추', unit:'1kg', vendor:'일성상회'},
+    {name:'새송이', unit:'1box', vendor:'일성상회'},
+    {name:'알 배추', unit:'1ea', vendor:'일성상회'},
+    {name:'깻잎', unit:'1kg', vendor:'일성상회'},
+    {name:'상추', unit:'1box', vendor:'일성상회'},
+    {name:'깐대파', unit:'5kg', vendor:'일성상회'},
+    {name:'고추 가루', unit:'5kg', vendor:'일성상회'},
+    {name:'부추', unit:'1kg', vendor:'일성상회'},
+    {name:'다진 마늘', unit:'5kg', vendor:'일성상회'},
+    {name:'무순', unit:'5ea', vendor:'일성상회'},
+    {name:'계란', unit:'1box', vendor:'일성상회'},
+    {name:'꼭지 마늘', unit:'1kg', vendor:'일성상회'},
+    {name:'깐 쪽파', unit:'1kg', vendor:'일성상회'},
+    {name:'총알 버섯', unit:'1kg', vendor:'일성상회'},
+    {name:'방울 토마토', unit:'1팩', vendor:'일성상회'},
+    {name:'흙 대파', unit:'1봉', vendor:'일성상회'},
+    {name:'간 생강', unit:'1kg', vendor:'일성상회'},
+    {name:'느타리', unit:'1팩', vendor:'일성상회'},
+    {name:'표고 버섯', unit:'1kg', vendor:'일성상회'},
+    {name:'순후추', unit:'1kg', vendor:'쿠팡'},
+    {name:'초절임무', unit:'1ea', vendor:'쿠팡'},
+    {name:'고추맛기름', unit:'1.8L', vendor:'쿠팡'},
+    {name:'한우 지방', unit:'1kg', vendor:'쿠팡'},
+    {name:'하얀 설탕', unit:'3kg', vendor:'쿠팡'},
+    {name:'고당도 물엿', unit:'8kg', vendor:'쿠팡'},
+    {name:'몽고 진간장', unit:'13L', vendor:'쿠팡'},
+    {name:'미원', unit:'25kg', vendor:'쿠팡'},
+    {name:'다시다 백설 쇠고기', unit:'10kg', vendor:'쿠팡'},
+  ],
+  '주방-부자재': [
+    {name:'식기세척기 세제 린스', unit:'1set', vendor:'쿠팡'},
+    {name:'철심 수세미', unit:'1ea', vendor:'쿠팡'},
+    {name:'면 장갑', unit:'100ea', vendor:'쿠팡'},
+    {name:'미트 페이퍼 키친타월', unit:'1box', vendor:'쿠팡'},
+    {name:'하이퐁 주방세제', unit:'12kg', vendor:'쿠팡'},
+  ],
 };
 // 호환성: 기존 데이터의 '식자재', '주류음료', '일회용품' 키를 '홀-' 접두사로 자동 변환
 function normalizeOrderCat(cat){
@@ -2667,13 +2732,13 @@ function parseOrderCat(cat){
 }
 const CAT_EMOJI = {
   '홀-식자재':'🥬','홀-주류음료':'🍺','홀-일회용품':'📦',
-  '주방-식자재':'🥬','주방-주류음료':'🍺','주방-일회용품':'📦',
+  '주방-식자재':'🥬','주방-부자재':'📦',
   // 기존 호환
   '식자재':'🥬','주류음료':'🍺','일회용품':'📦','기타':'✏️'
 };
 const CAT_LABEL = {
   '홀-식자재':'식자재','홀-주류음료':'주류 / 음료','홀-일회용품':'일회용품 및 부자재',
-  '주방-식자재':'식자재','주방-주류음료':'주류 / 음료','주방-일회용품':'일회용품 및 부자재',
+  '주방-식자재':'식자재','주방-부자재':'부자재',
   // 기존 호환
   '식자재':'식자재','주류음료':'주류 / 음료','일회용품':'일회용품 및 부자재','기타':'기타'
 };
@@ -2764,22 +2829,38 @@ function showOrderRoom(room, btn){
   // 홀/주방 탭 활성화
   document.querySelectorAll('[id^="oroom-"]').forEach(b=>b.classList.remove('on'));
   if(btn) btn.classList.add('on');
-  // 현재 선택된 카테고리 sub 부분 유지 (예: 홀-식자재 → 주방-식자재)
+  // room에 따라 2차 탭 재구성
+  const subTabs = document.getElementById('orderSubTabs');
+  let subs;
+  if(room === '홀'){
+    subs = [
+      {key:'식자재', icon:'🥬', label:'식자재'},
+      {key:'주류음료', icon:'🍺', label:'주류/음료'},
+      {key:'일회용품', icon:'📦', label:'일회용품'},
+    ];
+  } else {
+    subs = [
+      {key:'식자재', icon:'🥬', label:'식자재'},
+      {key:'부자재', icon:'📦', label:'부자재'},
+    ];
+  }
+  // 현재 선택된 sub 유지 시도 (없으면 첫 번째)
   let curSub = '식자재';
   if(currentOrderCat && currentOrderCat.includes('-')){
-    curSub = currentOrderCat.split('-')[1];
+    const existing = currentOrderCat.split('-')[1];
+    if(subs.find(s=>s.key===existing)) curSub = existing;
   }
-  // 카테고리 다시 표시 (sub 유지)
+  // 2차 탭 HTML 재생성
+  if(subTabs){
+    subTabs.innerHTML = subs.map(s=>
+      `<button class="tg${s.key===curSub?' on':''}" id="otab-${s.key}" onclick="showOrderCat('${s.key}',this)">${s.icon} ${s.label}</button>`
+    ).join('');
+  }
+  // 카테고리 컨테이너 표시
   const newCat = room + '-' + curSub;
   currentOrderCat = newCat;
   Object.keys(ORDER_ITEMS).forEach(c=>{
     const el=document.getElementById('ocat-'+c); if(el) el.style.display=c===newCat?'block':'none';
-  });
-  // 2차 탭 active 갱신 (sub 기준)
-  document.querySelectorAll('#bc-order .tg').forEach(b=>{
-    if(b.id && b.id.startsWith('oroom-')) return;
-    b.classList.remove('on');
-    if(b.id === 'otab-'+curSub) b.classList.add('on');
   });
 }
 
@@ -2834,16 +2915,26 @@ function loadOrderList(){
 
 function renderOrderListView(data, container){
   if(!data||!data.items){container.innerHTML='<div class="empty-msg">데이터 없음</div>';return;}
+  // 품목명으로 거래처 찾기 (ORDER_ITEMS에서 현재 등록된 vendor 가져옴)
+  function findVendor(cat, itemName){
+    const normCat = normalizeOrderCat(cat);
+    const found = ORDER_ITEMS[normCat]?.find(i=>i.name===itemName);
+    return found?.vendor || '';
+  }
   let html='';
   Object.entries(data.items).forEach(([cat, items])=>{
     if(!items||!items.length)return;
     html+=`<div class="order-cat-section">
       <div class="order-cat-hd">${CAT_EMOJI[cat]||'📦'} ${CAT_LABEL[cat]||cat} (${items.length}종)</div>
-      ${items.map((item,i)=>`
+      ${items.map((item,i)=>{
+        const vendor = findVendor(cat, item.name);
+        const vendorBadge = vendor ? `<span style="display:inline-block;font-size:9px;color:var(--brown);background:var(--gbg);border:1px solid var(--gborder);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">${vendor}</span>` : '';
+        return `
         <div class="order-item-row">
-          <span class="order-item-name">${i+1}. ${item.name}</span>
+          <span class="order-item-name">${i+1}. ${item.name}${vendorBadge}</span>
           <span class="order-item-qty">${item.qty>0?item.qty+'개':''} ${item.unit}</span>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     </div>`;
   });
   if(data.by||data.savedAt){
@@ -2866,8 +2957,13 @@ function copyOrderList(){
     let txt=`📦 우시장회관 발주 목록\n${dateStr}\n${'─'.repeat(20)}\n`;
     Object.entries(data.items).forEach(([cat,items])=>{
       if(!items||!items.length)return;
+      const normCat = normalizeOrderCat(cat);
       txt+=`\n${CAT_EMOJI[cat]||''} ${CAT_LABEL[cat]||cat}\n`;
-      items.forEach((item,i)=>{ txt+=`  ${i+1}. ${item.name}${item.qty>0?' x'+item.qty:''} ${item.unit}\n`; });
+      items.forEach((item,i)=>{
+        const found = ORDER_ITEMS[normCat]?.find(it=>it.name===item.name);
+        const vendor = found?.vendor ? ` [${found.vendor}]` : '';
+        txt+=`  ${i+1}. ${item.name}${vendor}${item.qty>0?' x'+item.qty:''} ${item.unit}\n`;
+      });
     });
     txt+=`${'─'.repeat(20)}\n작성: ${data.by||'-'}`;
     copyText(txt, '발주 목록 복사됐어요! 📋');
@@ -5411,10 +5507,11 @@ function renderOrderCostList(){
         <div style="padding:6px 0">`;
     items.forEach(item=>{
       const curCost = orderItemCosts[cat][item.name] || '';
+      const vendorBadge = item.vendor ? `<span style="display:inline-block;font-size:9px;color:var(--brown);background:var(--gbg);border:1px solid var(--gborder);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">${item.vendor}</span>` : '';
       html += `
         <div style="display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--surface);gap:10px">
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}${vendorBadge}</div>
             <div style="font-size:10px;color:var(--tm)">${item.unit}</div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
@@ -5759,10 +5856,11 @@ function renderOrderCostListForProfit(){
         <div style="padding:6px 0">`;
     items.forEach(item=>{
       const curCost = orderItemCosts[cat][item.name] || '';
+      const vendorBadge = item.vendor ? `<span style="display:inline-block;font-size:9px;color:var(--brown);background:var(--gbg);border:1px solid var(--gborder);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle">${item.vendor}</span>` : '';
       html += `
         <div style="display:flex;align-items:center;padding:7px 14px;border-bottom:1px solid var(--surface);gap:10px">
           <div style="flex:1;min-width:0">
-            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}</div>
+            <div style="font-size:13px;font-weight:600;color:var(--txt)">${item.name}${vendorBadge}</div>
             <div style="font-size:10px;color:var(--tm)">${item.unit}</div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
@@ -7537,6 +7635,10 @@ setInterval(()=>{
 setTimeout(showPredPopup, 7000);
 // 하루 1번 자동 가중치 갱신 (데이터 로딩 후 10초)
 setTimeout(autoRefreshWeightsDaily, 10000);
+// 보정 계수 로드 (데이터 로딩 후 5초)
+setTimeout(loadCorrectionFactors, 5000);
+// 적응형 학습 - 매일 자동 백테스팅 + 보정계수 갱신 (15초 뒤)
+setTimeout(dailyAdaptiveLearning, 15000);
 // 마지막 탭 복구 (새로고침 시 현재 페이지 유지)
 try{
   const lastTab=localStorage.getItem('ws_last_tab');
@@ -8153,13 +8255,752 @@ function predictSingleDay(dt, dowAvg, baseAvg, holAvgFn, wxStats, pmGradeAvg, te
     if(band && tempBandAvg[band.l]) tempFactor=tempBandAvg[band.l]/baseAvg;
   }
 
-  const pred=Math.round(
+  const rawPred=Math.round(
     dayBase*holFactor*weights.hol +
     dayBase*wxFactor*weights.wx +
     dayBase*pmFactor*weights.pm +
     dayBase*tempFactor*weights.temp
   );
-  return {dk,dow,holType,dayWx,dayPm25,dayTemp,pmGrade,pred};
+  // 적응형 보정 계수 적용 (correctionFactors가 로드돼있을 때만)
+  const pred = applyCorrection(rawPred, dt, dayWx, dayTemp, holType);
+  return {dk,dow,holType,dayWx,dayPm25,dayTemp,pmGrade,pred,rawPred};
+}
+
+// ════════════════════════════════════════════════════════════
+// 🎯 백테스팅 + 신뢰도 측정 + 자동 보정 + 적응형 학습 시스템
+// ════════════════════════════════════════════════════════════
+
+let correctionFactors = null; // 캐시
+let backtestData = null; // 마지막 백테스팅 결과 캐시
+
+// 보정 계수 로드
+async function loadCorrectionFactors(){
+  try{
+    const snap = await db.ref('correctionFactors').get();
+    correctionFactors = snap.val() || null;
+  }catch(e){
+    correctionFactors = null;
+  }
+  return correctionFactors;
+}
+
+// 보정 적용 함수 - 원본 예측에 계수를 곱함
+function applyCorrection(rawPred, dt, dayWx, dayTemp, holType){
+  if(!correctionFactors || !rawPred) return rawPred;
+  let corrected = rawPred;
+  // 요일 보정
+  const dow = dt.getDay();
+  if(correctionFactors.dow && correctionFactors.dow[dow]){
+    corrected *= correctionFactors.dow[dow];
+  }
+  // 날씨 보정
+  if(dayWx!=null && correctionFactors.weather && correctionFactors.weather[dayWx]){
+    corrected *= correctionFactors.weather[dayWx];
+  }
+  // 공휴일 보정
+  if(holType && correctionFactors.holiday && correctionFactors.holiday[holType]){
+    corrected *= correctionFactors.holiday[holType];
+  }
+  // 온도구간 보정
+  if(dayTemp!=null && correctionFactors.tempBand){
+    let band = '';
+    if(dayTemp<0) band='-10~0';
+    else if(dayTemp<10) band='0~10';
+    else if(dayTemp<20) band='10~20';
+    else if(dayTemp<30) band='20~30';
+    else band='30~';
+    if(correctionFactors.tempBand[band]) corrected *= correctionFactors.tempBand[band];
+  }
+  return Math.round(corrected);
+}
+
+// ── 단일 날짜 백테스팅: 그날 이전 데이터로만 예측 ──
+// ── 보정 계수 자동 계산 (백테스팅 결과로) ──
+// 클램핑 강화: ±15% 이내 (과적합 방지)
+function calcCorrectionFactors(results){
+  if(!results || results.length < 5) return null;
+  // 요일별 편향 (예측/실제 평균)
+  const dowGroups = {};
+  results.forEach(r=>{
+    if(r.actual <= 0) return;
+    if(!dowGroups[r.dow]) dowGroups[r.dow] = {predSum:0, actSum:0, n:0};
+    dowGroups[r.dow].predSum += r.pred;
+    dowGroups[r.dow].actSum += r.actual;
+    dowGroups[r.dow].n++;
+  });
+  const dowFactor = {};
+  Object.entries(dowGroups).forEach(([d, g])=>{
+    if(g.n >= 3 && g.predSum > 0){
+      // 클램핑 강화: ±15% 이내
+      dowFactor[d] = Math.max(0.85, Math.min(1.15, g.actSum/g.predSum));
+    }
+  });
+
+  // 요일별 분산 체크 - 분산 작으면 전역 편향으로 통합
+  const dowVals = Object.values(dowFactor);
+  if(dowVals.length >= 3){
+    const dowAvg = dowVals.reduce((s,v)=>s+v,0)/dowVals.length;
+    const dowVar = dowVals.reduce((s,v)=>s+Math.pow(v-dowAvg,2),0)/dowVals.length;
+    const dowStd = Math.sqrt(dowVar);
+    // 표준편차 < 0.02 면 모든 요일이 비슷하게 편향됨 → 전역 보정
+    if(dowStd < 0.02){
+      Object.keys(dowFactor).forEach(d=>{ dowFactor[d] = dowAvg; });
+    }
+  }
+
+  // 날씨별 편향
+  const wxGroups = {};
+  results.forEach(r=>{
+    if(r.actual <= 0 || r.dayWx == null) return;
+    if(!wxGroups[r.dayWx]) wxGroups[r.dayWx] = {predSum:0, actSum:0, n:0};
+    wxGroups[r.dayWx].predSum += r.pred;
+    wxGroups[r.dayWx].actSum += r.actual;
+    wxGroups[r.dayWx].n++;
+  });
+  const wxFactor = {};
+  Object.entries(wxGroups).forEach(([w, g])=>{
+    if(g.n >= 3 && g.predSum > 0){
+      wxFactor[w] = Math.max(0.85, Math.min(1.15, g.actSum/g.predSum));
+    }
+  });
+
+  // 공휴일 편향
+  const holGroups = {};
+  results.forEach(r=>{
+    if(r.actual <= 0 || !r.holType) return;
+    if(!holGroups[r.holType]) holGroups[r.holType] = {predSum:0, actSum:0, n:0};
+    holGroups[r.holType].predSum += r.pred;
+    holGroups[r.holType].actSum += r.actual;
+    holGroups[r.holType].n++;
+  });
+  const holFactor = {};
+  Object.entries(holGroups).forEach(([h, g])=>{
+    if(g.n >= 2 && g.predSum > 0){
+      holFactor[h] = Math.max(0.85, Math.min(1.15, g.actSum/g.predSum));
+    }
+  });
+
+  // 온도구간 편향
+  const tempBandGroups = {};
+  results.forEach(r=>{
+    if(r.actual <= 0 || r.dayTemp == null) return;
+    let band;
+    if(r.dayTemp<0) band='-10~0';
+    else if(r.dayTemp<10) band='0~10';
+    else if(r.dayTemp<20) band='10~20';
+    else if(r.dayTemp<30) band='20~30';
+    else band='30~';
+    if(!tempBandGroups[band]) tempBandGroups[band] = {predSum:0, actSum:0, n:0};
+    tempBandGroups[band].predSum += r.pred;
+    tempBandGroups[band].actSum += r.actual;
+    tempBandGroups[band].n++;
+  });
+  const tempBandFactor = {};
+  Object.entries(tempBandGroups).forEach(([b, g])=>{
+    if(g.n >= 3 && g.predSum > 0){
+      tempBandFactor[b] = Math.max(0.85, Math.min(1.15, g.actSum/g.predSum));
+    }
+  });
+
+  return {
+    dow: dowFactor,
+    weather: wxFactor,
+    holiday: holFactor,
+    tempBand: tempBandFactor,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+// ── 보정 적용 시뮬레이션 (검증용) ──
+function applyFactorsToResults(results, factors){
+  return results.map(r=>{
+    let c = r.pred;
+    if(factors.dow && factors.dow[r.dow]) c *= factors.dow[r.dow];
+    if(r.dayWx!=null && factors.weather && factors.weather[r.dayWx]) c *= factors.weather[r.dayWx];
+    if(r.holType && factors.holiday && factors.holiday[r.holType]) c *= factors.holiday[r.holType];
+    if(r.dayTemp!=null && factors.tempBand){
+      let band;
+      if(r.dayTemp<0) band='-10~0';
+      else if(r.dayTemp<10) band='0~10';
+      else if(r.dayTemp<20) band='10~20';
+      else if(r.dayTemp<30) band='20~30';
+      else band='30~';
+      if(factors.tempBand[band]) c *= factors.tempBand[band];
+    }
+    return {...r, corrected: Math.round(c)};
+  });
+}
+
+// MAPE 계산 헬퍼
+function calcMape(results, field){
+  if(!results.length) return 100;
+  return results.reduce((s,r)=>s + Math.abs(r[field]-r.actual)/r.actual, 0) / results.length * 100;
+}
+
+// ── 백테스팅 실행 (메인 함수) ──
+async function runBacktest(){
+  const btn = event?.target;
+  if(btn) btn.disabled = true;
+  const resultDiv = document.getElementById('backtestResult');
+  if(resultDiv) resultDiv.innerHTML = '<div style="text-align:center;padding:30px;color:var(--tm)">백테스팅 진행 중... 잠시만 기다려주세요</div>';
+
+  // 매출 데이터
+  const validData = DASH_DATA.filter(x => x.total > 0).sort((a,b)=>a.date-b.date);
+  if(validData.length < 10){
+    if(resultDiv) resultDiv.innerHTML = '<div style="background:var(--rbg);padding:14px;border-radius:8px;color:var(--red);font-size:13px">⚠️ 백테스팅하기엔 데이터가 부족해요 (최소 10일 필요)</div>';
+    if(btn) btn.disabled = false;
+    return;
+  }
+
+  // ★ 이상치 자동 감지 (평균의 70% 미만)
+  const avgTotal = validData.reduce((s,x)=>s+x.total, 0) / validData.length;
+  const outlierThreshold = avgTotal * 0.7;
+  const outlierDates = new Set();
+  validData.forEach(x=>{
+    if(x.total < outlierThreshold) outlierDates.add(localDateStr(x.date));
+  });
+
+  // 각 날짜에 대해 백테스팅 (학습 데이터에서도 이상치 제외하도록 수정 필요)
+  // 일단 모든 날짜로 백테스팅
+  const allResults = [];
+  for(const x of validData){
+    const r = backtestSingleDayClean(x.date, validData, outlierThreshold);
+    if(r && r.actual > 0 && r.pred > 0){
+      r.isOutlier = outlierDates.has(r.date);
+      allResults.push(r);
+    }
+  }
+
+  // 평가는 정상 데이터만
+  const results = allResults.filter(r => !r.isOutlier);
+
+  if(results.length === 0){
+    if(resultDiv) resultDiv.innerHTML = '<div style="background:var(--rbg);padding:14px;border-radius:8px;color:var(--red);font-size:13px">⚠️ 백테스팅 결과가 없어요</div>';
+    if(btn) btn.disabled = false;
+    return;
+  }
+
+  // 보정 전 신뢰도 (MAPE, RMSE)
+  const beforeMape = calcMape(results, 'pred');
+  const beforeRmse = Math.sqrt(results.reduce((s,r)=>s + Math.pow(r.pred-r.actual, 2), 0) / results.length);
+
+  // 보정 계수 계산
+  const factors = calcCorrectionFactors(results);
+
+  // 보정 후 시뮬레이션
+  let correctedResults = results.map(r=>({...r, corrected: r.pred}));
+  let afterMape = beforeMape;
+  let afterRmse = beforeRmse;
+  let appliedFactors = null;
+
+  if(factors){
+    const tested = applyFactorsToResults(results, factors);
+    const testedMape = calcMape(tested, 'corrected');
+    // ★ 안전장치: 보정 후가 더 나아질 때만 적용
+    if(testedMape < beforeMape){
+      correctedResults = tested;
+      afterMape = testedMape;
+      afterRmse = Math.sqrt(tested.reduce((s,r)=>s + Math.pow(r.corrected-r.actual, 2), 0) / tested.length);
+      appliedFactors = factors;
+    }
+  }
+
+  const beforeAcc = Math.max(0, 100 - beforeMape);
+  const afterAcc = Math.max(0, 100 - afterMape);
+  const improvement = afterAcc - beforeAcc;
+
+  // Firebase 저장
+  setSyncDot('ing');
+  try{
+    // ★ 보정 계수는 안전장치 통과한 것만 저장
+    if(appliedFactors){
+      await db.ref('correctionFactors').set(appliedFactors);
+      correctionFactors = appliedFactors;
+    } else {
+      // 보정 적용 안 함 → 기존 계수 제거
+      await db.ref('correctionFactors').remove();
+      correctionFactors = null;
+    }
+    // 백테스팅 결과 저장 (각 날짜별)
+    const btUpdates = {};
+    correctedResults.forEach(r=>{
+      btUpdates[r.date] = {
+        pred: r.pred,
+        corrected: r.corrected,
+        actual: r.actual,
+        errorPct: Math.round(Math.abs(r.pred-r.actual)/r.actual*1000)/10,
+        correctedErrorPct: Math.round(Math.abs(r.corrected-r.actual)/r.actual*1000)/10,
+        dow: r.dow,
+        wx: r.dayWx,
+        temp: r.dayTemp,
+        holType: r.holType,
+        isOutlier: false
+      };
+    });
+    // 이상치도 저장 (참고용)
+    allResults.filter(r=>r.isOutlier).forEach(r=>{
+      btUpdates[r.date] = {
+        pred: r.pred, actual: r.actual,
+        errorPct: Math.round(Math.abs(r.pred-r.actual)/r.actual*1000)/10,
+        dow: r.dow, holType: r.holType, isOutlier: true
+      };
+    });
+    await db.ref('backtests').set(btUpdates);
+    // 신뢰도 이력 저장
+    const todayK = localDateStr(new Date());
+    await db.ref('accuracyHistory/'+todayK).set({
+      date: todayK,
+      totalDays: results.length,
+      outlierDays: allResults.length - results.length,
+      beforeMape: Math.round(beforeMape*10)/10,
+      afterMape: Math.round(afterMape*10)/10,
+      beforeRmse: Math.round(beforeRmse),
+      afterRmse: Math.round(afterRmse),
+      beforeAcc: Math.round(beforeAcc*10)/10,
+      afterAcc: Math.round(afterAcc*10)/10,
+      improvement: Math.round(improvement*10)/10,
+      correctionApplied: !!appliedFactors,
+      ranAt: new Date().toISOString()
+    });
+    backtestData = correctedResults;
+    setSyncDot('ok');
+  }catch(e){
+    setSyncDot('err');
+    console.error('백테스팅 저장 실패:', e);
+  }
+
+  // 결과 렌더링
+  renderBacktestResult(results, correctedResults, appliedFactors, beforeMape, afterMape, beforeRmse, afterRmse, beforeAcc, afterAcc, improvement, allResults.length - results.length);
+  loadAccuracyHistory();
+  if(btn) btn.disabled = false;
+}
+
+// ── 백테스팅 단일일 (이상치 제외 학습) ──
+function backtestSingleDayClean(targetDate, allData, outlierThreshold){
+  const tDk = localDateStr(targetDate);
+  // 학습 데이터: 그 날짜 이전 + 이상치 제외
+  const trainData = allData.filter(x => 
+    localDateStr(x.date) < tDk && 
+    x.total > 0 && 
+    x.total >= outlierThreshold
+  );
+  if(trainData.length < 3) return null;
+
+  function getWeight(date){
+    const days = Math.floor((targetDate - date) / 86400000);
+    if(days <= 14) return 5.0;  // 최근 14일 가중치 강화
+    if(days <= 30) return 3.0;
+    if(days <= 60) return 1.5;
+    return 0.3;
+  }
+
+  // 가중치 계산
+  function calcWeightsFor(data, target){
+    const defaults = {hol:0.40, wx:0.20, pm:0.20, temp:0.20};
+    if(data.length < 5) return defaults;
+    const getVal = x => target==='hall' ? (x.hall||0) : target==='deliv' ? (x.deliv||0) : x.total;
+    const baseAvg = data.reduce((s,x)=>s+getVal(x),0)/data.length;
+    if(!baseAvg) return defaults;
+    const holDays = data.filter(x=>x.isHoliday), normDays = data.filter(x=>!x.isHoliday);
+    const holImpact = (holDays.length>=1&&normDays.length>=1)?Math.abs((holDays.reduce((s,x)=>s+getVal(x),0)/holDays.length)-(normDays.reduce((s,x)=>s+getVal(x),0)/normDays.length))/baseAvg:0.2;
+    const wxGroups = {};
+    data.forEach(x=>{ if(x.wx==null) return; if(!wxGroups[x.wx]) wxGroups[x.wx]=[]; wxGroups[x.wx].push(getVal(x)); });
+    let wxVar=0, wxCnt=0;
+    Object.values(wxGroups).forEach(arr=>{ if(arr.length<3) return; wxVar+=Math.abs(arr.reduce((a,b)=>a+b,0)/arr.length-baseAvg)/baseAvg; wxCnt++; });
+    const wxImpact = wxCnt?wxVar/wxCnt:0.1;
+    const total = holImpact + wxImpact + 0.1 + 0.1;
+    return {
+      hol: holImpact/total, wx: wxImpact/total, pm: 0.1/total, temp: 0.1/total
+    };
+  }
+
+  const weights = calcWeightsFor(trainData, 'total');
+
+  // 가중 요일별 평균
+  const dowAvg = {};
+  trainData.forEach(x=>{
+    const w = getWeight(x.date);
+    if(!dowAvg[x.dow]) dowAvg[x.dow] = {sum:0, cnt:0};
+    dowAvg[x.dow].sum += x.total*w;
+    dowAvg[x.dow].cnt += w;
+  });
+
+  let wSum=0, wCnt=0;
+  trainData.forEach(x=>{ const w=getWeight(x.date); wSum+=x.total*w; wCnt+=w; });
+  const baseAvg = wCnt ? wSum/wCnt : 0;
+  if(!baseAvg) return null;
+
+  const dow = targetDate.getDay();
+  const dayBase = dowAvg[dow] ? dowAvg[dow].sum/dowAvg[dow].cnt : baseAvg;
+
+  // 공휴일 통계
+  const holStats = {holiday:{sum:0,cnt:0}, before:{sum:0,cnt:0}, normal:{sum:0,cnt:0}, after:{sum:0,cnt:0}};
+  trainData.forEach(x=>{
+    const dk2 = localDateStr(x.date);
+    const t = getHolType(dk2);
+    if(t && holStats[t]){ const w=getWeight(x.date); holStats[t].sum+=x.total*w; holStats[t].cnt+=w; }
+  });
+  const holType = getHolType(tDk) || 'normal';
+  const holAvg = holStats[holType]?.cnt ? holStats[holType].sum/holStats[holType].cnt : baseAvg;
+  const holFactor = holAvg/baseAvg || 1;
+
+  // 날씨 통계
+  const wxStats = {};
+  trainData.forEach(x=>{
+    if(x.wx==null) return;
+    const w = getWeight(x.date);
+    if(!wxStats[x.wx]) wxStats[x.wx] = {sum:0, cnt:0};
+    wxStats[x.wx].sum += x.total*w;
+    wxStats[x.wx].cnt += w;
+  });
+  const target = allData.find(x => localDateStr(x.date) === tDk);
+  const dayWx = target?.wx;
+  const wxFactor = dayWx!=null && wxStats[dayWx] ? wxStats[dayWx].sum/wxStats[dayWx].cnt/baseAvg : 1;
+
+  // 온도 통계
+  const TEMP_BANDS = [{l:'-10~0',min:-10,max:0},{l:'0~10',min:0,max:10},{l:'10~20',min:10,max:20},{l:'20~30',min:20,max:30},{l:'30~',min:30,max:99}];
+  const tempBandAvg = {};
+  TEMP_BANDS.forEach(b=>{
+    const rows = trainData.filter(x=>x.lunchTemp!=null && x.lunchTemp>=b.min && x.lunchTemp<b.max);
+    if(rows.length){
+      let s=0, c=0;
+      rows.forEach(x=>{ const w=getWeight(x.date); s+=x.total*w; c+=w; });
+      tempBandAvg[b.l] = s/c;
+    }
+  });
+  const dayTemp = target?.lunchTemp;
+  let tempFactor = 1;
+  if(dayTemp!=null){
+    const band = TEMP_BANDS.find(b=>dayTemp>=b.min && dayTemp<b.max);
+    if(band && tempBandAvg[band.l]) tempFactor = tempBandAvg[band.l]/baseAvg;
+  }
+
+  // 미세먼지
+  const PM_GRADES = PRED_PM_GRADES;
+  const pmGradeAvg = {};
+  PM_GRADES.forEach(g=>{
+    const rows = trainData.filter(x=>x.dayPm25!=null && x.dayPm25>=g.min && x.dayPm25<=g.max && x.total>0);
+    if(rows.length){
+      let s=0, c=0;
+      rows.forEach(x=>{ const w=getWeight(x.date); s+=x.total*w; c+=w; });
+      pmGradeAvg[g.lbl] = s/c;
+    }
+  });
+  const dayPm25 = target?.dayPm25;
+  const pmGrade = dayPm25!=null ? PM_GRADES.find(g=>dayPm25>=g.min&&dayPm25<=g.max) : null;
+  const pmFactor = pmGrade && pmGradeAvg[pmGrade.lbl] ? pmGradeAvg[pmGrade.lbl]/baseAvg : 1;
+
+  // 최종 예측
+  const pred = Math.round(
+    dayBase*holFactor*weights.hol +
+    dayBase*wxFactor*weights.wx +
+    dayBase*pmFactor*weights.pm +
+    dayBase*tempFactor*weights.temp
+  );
+
+  return {
+    date: tDk, dow: dow, holType: holType,
+    dayWx: dayWx, dayTemp: dayTemp, dayPm25: dayPm25,
+    pred: pred, actual: target?.total || 0,
+    trainSize: trainData.length
+  };
+}
+
+// 백테스팅 결과 렌더링
+function renderBacktestResult(results, corrected, factors, bMape, aMape, bRmse, aRmse, bAcc, aAcc, improve, outlierCount){
+  const div = document.getElementById('backtestResult');
+  if(!div) return;
+  const accColor = aAcc>=90?'var(--green)':aAcc>=80?'var(--gold)':'var(--red)';
+  const grade = aAcc>=95?'⭐⭐⭐ 매우 정확':aAcc>=90?'⭐⭐ 정확':aAcc>=85?'⭐ 양호':aAcc>=80?'보통':'⚠️ 부정확';
+  const corrApplied = !!factors;
+
+  let html = '';
+  // 메인 신뢰도 카드
+  html += `
+    <div style="background:var(--white);border:2px solid ${accColor};border-radius:14px;padding:18px;margin-bottom:12px;text-align:center">
+      <div style="font-size:11px;font-weight:700;color:var(--tm);letter-spacing:.8px;margin-bottom:6px">현재 예측 신뢰도</div>
+      <div style="font-size:36px;font-weight:700;color:${accColor};font-family:'Noto Serif KR',serif">${aAcc.toFixed(1)}%</div>
+      <div style="font-size:13px;color:var(--tm);margin-top:4px">${grade}</div>
+      <div style="font-size:11px;color:var(--tm);margin-top:8px">정상 데이터 ${results.length}일 기준 ${outlierCount>0?`<br>(이상치 ${outlierCount}일 자동 제외)`:''}</div>
+    </div>`;
+
+  // 보정 적용 여부 알림
+  if(corrApplied){
+    html += `
+      <div style="background:var(--gbg);border:1px solid var(--gborder);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--green);margin-bottom:4px">✅ 자동 보정 적용됨</div>
+        <div style="font-size:11px;color:var(--td);line-height:1.5">백테스팅 검증 결과 보정이 신뢰도를 ${improve>0?'+'+improve.toFixed(1)+'%p 향상':'유지'}시켰어요. 모든 새 예측에 자동 적용됩니다.</div>
+      </div>`;
+  } else {
+    html += `
+      <div style="background:#FFF8E8;border:1px solid var(--gold);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:4px">ℹ️ 보정 적용 안 됨 (안전장치 작동)</div>
+        <div style="font-size:11px;color:var(--td);line-height:1.5">현재 예측 모델이 이미 양호해서 자동 보정이 신뢰도를 더 올리지 못했어요. 보정을 적용하지 않습니다 (모델 보호).</div>
+      </div>`;
+  }
+
+  // before/after 비교
+  html += `
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:10px">📈 보정 시뮬레이션 결과</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface);padding:10px;border-radius:8px;text-align:center">
+          <div style="font-size:10px;color:var(--tm);margin-bottom:4px">원본 예측 신뢰도</div>
+          <div style="font-size:18px;font-weight:700;color:var(--td)">${bAcc.toFixed(1)}%</div>
+          <div style="font-size:9px;color:var(--tm);margin-top:2px">MAPE ${bMape.toFixed(1)}%</div>
+        </div>
+        <div style="background:${corrApplied?'var(--gbg)':'var(--surface)'};padding:10px;border-radius:8px;text-align:center;border:1px solid ${corrApplied?'var(--gborder)':'var(--border)'}">
+          <div style="font-size:10px;color:${corrApplied?'var(--green)':'var(--tm)'};margin-bottom:4px">${corrApplied?'보정 후 신뢰도':'보정 시뮬레이션'}</div>
+          <div style="font-size:18px;font-weight:700;color:${corrApplied?'var(--green)':'var(--tm)'}">${aAcc.toFixed(1)}%</div>
+          <div style="font-size:9px;color:${corrApplied?'var(--green)':'var(--tm)'};margin-top:2px">MAPE ${aMape.toFixed(1)}%</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:${improve>0?'var(--green)':'var(--tm)'};font-weight:700">
+        ${improve>0?'▲ +':improve<0?'▼ ':''}${improve.toFixed(1)}%p
+      </div>
+      <div style="display:flex;justify-content:space-around;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:10px;color:var(--tm)">
+        <div>RMSE 전: ${comma(Math.round(bRmse))}원</div>
+        <div>RMSE 후: ${comma(Math.round(aRmse))}원</div>
+      </div>
+    </div>`;
+
+  // 보정 계수 표시 (적용된 경우만)
+  if(factors){
+    html += `<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:10px">🔧 자동 보정 계수 (적용됨)</div>`;
+    if(Object.keys(factors.dow).length){
+      html += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">요일별</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">`;
+      const dows = ['일','월','화','수','목','금','토'];
+      Object.entries(factors.dow).forEach(([d, f])=>{
+        const pct = ((f-1)*100).toFixed(1);
+        const color = f>1.05?'var(--green)':f<0.95?'var(--red)':'var(--tm)';
+        html += `<span style="background:var(--surface);padding:4px 8px;border-radius:6px;font-size:11px;color:${color}">${dows[d]} ${f>=1?'+':''}${pct}%</span>`;
+      });
+      html += `</div>`;
+    }
+    if(Object.keys(factors.weather).length){
+      html += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">날씨별</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">`;
+      const wxLbl = ['☀️맑음','☁️흐림','🌧️비','❄️눈'];
+      Object.entries(factors.weather).forEach(([w, f])=>{
+        const pct = ((f-1)*100).toFixed(1);
+        const color = f>1.05?'var(--green)':f<0.95?'var(--red)':'var(--tm)';
+        html += `<span style="background:var(--surface);padding:4px 8px;border-radius:6px;font-size:11px;color:${color}">${wxLbl[w]||w} ${f>=1?'+':''}${pct}%</span>`;
+      });
+      html += `</div>`;
+    }
+    if(Object.keys(factors.holiday).length){
+      html += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">공휴일</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:10px">`;
+      const holLbl = {holiday:'공휴일',before:'전날',normal:'평일',after:'다음날'};
+      Object.entries(factors.holiday).forEach(([h, f])=>{
+        const pct = ((f-1)*100).toFixed(1);
+        const color = f>1.05?'var(--green)':f<0.95?'var(--red)':'var(--tm)';
+        html += `<span style="background:var(--surface);padding:4px 8px;border-radius:6px;font-size:11px;color:${color}">${holLbl[h]||h} ${f>=1?'+':''}${pct}%</span>`;
+      });
+      html += `</div>`;
+    }
+    if(Object.keys(factors.tempBand).length){
+      html += `<div style="font-size:11px;color:var(--tm);margin-bottom:4px">온도</div><div style="display:flex;gap:4px;flex-wrap:wrap">`;
+      Object.entries(factors.tempBand).forEach(([t, f])=>{
+        const pct = ((f-1)*100).toFixed(1);
+        const color = f>1.05?'var(--green)':f<0.95?'var(--red)':'var(--tm)';
+        html += `<span style="background:var(--surface);padding:4px 8px;border-radius:6px;font-size:11px;color:${color}">${t}°C ${f>=1?'+':''}${pct}%</span>`;
+      });
+      html += `</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // 오차 분포
+  const buckets = {a:0, b:0, c:0, d:0};
+  corrected.forEach(r=>{
+    const err = Math.abs(r.corrected-r.actual)/r.actual*100;
+    if(err<=5) buckets.a++;
+    else if(err<=10) buckets.b++;
+    else if(err<=20) buckets.c++;
+    else buckets.d++;
+  });
+  const total = corrected.length;
+  html += `<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:10px">📊 오차 분포</div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:55px;color:var(--green)">5% 이내</div>
+        <div style="flex:1;background:var(--surface);border-radius:4px;height:18px;overflow:hidden">
+          <div style="background:var(--green);height:100%;width:${(buckets.a/total*100).toFixed(0)}%"></div>
+        </div>
+        <div style="width:60px;text-align:right;color:var(--td)">${buckets.a}일 (${(buckets.a/total*100).toFixed(0)}%)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:55px;color:var(--gold)">5~10%</div>
+        <div style="flex:1;background:var(--surface);border-radius:4px;height:18px;overflow:hidden">
+          <div style="background:var(--gold);height:100%;width:${(buckets.b/total*100).toFixed(0)}%"></div>
+        </div>
+        <div style="width:60px;text-align:right;color:var(--td)">${buckets.b}일 (${(buckets.b/total*100).toFixed(0)}%)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:55px;color:#BA7517">10~20%</div>
+        <div style="flex:1;background:var(--surface);border-radius:4px;height:18px;overflow:hidden">
+          <div style="background:#BA7517;height:100%;width:${(buckets.c/total*100).toFixed(0)}%"></div>
+        </div>
+        <div style="width:60px;text-align:right;color:var(--td)">${buckets.c}일 (${(buckets.c/total*100).toFixed(0)}%)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="width:55px;color:var(--red)">20% 이상</div>
+        <div style="flex:1;background:var(--surface);border-radius:4px;height:18px;overflow:hidden">
+          <div style="background:var(--red);height:100%;width:${(buckets.d/total*100).toFixed(0)}%"></div>
+        </div>
+        <div style="width:60px;text-align:right;color:var(--td)">${buckets.d}일 (${(buckets.d/total*100).toFixed(0)}%)</div>
+      </div>
+    </div>
+  </div>`;
+
+  // 오차 큰 날짜 TOP 5
+  const sortedByError = [...corrected].sort((a,b)=>Math.abs(b.corrected-b.actual)-Math.abs(a.corrected-a.actual));
+  html += `<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
+    <div style="font-size:12px;font-weight:700;color:var(--brown);margin-bottom:10px">🔍 오차 큰 날짜 TOP 5</div>`;
+  sortedByError.slice(0, 5).forEach(r=>{
+    const err = Math.round(Math.abs(r.corrected-r.actual)/r.actual*100);
+    const dows = ['일','월','화','수','목','금','토'];
+    html += `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--surface);font-size:11px">
+      <span style="color:var(--td)">${r.date.slice(5)} (${dows[r.dow]})</span>
+      <span style="color:var(--tm)">예측 ${comma(r.corrected)} / 실제 ${comma(r.actual)}</span>
+      <span style="color:var(--red);font-weight:700">${err}%</span>
+    </div>`;
+  });
+  html += `</div>`;
+
+  // 안내 문구
+  html += `<div style="background:var(--bbg);border:1px solid var(--bborder);border-radius:10px;padding:12px 14px;font-size:11px;color:var(--blue);line-height:1.6">
+    💡 <strong>외식업 예측 신뢰도 기준</strong><br>
+    • 95%+ : 매우 우수 (체인점 본사 수준)<br>
+    • 90~95% : 우수<br>
+    • 85~90% : 양호 (단일 매장 우수)<br>
+    • 80~85% : 보통<br>
+    • 80% 이하 : 개선 필요
+  </div>`;
+
+  div.innerHTML = html;
+  showToast(`✅ 백테스팅 완료! 신뢰도 ${aAcc.toFixed(1)}%`, 4000);
+}
+
+// 신뢰도 이력 로드
+async function loadAccuracyHistory(){
+  const div = document.getElementById('accuracyHistoryView');
+  if(!div) return;
+  try{
+    const snap = await db.ref('accuracyHistory').orderByKey().limitToLast(10).get();
+    if(!snap.exists()){ div.innerHTML = '<div style="color:var(--tm);font-size:12px">아직 이력이 없어요</div>'; return; }
+    const items = [];
+    snap.forEach(c=>{ items.push({key:c.key, ...c.val()}); });
+    items.sort((a,b)=>b.key.localeCompare(a.key));
+    let html = '';
+    items.forEach(it=>{
+      const color = it.afterAcc>=90?'var(--green)':it.afterAcc>=80?'var(--gold)':'var(--red)';
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface);border-radius:6px;margin-bottom:4px;font-size:11px">
+        <div style="color:var(--td)">${it.key}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="color:var(--tm)">${it.totalDays}일</span>
+          <span style="color:${color};font-weight:700">${it.afterAcc.toFixed(1)}%</span>
+          ${it.improvement>0?`<span style="color:var(--green);font-size:10px">+${it.improvement.toFixed(1)}p</span>`:''}
+        </div>
+      </div>`;
+    });
+    div.innerHTML = html;
+  }catch(e){
+    div.innerHTML = '<div style="color:var(--red);font-size:12px">이력 로드 실패</div>';
+  }
+}
+
+// 탭 전환
+function showPredDbgTab(id, btn){
+  document.querySelectorAll('#vPredDebug .bc').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('#vPredDebug .btab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('pdc-'+id).classList.add('on');
+  btn.classList.add('on');
+  if(id==='accuracy'){
+    loadAccuracyHistory();
+  }
+}
+
+// ── 적응형 학습: 매일 자동 갱신 ──
+async function dailyAdaptiveLearning(){
+  const today = localDateStr(new Date());
+  const lastRun = localStorage.getItem('ws_backtest_last_run');
+  if(lastRun === today) return; // 오늘 이미 실행함
+  if(!DASH_DATA || DASH_DATA.filter(x=>x.total>0).length < 10) return;
+  try{
+    const validData = DASH_DATA.filter(x => x.total > 0).sort((a,b)=>a.date-b.date);
+    // ★ 이상치 자동 감지
+    const avgTotal = validData.reduce((s,x)=>s+x.total, 0) / validData.length;
+    const outlierThreshold = avgTotal * 0.7;
+    const outlierDates = new Set();
+    validData.forEach(x=>{
+      if(x.total < outlierThreshold) outlierDates.add(localDateStr(x.date));
+    });
+
+    const allResults = [];
+    for(const x of validData){
+      const r = backtestSingleDayClean(x.date, validData, outlierThreshold);
+      if(r && r.actual > 0 && r.pred > 0){
+        r.isOutlier = outlierDates.has(r.date);
+        allResults.push(r);
+      }
+    }
+    const results = allResults.filter(r => !r.isOutlier);
+    if(results.length === 0) return;
+
+    const beforeMape = calcMape(results, 'pred');
+    const factors = calcCorrectionFactors(results);
+    let appliedFactors = null;
+    let afterMape = beforeMape;
+
+    if(factors){
+      const tested = applyFactorsToResults(results, factors);
+      const testedMape = calcMape(tested, 'corrected');
+      // ★ 안전장치: 더 나아질 때만 적용
+      if(testedMape < beforeMape){
+        appliedFactors = factors;
+        afterMape = testedMape;
+      }
+    }
+
+    const beforeRmse = Math.sqrt(results.reduce((s,r)=>s + Math.pow(r.pred-r.actual, 2), 0) / results.length);
+    let afterRmse = beforeRmse;
+    if(appliedFactors){
+      const tested = applyFactorsToResults(results, appliedFactors);
+      afterRmse = Math.sqrt(tested.reduce((s,r)=>s + Math.pow(r.corrected-r.actual, 2), 0) / tested.length);
+    }
+    const beforeAcc = Math.max(0, 100-beforeMape);
+    const afterAcc = Math.max(0, 100-afterMape);
+
+    // Firebase 저장
+    if(appliedFactors){
+      await db.ref('correctionFactors').set(appliedFactors);
+      correctionFactors = appliedFactors;
+    } else {
+      await db.ref('correctionFactors').remove();
+      correctionFactors = null;
+    }
+    await db.ref('accuracyHistory/'+today).set({
+      date: today,
+      totalDays: results.length,
+      outlierDays: allResults.length - results.length,
+      beforeMape: Math.round(beforeMape*10)/10,
+      afterMape: Math.round(afterMape*10)/10,
+      beforeRmse: Math.round(beforeRmse),
+      afterRmse: Math.round(afterRmse),
+      beforeAcc: Math.round(beforeAcc*10)/10,
+      afterAcc: Math.round(afterAcc*10)/10,
+      improvement: Math.round((afterAcc-beforeAcc)*10)/10,
+      correctionApplied: !!appliedFactors,
+      ranAt: new Date().toISOString(),
+      auto: true
+    });
+    localStorage.setItem('ws_backtest_last_run', today);
+    console.log(`[적응형 학습] 자동 백테스팅 완료, 신뢰도: ${afterAcc.toFixed(1)}% (${appliedFactors?'보정 적용':'보정 없음'})`);
+  }catch(e){
+    console.error('[적응형 학습] 실패:', e);
+  }
 }
 
 // ── 예측 계산 분석 (대표 전용) ──
