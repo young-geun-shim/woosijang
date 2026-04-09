@@ -2346,12 +2346,18 @@ function checkGPS(){
 }
 function doStamp(type){
   if(!CU.name){showNameOv(true);return;}
-  if(!gpsOk){alert('매장 근처에서만 '+(type==='in'?'출근':'퇴근')+'할 수 있어요\n(50m 이내)');return;}
+  if(!gpsOk){showToast('⚠️ 매장 근처(50m 이내)에서만 '+(type==='in'?'출근':'퇴근')+'할 수 있어요', 3500);return;}
   const n=new Date(), dk=dkStr(n.getFullYear(),n.getMonth(),n.getDate());
   const t=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
   const key=db.ref('attend').push().key;
   setSyncDot('ing');
-  db.ref('attend/'+key).set({name:CU.name,role:CU.role,type,date:dk,time:t,ts:n.getTime()}).then(()=>{setSyncDot('ok');alert((type==='in'?'✅ 출근':'🚪 퇴근')+' 완료!\n'+CU.name+' '+t);}).catch(()=>setSyncDot('err'));
+  db.ref('attend/'+key).set({name:CU.name,role:CU.role,type,date:dk,time:t,ts:n.getTime()}).then(()=>{
+    setSyncDot('ok');
+    showToast((type==='in'?'✅ 출근 완료!':'🚪 퇴근 완료!')+' '+CU.name+' '+t, 3500);
+  }).catch(()=>{
+    setSyncDot('err');
+    showToast('❌ 저장 실패! 다시 시도해주세요', 3500);
+  });
 }
 
 // 출퇴근 달력
